@@ -1,4 +1,4 @@
-import inochi2d.core.puppet : Puppet, PuppetMeta;
+import inochi2d.core.puppet : Puppet, PuppetMeta, PuppetUsageRights;
 import inochi2d.core.nodes : Node;
 import inochi2d.core.nodes.drawable.part : Part;
 import inochi2d.core.mesh : MeshData;
@@ -21,6 +21,7 @@ int main(string[] args) {
     try {
         stderr.writeln("fixture-generator: construct puppet");
         auto puppet = new Puppet();
+        puppet.meta.rights = new PuppetUsageRights();
         puppet.meta.name = "M1 Inspection Fixture";
         stderr.writeln("fixture-generator: assigned meta name=", puppet.meta.name.value);
         if (puppet.meta.name.value != "M1 Inspection Fixture") {
@@ -93,6 +94,7 @@ int main(string[] args) {
             return 11;
         }
         auto metaProbe = new PuppetMeta();
+        metaProbe.rights = new PuppetUsageRights();
         metaProbe.onDeserialize(parsedMetaJson);
         stderr.writeln("fixture-generator: probe metadata name=", metaProbe.name.value);
         if (metaProbe.name.value != "M1 Inspection Fixture") {

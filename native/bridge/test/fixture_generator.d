@@ -6,8 +6,10 @@ import inochi2d.core.param : Parameter;
 import inochi2d.core.format.inp : inLoadPuppet, inWriteINPPuppet;
 import inmath : vec2;
 import std.file : exists, getSize, mkdirRecurse;
+import std.json : JSONValue, parseJSON, toJSON;
 import std.path : dirName;
 import std.stdio : stderr;
+import std.uni : toLower;
 
 int main(string[] args) {
     if (args.length != 2) {
@@ -33,6 +35,29 @@ int main(string[] args) {
         headX.max = vec2(1, 0);
         headX.defaults = vec2(0, 0);
         puppet.parameters ~= headX;
+
+        // Diagnostic regression: exercise the exact Parameter JSON
+        // serialize -> parse -> onDeserialize path independently of the
+        // surrounding Puppet array/finalize path. This tells us whether the
+        // nstring bytes are already corrupt before full INP loading.
+        stderr.writeln("fixture-generator: probe parameter serde");
+        JSONValue parameterJson;
+        headX.onSerialize(parameterJson);
+        auto parsedParameterJson = parseJSON(parameterJson.toJSON());
+        auto parameterProbe = new Parameter();
+        parameterProbe.onDeserialize(parsedParameterJson);
+        stderr.writeln(
+            "fixture-generator: probe name length=", parameterProbe.name.length,
+            " value=", parameterProbe.name.value
+        );
+        if (parameterProbe.name.value != "Head X") {
+            stderr.writeln("fixture-generator: probe parameter name mismatch");
+            return 6;
+        }
+        if (parameterProbe.name.value.toLower != "head x") {
+            stderr.writeln("fixture-generator: probe lowercase mismatch");
+            return 7;
+        }
 
         stderr.writeln("fixture-generator: serialize puppet");
         mkdirRecurse(dirName(args[1]));

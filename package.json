@@ -13,7 +13,8 @@
     "upstream:fingerprint": "node scripts/upstream/fingerprint.mjs",
     "native:toolchain:verify": "node scripts/native/verify-toolchain.mjs",
     "native:build": "node scripts/native/build-bridge.mjs",
-    "native:probe": "node scripts/native/build-bridge.mjs --probe"
+    "native:probe": "node scripts/native/build-bridge.mjs --probe",
+    "native:ci": "npm run upstream:materialize && npm run upstream:verify && npm run native:toolchain:verify && npm run native:build && npm run native:probe && npm run upstream:fingerprint -- --json"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

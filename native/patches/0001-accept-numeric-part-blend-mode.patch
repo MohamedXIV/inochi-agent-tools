@@ -1,0 +1,18 @@
+diff --git a/source/inochi2d/core/nodes/drawable/part.d b/source/inochi2d/core/nodes/drawable/part.d
+--- a/source/inochi2d/core/nodes/drawable/part.d
++++ b/source/inochi2d/core/nodes/drawable/part.d
+@@ -92,7 +92,13 @@ protected:
+         object.tryGetRef(masks, "masks");
+ 
+-        blendingMode = object.tryGet!string("blend_mode", "Normal").toBlendMode();
++        if (object.hasKey("blend_mode") && object["blend_mode"].isScalar) {
++            // v0.8.7's serializer writes BlendMode as its integral enum value.
++            // Accept that representation so puppets written by this exact pin
++            // can be loaded again, while preserving string compatibility.
++            blendingMode = cast(BlendMode)object["blend_mode"].get!ulong;
++        } else {
++            blendingMode = object.tryGet!string("blend_mode", "Normal").toBlendMode();
++        }
+     }
+ 
+     //

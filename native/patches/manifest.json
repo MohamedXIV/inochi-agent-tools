@@ -14,6 +14,11 @@
       "file": "0003-lowercase-parameter-nstring-view.patch",
       "reason": "Pinned Inochi2D v0.8.7 passes nulib nstring directly to std.uni.toLower when rebuilding Parameter.indexableName; the alias conversion reaches std.uni with invalid range behavior for loaded parameter names. Passing the owned D-string view explicitly preserves the same lowercase semantics without the bounds failure.",
       "removalCondition": "Remove when the pinned upstream revision can finalize a loaded Parameter with nstring names without a std.uni bounds failure."
+    },
+    {
+      "file": "0004-serialize-puppet-meta-nstring-views.patch",
+      "reason": "Pinned Inochi2D v0.8.7 duplicates PuppetMeta serialization inside Puppet.onSerialize and assigns nulib nstring values directly into std.json, so whole-puppet JSON loses metadata even though PuppetMeta.onSerialize itself is corrected. Serialize the duplicated fields from their stable D-string views.",
+      "removalCondition": "Remove when the pinned upstream revision serializes Puppet metadata through one nstring-safe path and inToJson(Puppet) preserves metadata strings without this compatibility patch."
     }
   ]
 }

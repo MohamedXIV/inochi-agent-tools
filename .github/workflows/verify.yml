@@ -13,6 +13,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - run: npm install --package-lock-only --ignore-scripts
+      - run: cat package-lock.json
       - run: npm ci
       - run: npm run verify
       - run: npm run upstream:materialize
@@ -28,5 +30,6 @@ jobs:
       - uses: dlang-community/setup-dlang@v2
         with:
           compiler: ldc-1.40.0
+      - run: npm install --package-lock-only --ignore-scripts
       - run: npm ci
       - run: npm run native:ci

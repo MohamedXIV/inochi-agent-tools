@@ -1,0 +1,13 @@
+{
+  "name": "inochi-agent-tools-bridge",
+  "targetName": "iat_bridge",
+  "targetType": "dynamicLibrary",
+  "targetPath": "../../.build/native",
+  "sourcePaths": ["source"],
+  "dependencies": {
+    "inochi2d": { "path": "../../.deps/inochi2d" }
+  },
+  "toolchainRequirements": {
+    "ldc": ">=1.40.0"
+  }
+}

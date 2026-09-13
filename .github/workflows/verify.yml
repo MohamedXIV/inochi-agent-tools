@@ -30,3 +30,4 @@ jobs:
           compiler: ldc-1.40.0
       - run: npm ci
       - run: npm run native:ci
+      - run: npm run m1:fixture

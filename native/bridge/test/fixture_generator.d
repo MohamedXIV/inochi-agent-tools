@@ -1,10 +1,10 @@
 import inochi2d.core.puppet : Puppet;
 import inochi2d.core.nodes : Node;
 import inochi2d.core.nodes.drawable.part : Part;
+import inochi2d.core.mesh : MeshData;
 import inochi2d.core.param : Parameter;
 import inochi2d.core.format.inp : inLoadPuppet, inWriteINPPuppet;
 import inmath : vec2;
-import std.exception : collectException;
 import std.file : exists, getSize, mkdirRecurse;
 import std.path : dirName;
 import std.stdio : stderr;
@@ -23,7 +23,9 @@ int main(string[] args) {
         auto face = new Node(puppet.root);
         face.name = "Face";
 
-        auto mouth = new Part(face);
+        // Part(Node) leaves Drawable.mesh unset in pinned Inochi2D. Use the
+        // MeshData constructor so official serialization has a valid mesh.
+        auto mouth = new Part(MeshData.init, [], face);
         mouth.name = "Mouth";
 
         auto headX = new Parameter("Head X", false);

@@ -11,7 +11,9 @@
     "upstream:materialize": "node scripts/upstream/materialize.mjs",
     "upstream:verify": "node scripts/upstream/verify.mjs",
     "upstream:fingerprint": "node scripts/upstream/fingerprint.mjs",
-    "native:toolchain:verify": "node scripts/native/verify-toolchain.mjs"
+    "native:toolchain:verify": "node scripts/native/verify-toolchain.mjs",
+    "native:build": "node scripts/native/build-bridge.mjs",
+    "native:probe": "node scripts/native/build-bridge.mjs --probe"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

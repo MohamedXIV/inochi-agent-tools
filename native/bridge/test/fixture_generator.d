@@ -7,6 +7,7 @@ import inochi2d.core.format.inp : inLoadPuppet, inWriteINPPuppet;
 import inochi2d.core.format.serde : inLoadJsonDataFromMemory, inToJson;
 import inmath : vec2;
 import nulib.string : nstring;
+import std.algorithm.searching : canFind;
 import std.file : exists, getSize, mkdirRecurse;
 import std.json : JSONValue, parseJSON, toJSON;
 import std.path : dirName;
@@ -33,8 +34,6 @@ int main(string[] args) {
         auto face = new Node(puppet.root);
         face.name = "Face";
 
-        // Part(Node) leaves Drawable.mesh unset in pinned Inochi2D. Use the
-        // MeshData constructor so official serialization has a valid mesh.
         auto mouth = new Part(MeshData.init, [], face);
         mouth.name = "Mouth";
 
@@ -44,9 +43,6 @@ int main(string[] args) {
         headX.defaults = vec2(0, 0);
         puppet.parameters ~= headX;
 
-        // Diagnostic regression: separate NuLib assignment, JSON text/parse,
-        // and Inochi Parameter.onDeserialize so the failing ownership boundary
-        // is identified before adding another compatibility patch.
         stderr.writeln("fixture-generator: probe direct nstring assignment");
         nstring directName;
         directName.opAssign("Head X");
@@ -103,11 +99,9 @@ int main(string[] args) {
             return 12;
         }
 
-        // Whole-puppet JSON diagnostic. If this fails, the corruption is in
-        // Puppet.deserialize/finalization rather than the INP binary envelope.
         stderr.writeln("fixture-generator: probe whole-puppet JSON reload");
         auto puppetText = inToJson(puppet);
-        if (puppetText.indexOf("M1 Inspection Fixture") < 0) {
+        if (!puppetText.canFind("M1 Inspection Fixture")) {
             stderr.writeln("fixture-generator: whole-puppet JSON lost metadata before reload");
             return 13;
         }

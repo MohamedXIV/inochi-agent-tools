@@ -31,3 +31,42 @@ diff --git a/source/inochi2d/core/param/package.d b/source/inochi2d/core/param/p
          object["is_vec2"] = isVec2;
          object["is_vec2"] = isVec2;
          object["min"] = min.serialize();
+diff --git a/source/inochi2d/core/nodes/package.d b/source/inochi2d/core/nodes/package.d
+--- a/source/inochi2d/core/nodes/package.d
++++ b/source/inochi2d/core/nodes/package.d
+@@ -576,7 +576,7 @@ class Node : ISerializable, IDeserializable {
+     void onSerialize(ref JSONValue object, bool recursive = true) {
+         nstring guid = guid_.toString();
+         object["guid"] = guid.dup;
+-        object["name"] = name;
++        object["name"] = name.value;
+         object["type"] = typeId.sid;
+         object["enabled"] = enabled;
+         object["zsort"] = zsort_;
+diff --git a/source/inochi2d/core/puppet.d b/source/inochi2d/core/puppet.d
+--- a/source/inochi2d/core/puppet.d
++++ b/source/inochi2d/core/puppet.d
+@@ -174,15 +174,15 @@ class PuppetMeta {
+         Serializes the type.
+     */
+     void onSerialize(ref JSONValue object, bool recursive = true) {
+-        object["name"] = this.name;
+-        object["version"] = this.version_;
+-        object["rigger"] = this.rigger;
+-        object["artist"] = this.artist;
++        object["name"] = this.name.value;
++        object["version"] = this.version_.value;
++        object["rigger"] = this.rigger.value;
++        object["artist"] = this.artist.value;
+         object["rights"] = this.rights.serialize();
+-        object["copyright"] = this.copyright;
+-        object["licenseURL"] = this.licenseURL;
+-        object["contact"] = this.contact;
+-        object["reference"] = this.reference;
++        object["copyright"] = this.copyright.value;
++        object["licenseURL"] = this.licenseURL.value;
++        object["contact"] = this.contact.value;
++        object["reference"] = this.reference.value;
+         object["thumbnailId"] = this.thumbnailId;
+         object["preservePixels"] = this.preservePixels;
+     }

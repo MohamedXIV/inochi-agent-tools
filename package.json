@@ -7,7 +7,9 @@
   "scripts": {
     "typecheck": "tsc -p packages/core/tsconfig.json --noEmit",
     "test": "vitest run",
-    "verify": "npm run typecheck && npm test"
+    "verify": "npm run typecheck && npm test",
+    "upstream:materialize": "node scripts/upstream/materialize.mjs",
+    "upstream:verify": "node scripts/upstream/verify.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

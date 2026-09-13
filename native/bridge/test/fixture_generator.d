@@ -4,6 +4,7 @@ import inochi2d.core.nodes.drawable.part : Part;
 import inochi2d.core.mesh : MeshData;
 import inochi2d.core.param : Parameter;
 import inochi2d.core.format.inp : inLoadPuppet, inWriteINPPuppet;
+import inochi2d.core.format.serde : inLoadJsonDataFromMemory, inToJson;
 import inmath : vec2;
 import nulib.string : nstring;
 import std.file : exists, getSize, mkdirRecurse;
@@ -100,6 +101,25 @@ int main(string[] args) {
         if (metaProbe.name.value != "M1 Inspection Fixture") {
             stderr.writeln("fixture-generator: probe metadata name mismatch");
             return 12;
+        }
+
+        // Whole-puppet JSON diagnostic. If this fails, the corruption is in
+        // Puppet.deserialize/finalization rather than the INP binary envelope.
+        stderr.writeln("fixture-generator: probe whole-puppet JSON reload");
+        auto puppetText = inToJson(puppet);
+        if (puppetText.indexOf("M1 Inspection Fixture") < 0) {
+            stderr.writeln("fixture-generator: whole-puppet JSON lost metadata before reload");
+            return 13;
+        }
+        auto jsonReloaded = inLoadJsonDataFromMemory!Puppet(puppetText, null);
+        if (jsonReloaded is null) {
+            stderr.writeln("fixture-generator: whole-puppet JSON reload returned null");
+            return 14;
+        }
+        stderr.writeln("fixture-generator: whole-puppet JSON name=", jsonReloaded.meta.name.value);
+        if (jsonReloaded.meta.name.value != "M1 Inspection Fixture") {
+            stderr.writeln("fixture-generator: whole-puppet JSON metadata mismatch: ", jsonReloaded.meta.name.value);
+            return 15;
         }
 
         stderr.writeln("fixture-generator: serialize puppet");

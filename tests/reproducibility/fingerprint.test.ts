@@ -6,6 +6,6 @@ describe('build fingerprint', () => {
     const f = await buildFingerprint({ probeTools: false });
     expect(f.upstreamCommit).toBe('fdb241da048dbe330152f7b0015e2129dc392844');
     expect(f.upstreamVersion).toBe('v0.8.7');
-    expect(f.patches).toEqual([]);
+    expect(f.patches).toEqual(['0001-accept-numeric-part-blend-mode.patch']);
   });
 });

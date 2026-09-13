@@ -1,4 +1,4 @@
-import inochi2d.core.puppet : Puppet;
+import inochi2d.core.puppet : Puppet, PuppetMeta;
 import inochi2d.core.nodes : Node;
 import inochi2d.core.nodes.drawable.part : Part;
 import inochi2d.core.mesh : MeshData;
@@ -22,6 +22,11 @@ int main(string[] args) {
         stderr.writeln("fixture-generator: construct puppet");
         auto puppet = new Puppet();
         puppet.meta.name = "M1 Inspection Fixture";
+        stderr.writeln("fixture-generator: assigned meta name=", puppet.meta.name.value);
+        if (puppet.meta.name.value != "M1 Inspection Fixture") {
+            stderr.writeln("fixture-generator: direct metadata assignment mismatch");
+            return 10;
+        }
 
         auto face = new Node(puppet.root);
         face.name = "Face";
@@ -74,6 +79,25 @@ int main(string[] args) {
         if (parameterProbe.name.value.toLower != "head x") {
             stderr.writeln("fixture-generator: probe lowercase mismatch");
             return 7;
+        }
+
+        stderr.writeln("fixture-generator: probe metadata serde");
+        JSONValue metaJson;
+        puppet.meta.onSerialize(metaJson);
+        auto metaText = metaJson.toJSON();
+        stderr.writeln("fixture-generator: serialized metadata=", metaText);
+        auto parsedMetaJson = parseJSON(metaText);
+        stderr.writeln("fixture-generator: parsed metadata name=", parsedMetaJson["name"].str);
+        if (parsedMetaJson["name"].str != "M1 Inspection Fixture") {
+            stderr.writeln("fixture-generator: parsed JSON metadata name mismatch");
+            return 11;
+        }
+        auto metaProbe = new PuppetMeta();
+        metaProbe.onDeserialize(parsedMetaJson);
+        stderr.writeln("fixture-generator: probe metadata name=", metaProbe.name.value);
+        if (metaProbe.name.value != "M1 Inspection Fixture") {
+            stderr.writeln("fixture-generator: probe metadata name mismatch");
+            return 12;
         }
 
         stderr.writeln("fixture-generator: serialize puppet");

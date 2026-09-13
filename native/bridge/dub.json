@@ -10,5 +10,6 @@
   },
   "toolchainRequirements": {
     "ldc": ">=1.40.0"
-  }
+  },
+  "dflags-ldc": ["-link-defaultlib-shared"]
 }

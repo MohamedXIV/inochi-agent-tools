@@ -22,7 +22,13 @@ mkdirSync(outDir, { recursive: true });
 
 run(process.execPath, ['scripts/native/verify-toolchain.mjs']);
 run(process.execPath, ['scripts/upstream/materialize.mjs']);
-run('dub', ['build', '--root=native/bridge', '--compiler=ldc2', '--build=debug']);
+run('dub', [
+  'build',
+  '--root=native/bridge',
+  '--compiler=ldc2',
+  '--build=debug',
+  '--config=library',
+]);
 
 if (process.argv.includes('--probe')) {
   run('ldc2', [

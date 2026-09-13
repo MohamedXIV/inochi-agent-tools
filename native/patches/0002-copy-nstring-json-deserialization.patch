@@ -70,3 +70,24 @@ diff --git a/source/inochi2d/core/puppet.d b/source/inochi2d/core/puppet.d
          object["thumbnailId"] = this.thumbnailId;
          object["preservePixels"] = this.preservePixels;
      }
+@@ -396,14 +396,14 @@ protected:
+         // Meta Info
+         object["meta"] = JSONValue.emptyObject;
+-        object["meta"]["name"] = meta.name;
+-        object["meta"]["version"] = meta.version_;
+-        object["meta"]["rigger"] = meta.rigger;
+-        object["meta"]["artist"] = meta.artist;
+-        object["meta"]["copyright"] = meta.copyright;
+-        object["meta"]["licenseURL"] = meta.licenseURL;
+-        object["meta"]["contact"] = meta.contact;
+-        object["meta"]["reference"] = meta.reference;
++        object["meta"]["name"] = meta.name.value;
++        object["meta"]["version"] = meta.version_.value;
++        object["meta"]["rigger"] = meta.rigger.value;
++        object["meta"]["artist"] = meta.artist.value;
++        object["meta"]["copyright"] = meta.copyright.value;
++        object["meta"]["licenseURL"] = meta.licenseURL.value;
++        object["meta"]["contact"] = meta.contact.value;
++        object["meta"]["reference"] = meta.reference.value;
+         object["meta"]["thumbnailId"] = meta.thumbnailId;
+         object["meta"]["preservePixels"] = meta.preservePixels;

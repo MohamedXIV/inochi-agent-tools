@@ -1,9 +1,5 @@
 {
   "name": "inochi-agent-tools-bridge",
-  "targetName": "iat_bridge",
-  "targetType": "dynamicLibrary",
-  "targetPath": "../../.build/native",
-  "sourcePaths": ["source"],
   "dependencies": {
     "inochi2d": { "path": "../../.deps/inochi2d" },
     "numem": "==1.3.2"
@@ -11,5 +7,23 @@
   "toolchainRequirements": {
     "ldc": ">=1.40.0"
   },
-  "dflags-ldc": ["-link-defaultlib-shared"]
+  "dflags-ldc": ["-link-defaultlib-shared"],
+  "configurations": [
+    {
+      "name": "library",
+      "targetName": "iat_bridge",
+      "targetType": "dynamicLibrary",
+      "targetPath": "../../.build/native",
+      "sourcePaths": ["source"]
+    },
+    {
+      "name": "fixture-generator",
+      "targetName": "m1_fixture_generator",
+      "targetType": "executable",
+      "targetPath": "../../.build/native",
+      "sourcePaths": ["source", "test"],
+      "mainSourceFile": "test/fixture_generator.d",
+      "excludedSourceFiles": ["test/bridge_probe.d"]
+    }
+  ]
 }

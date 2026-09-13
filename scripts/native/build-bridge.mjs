@@ -27,6 +27,7 @@ run('dub', ['build', '--root=native/bridge', '--compiler=ldc2', '--build=debug']
 if (process.argv.includes('--probe')) {
   run('ldc2', [
     'native/bridge/test/bridge_probe.d',
+    '-link-defaultlib-shared',
     `-L-L${outDir}`,
     '-L-liat_bridge',
     `-of=${probePath}`,

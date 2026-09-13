@@ -1,36 +1,11 @@
 name: Verify
 
-permissions:
-  contents: write
-
 on:
   push:
     branches: [main]
   pull_request:
 
 jobs:
-  lockfile:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: foundation/3-native-bridge-ci
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: npm install --package-lock-only --ignore-scripts
-      - name: Commit generated Node lockfile once
-        run: |
-          if git ls-files --error-unmatch package-lock.json >/dev/null 2>&1 && git diff --quiet -- package-lock.json; then
-            exit 0
-          fi
-          git config user.name "inochi-agent-tools-ci"
-          git config user.email "actions@users.noreply.github.com"
-          git add package-lock.json
-          git commit -m "build: lock Node dependency graph"
-          git push origin HEAD:foundation/3-native-bridge-ci
-
   semantic:
     runs-on: ubuntu-latest
     steps:
@@ -38,7 +13,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --package-lock-only --ignore-scripts
       - run: npm ci
       - run: npm run verify
       - run: npm run upstream:materialize
@@ -54,6 +28,5 @@ jobs:
       - uses: dlang-community/setup-dlang@v2
         with:
           compiler: ldc-1.40.0
-      - run: npm install --package-lock-only --ignore-scripts
       - run: npm ci
       - run: npm run native:ci

@@ -15,7 +15,7 @@ diff --git a/source/inochi2d/core/format/serde/package.d b/source/inochi2d/core/
          destination = data;
 +    } else static if (isSomeNString!T) {
 +        if (!data.isNull)
-+            destination = data.str;
++            destination.opAssign(data.str);
      } else static if (isDeserializable!T) {
          static if (is(T == class) && is(typeof((ref T a) { a = new T; }))) {
              if (!destination)

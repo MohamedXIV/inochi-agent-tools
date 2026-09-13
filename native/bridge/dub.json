@@ -5,7 +5,8 @@
   "targetPath": "../../.build/native",
   "sourcePaths": ["source"],
   "dependencies": {
-    "inochi2d": { "path": "../../.deps/inochi2d" }
+    "inochi2d": { "path": "../../.deps/inochi2d" },
+    "numem": "==1.3.2"
   },
   "toolchainRequirements": {
     "ldc": ">=1.40.0"

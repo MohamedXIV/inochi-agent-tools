@@ -1,0 +1,20 @@
+diff --git a/source/inochi2d/core/format/serde/package.d b/source/inochi2d/core/format/serde/package.d
+--- a/source/inochi2d/core/format/serde/package.d
++++ b/source/inochi2d/core/format/serde/package.d
+@@ -3,6 +3,7 @@ import inochi2d.core.math;
+ import inochi2d.core;
+ import inmath.util;
+ import std.traits;
++import nulib.string : isSomeNString;
+ 
+ public import std.json : JSONValue, JSONType, parseJSON, toJSON;
+ public import inochi2d.core.format.serde.deserializers;
+@@ -87,6 +88,9 @@ void deserialize(T)(ref JSONValue data, ref T destination) {
+         else
+             onDeserialize!T(destination, data);
++    } else static if (isSomeNString!T) {
++        if (!data.isNull)
++            destination = data.str;
+     } else static if (is(T : string)) {
+         if (!data.isNull)
+             destination = cast(T)data.str;

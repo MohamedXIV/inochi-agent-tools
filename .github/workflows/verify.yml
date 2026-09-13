@@ -27,7 +27,7 @@ jobs:
           node-version: 22
       - uses: dlang-community/setup-dlang@v2
         with:
-          compiler: ldc-latest
+          compiler: ldc-1.40.0
       - run: npm install
       - run: npm run native:toolchain:verify
       - run: npm run native:probe

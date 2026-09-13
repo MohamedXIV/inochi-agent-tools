@@ -9,6 +9,7 @@ describe('build fingerprint', () => {
     expect(f.patches).toEqual([
       '0001-accept-numeric-part-blend-mode.patch',
       '0002-copy-nstring-json-deserialization.patch',
+      '0003-lowercase-parameter-nstring-view.patch',
     ]);
   });
 });

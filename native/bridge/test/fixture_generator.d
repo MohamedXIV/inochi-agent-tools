@@ -5,6 +5,7 @@ import inochi2d.core.mesh : MeshData;
 import inochi2d.core.param : Parameter;
 import inochi2d.core.format.inp : inLoadPuppet, inWriteINPPuppet;
 import inmath : vec2;
+import nulib.string : nstring;
 import std.file : exists, getSize, mkdirRecurse;
 import std.json : JSONValue, parseJSON, toJSON;
 import std.path : dirName;
@@ -36,14 +37,30 @@ int main(string[] args) {
         headX.defaults = vec2(0, 0);
         puppet.parameters ~= headX;
 
-        // Diagnostic regression: exercise the exact Parameter JSON
-        // serialize -> parse -> onDeserialize path independently of the
-        // surrounding Puppet array/finalize path. This tells us whether the
-        // nstring bytes are already corrupt before full INP loading.
+        // Diagnostic regression: separate NuLib assignment, JSON text/parse,
+        // and Inochi Parameter.onDeserialize so the failing ownership boundary
+        // is identified before adding another compatibility patch.
+        stderr.writeln("fixture-generator: probe direct nstring assignment");
+        nstring directName;
+        directName.opAssign("Head X");
+        stderr.writeln("fixture-generator: direct name length=", directName.length, " value=", directName.value);
+        if (directName.value != "Head X") {
+            stderr.writeln("fixture-generator: direct nstring assignment mismatch");
+            return 8;
+        }
+
         stderr.writeln("fixture-generator: probe parameter serde");
         JSONValue parameterJson;
         headX.onSerialize(parameterJson);
-        auto parsedParameterJson = parseJSON(parameterJson.toJSON());
+        auto parameterText = parameterJson.toJSON();
+        stderr.writeln("fixture-generator: serialized parameter=", parameterText);
+        auto parsedParameterJson = parseJSON(parameterText);
+        stderr.writeln("fixture-generator: parsed name=", parsedParameterJson["name"].str);
+        if (parsedParameterJson["name"].str != "Head X") {
+            stderr.writeln("fixture-generator: parsed JSON parameter name mismatch");
+            return 9;
+        }
+
         auto parameterProbe = new Parameter();
         parameterProbe.onDeserialize(parsedParameterJson);
         stderr.writeln(

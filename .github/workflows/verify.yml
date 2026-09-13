@@ -17,3 +17,18 @@ jobs:
       - run: npm run verify
       - run: npm run upstream:materialize
       - run: npm run upstream:verify
+
+  native:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dlang-community/setup-dlang@v2
+        with:
+          compiler: ldc-latest
+      - run: npm install
+      - run: npm run native:toolchain:verify
+      - run: npm run native:probe
+      - run: npm run upstream:fingerprint -- --json

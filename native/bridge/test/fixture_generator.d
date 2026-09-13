@@ -3,7 +3,7 @@ import inochi2d.core.nodes : Node;
 import inochi2d.core.nodes.drawable.part : Part;
 import inochi2d.core.param : Parameter;
 import inochi2d.core.format.inp : inLoadPuppet, inWriteINPPuppet;
-import inochi2d.core.math : vec2;
+import inmath : vec2;
 import std.file : exists, getSize, mkdirRecurse;
 import std.path : dirName;
 

@@ -19,3 +19,15 @@ diff --git a/source/inochi2d/core/format/serde/package.d b/source/inochi2d/core/
      } else static if (isDeserializable!T) {
          static if (is(T == class) && is(typeof((ref T a) { a = new T; }))) {
              if (!destination)
+diff --git a/source/inochi2d/core/param/package.d b/source/inochi2d/core/param/package.d
+--- a/source/inochi2d/core/param/package.d
++++ b/source/inochi2d/core/param/package.d
+@@ -263,7 +263,7 @@ class Parameter : ISerializable, IDeserializable {
+         
+         auto selfGuid = guid.toString();
+         object["guid"] = selfGuid.dup;
+-        object["name"] = name;
++        object["name"] = name.value;
+         object["is_vec2"] = isVec2;
+         object["is_vec2"] = isVec2;
+         object["min"] = min.serialize();

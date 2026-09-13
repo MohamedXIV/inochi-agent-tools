@@ -1,7 +1,7 @@
 diff --git a/source/inochi2d/core/nodes/drawable/part.d b/source/inochi2d/core/nodes/drawable/part.d
 --- a/source/inochi2d/core/nodes/drawable/part.d
 +++ b/source/inochi2d/core/nodes/drawable/part.d
-@@ -92,7 +92,13 @@ protected:
+@@ -92,6 +92,13 @@ protected:
          object.tryGetRef(masks, "masks");
  
 -        blendingMode = object.tryGet!string("blend_mode", "Normal").toBlendMode();

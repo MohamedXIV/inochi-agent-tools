@@ -13,7 +13,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install
+      - run: npm ci
       - run: npm run verify
       - run: npm run upstream:materialize
       - run: npm run upstream:verify
@@ -28,7 +28,5 @@ jobs:
       - uses: dlang-community/setup-dlang@v2
         with:
           compiler: ldc-1.40.0
-      - run: npm install
-      - run: npm run native:toolchain:verify
-      - run: npm run native:probe
-      - run: npm run upstream:fingerprint -- --json
+      - run: npm ci
+      - run: npm run native:ci

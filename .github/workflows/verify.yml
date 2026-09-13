@@ -13,7 +13,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install
+      - run: npm ci
       - run: npm run verify
       - run: npm run upstream:materialize
       - run: npm run upstream:verify
+
+  native:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dlang-community/setup-dlang@v2
+        with:
+          compiler: ldc-1.40.0
+      - run: npm ci
+      - run: npm run native:ci

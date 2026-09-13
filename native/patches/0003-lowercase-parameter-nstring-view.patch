@@ -1,0 +1,12 @@
+diff --git a/source/inochi2d/core/param/package.d b/source/inochi2d/core/param/package.d
+--- a/source/inochi2d/core/param/package.d
++++ b/source/inochi2d/core/param/package.d
+@@ -715,7 +715,7 @@ public:
+ 
+     void makeIndexable() {
+         import std.uni : toLower;
+-        indexableName = name.toLower;
++        indexableName = name.value.toLower;
+     }
+ }
+ 

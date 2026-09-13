@@ -14,7 +14,10 @@ jobs:
         with:
           node-version: 22
       - run: npm install --package-lock-only --ignore-scripts
-      - run: cat package-lock.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: generated-package-lock
+          path: package-lock.json
       - run: npm ci
       - run: npm run verify
       - run: npm run upstream:materialize

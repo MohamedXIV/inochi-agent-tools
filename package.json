@@ -9,7 +9,9 @@
     "test": "vitest run",
     "verify": "npm run typecheck && npm test",
     "upstream:materialize": "node scripts/upstream/materialize.mjs",
-    "upstream:verify": "node scripts/upstream/verify.mjs"
+    "upstream:verify": "node scripts/upstream/verify.mjs",
+    "upstream:fingerprint": "node scripts/upstream/fingerprint.mjs",
+    "native:toolchain:verify": "node scripts/native/verify-toolchain.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

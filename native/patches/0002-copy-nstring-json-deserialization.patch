@@ -5,7 +5,7 @@ diff --git a/source/inochi2d/core/format/serde/package.d b/source/inochi2d/core/
  import inochi2d.core;
  import inmath.util;
  import std.traits;
-+import nulib.string : nstring;
++import nulib.string : isSomeNString, nstring;
  
  public import std.json : JSONValue, JSONType, parseJSON, toJSON;
  public import inochi2d.core.format.serde.deserializers;
@@ -13,9 +13,9 @@ diff --git a/source/inochi2d/core/format/serde/package.d b/source/inochi2d/core/
  
      static if (is(T == JSONValue)) {
          destination = data;
-+    } else static if (is(T == nstring)) {
++    } else static if (isSomeNString!T) {
 +        if (!data.isNull)
-+            destination = data.str;
++            destination = nstring(data.str);
      } else static if (isDeserializable!T) {
          static if (is(T == class) && is(typeof((ref T a) { a = new T; }))) {
              if (!destination)

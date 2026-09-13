@@ -10,8 +10,8 @@ int main() {
     const(char)* rawVersion = iat_bridge_upstream_version();
     assert(rawVersion !is null);
 
-    const(char)[] version = rawVersion[0 .. strlen(rawVersion)];
-    assert(version == "v0.8.7");
-    writeln(version);
+    const(char)[] versionText = rawVersion[0 .. strlen(rawVersion)];
+    assert(versionText == "v0.8.7");
+    writeln(versionText);
     return 0;
 }

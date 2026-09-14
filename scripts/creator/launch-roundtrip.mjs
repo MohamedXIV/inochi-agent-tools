@@ -16,8 +16,10 @@ const settingsPath = resolve(configDir, 'settings.json');
 const creator = resolve(root, '.build/creator/v0.8.6/inochi-creator');
 const creatorDir = dirname(creator);
 const creatorCrashDir = resolve(creatorDir, '$XDG_STATE_HOME');
-const input = resolve(root, 'tests/fixtures/generated/creator-roundtrip-input.inp');
-const output = resolve(root, 'tests/fixtures/generated/creator-roundtrip-input.inx');
+const openOnly = process.argv[2] === '--open-only';
+const inputArg = openOnly ? process.argv[3] : undefined;
+const input = resolve(root, inputArg ?? 'tests/fixtures/generated/creator-roundtrip-input.inp');
+const output = input.replace(/\.inp$/i, '.inx');
 const display = ':99';
 const timeoutMs = 30_000;
 
@@ -72,6 +74,7 @@ function killProcess(child, signal = 'SIGTERM') {
   }
 }
 
+if (openOnly && !inputArg) fail('--open-only requires an input .inp path');
 if (!existsSync(creator)) fail(`official Creator executable missing: ${creator}`);
 if (!existsSync(input) || statSync(input).size === 0) fail(`input fixture missing or empty: ${input}`);
 if (!commandExists('Xvfb')) fail('Xvfb is required');
@@ -79,7 +82,7 @@ if (!commandExists('xdotool')) fail('xdotool is required');
 
 rmSync(configDir, { recursive: true, force: true });
 rmSync(creatorCrashDir, { recursive: true, force: true });
-rmSync(output, { force: true });
+if (!openOnly) rmSync(output, { force: true });
 mkdirSync(configDir, { recursive: true });
 // Creator v0.8.6's Linux crash handler passes the literal string
 // "$XDG_STATE_HOME/" through expandTilde(), which does not expand env vars.
@@ -136,28 +139,32 @@ try {
     return Array.isArray(settings?.prev_projects) && settings.prev_projects[0] === input;
   });
 
-  const search = spawnSync('xdotool', ['search', '--onlyvisible', '--pid', String(creatorProcess.pid)], {
-    env,
-    encoding: 'utf8',
-  });
-  if (search.status !== 0) fail(`could not find Creator window: ${search.stderr || search.stdout}`);
-  const windowId = search.stdout.trim().split(/\s+/)[0];
-  if (!windowId) fail('xdotool returned no Creator window id');
+  if (openOnly) {
+    process.stdout.write(`${JSON.stringify({ input, opened: true, creatorVersion: 'v0.8.6' })}\n`);
+  } else {
+    const search = spawnSync('xdotool', ['search', '--onlyvisible', '--pid', String(creatorProcess.pid)], {
+      env,
+      encoding: 'utf8',
+    });
+    if (search.status !== 0) fail(`could not find Creator window: ${search.stderr || search.stdout}`);
+    const windowId = search.stdout.trim().split(/\s+/)[0];
+    if (!windowId) fail('xdotool returned no Creator window id');
 
-  const save = spawnSync('xdotool', [
-    'windowactivate', '--sync', windowId,
-    'key', '--clearmodifiers', 'ctrl+s',
-  ], { env, encoding: 'utf8' });
-  if (save.status !== 0) fail(`Ctrl+S dispatch failed: ${save.stderr || save.stdout}`);
+    const save = spawnSync('xdotool', [
+      'windowactivate', '--sync', windowId,
+      'key', '--clearmodifiers', 'ctrl+s',
+    ], { env, encoding: 'utf8' });
+    if (save.status !== 0) fail(`Ctrl+S dispatch failed: ${save.stderr || save.stdout}`);
 
-  await waitFor('Creator-produced .inx save', () => existsSync(output) && statSync(output).size > 0);
+    await waitFor('Creator-produced .inx save', () => existsSync(output) && statSync(output).size > 0);
 
-  const settings = readSettings();
-  if (!Array.isArray(settings?.prev_projects) || settings.prev_projects[0] !== output) {
-    fail(`Creator save evidence missing from prev_projects: ${JSON.stringify(settings?.prev_projects)}`);
+    const settings = readSettings();
+    if (!Array.isArray(settings?.prev_projects) || settings.prev_projects[0] !== output) {
+      fail(`Creator save evidence missing from prev_projects: ${JSON.stringify(settings?.prev_projects)}`);
+    }
+
+    process.stdout.write(`${JSON.stringify({ input, output, creatorVersion: 'v0.8.6' })}\n`);
   }
-
-  process.stdout.write(`${JSON.stringify({ input, output, creatorVersion: 'v0.8.6' })}\n`);
 } finally {
   killProcess(creatorProcess);
   await sleep(250);

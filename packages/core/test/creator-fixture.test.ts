@@ -9,23 +9,36 @@ import {
 
 const runNative = process.env.IAT_M2_CREATOR_TESTS === '1';
 const base = 'tests/fixtures/generated/creator-roundtrip-base.inp';
+const visual = 'tests/fixtures/generated/creator-roundtrip-visual.inp';
+const parameters = 'tests/fixtures/generated/creator-roundtrip-parameters.inp';
 const output = 'tests/fixtures/generated/creator-roundtrip-input.inp';
 const imagePath = 'tests/fixtures/generated/m2-checker.png';
 
 describe.skipIf(!runNative)('official Creator compatibility fixture', () => {
-  it('authors the complete real visual and parameter acceptance puppet through the public semantic core', async () => {
+  it('authors staged real acceptance puppets through the public semantic core', async () => {
     await rm(base, { force: true });
+    await rm(visual, { force: true });
+    await rm(parameters, { force: true });
     await rm(output, { force: true });
 
     await createPuppet({ outputPath: base, name: 'Creator Roundtrip Fixture' });
 
-    const edited = await editPuppet({
+    const visualEdited = await editPuppet({
       inputPath: base,
-      outputPath: output,
+      outputPath: visual,
       operations: [
         { type: 'texture.import', key: 'face', imagePath },
         { type: 'node.create', parentPath: '/Root', name: 'Art' },
         { type: 'part.create', parentPath: '/Root/Art', name: 'Face', textureKey: 'face' },
+      ],
+    });
+    expect(visualEdited.inspection.textures).toHaveLength(1);
+    expect(visualEdited.inspection.summary.partCount).toBe(1);
+
+    const parameterEdited = await editPuppet({
+      inputPath: visual,
+      outputPath: parameters,
+      operations: [
         { type: 'node.create', parentPath: '/Root', name: 'Rig' },
         {
           type: 'parameter.create',
@@ -43,6 +56,15 @@ describe.skipIf(!runNative)('official Creator compatibility fixture', () => {
           max: [1, 0],
           defaultValue: [0, 0],
         },
+      ],
+    });
+    expect(parameterEdited.inspection.summary.parameterCount).toBe(2);
+    expect(parameterEdited.inspection.parameters.every((parameter) => parameter.bindings.length === 0)).toBe(true);
+
+    const edited = await editPuppet({
+      inputPath: parameters,
+      outputPath: output,
+      operations: [
         {
           type: 'parameter.bind',
           parameterName: 'Move X',
@@ -116,9 +138,11 @@ describe.skipIf(!runNative)('official Creator compatibility fixture', () => {
       }),
     ]);
 
+    expect(await inspectPuppet(visual)).toEqual(visualEdited.inspection);
+    expect(await inspectPuppet(parameters)).toEqual(parameterEdited.inspection);
     expect(await inspectPuppet(output)).toEqual(edited.inspection);
 
-    // Keep the minimal public-core artifact for the official Creator preflight.
-    // The full artifact remains the actual Issue #8 acceptance target.
+    // Keep each real staged artifact so official Creator can isolate the first
+    // incompatible semantic boundary without substituting synthetic fixtures.
   });
 });

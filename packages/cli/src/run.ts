@@ -1,10 +1,15 @@
+import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 
 import {
   createPuppet,
+  editPuppet,
+  evaluateParameterValues,
   inspectPuppet,
   savePuppet,
   validatePuppet,
+  type NumericPair,
+  type PuppetEditOperation,
 } from '@inochi-agent-tools/core';
 
 import { classifyCliError } from './errors.js';
@@ -43,6 +48,31 @@ function requireStringOption(
     throw new CliUsageError(`missing required option --${name}`);
   }
   return value;
+}
+
+async function readJsonSource(source: string, io: CliIo): Promise<unknown> {
+  let text: string;
+  try {
+    if (source === '-') {
+      if (!io.stdin) throw new CliUsageError('stdin JSON input is not available');
+      text = await io.stdin();
+    } else {
+      text = await readFile(source, 'utf8');
+    }
+  } catch (error) {
+    if (error instanceof CliUsageError) throw error;
+    throw new CliUsageError(
+      `unable to read JSON input: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  try {
+    return JSON.parse(text) as unknown;
+  } catch (error) {
+    throw new CliUsageError(
+      `invalid JSON input: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 }
 
 type ParsedCommand =
@@ -185,8 +215,29 @@ export async function runCli(argv: string[], io: CliIo): Promise<number> {
           outputPath: parsed.outputPath,
         });
         break;
-      default:
-        throw new CliUsageError(`command not implemented yet: ${parsed.command}`);
+      case 'puppet edit': {
+        const decoded = await readJsonSource(parsed.operationsSource, io);
+        if (!Array.isArray(decoded)) {
+          throw new CliUsageError('puppet edit operations JSON must be an array');
+        }
+        result = await editPuppet({
+          inputPath: parsed.inputPath,
+          outputPath: parsed.outputPath,
+          operations: decoded as PuppetEditOperation[],
+        });
+        break;
+      }
+      case 'parameter evaluate': {
+        const decoded = await readJsonSource(parsed.valuesSource, io);
+        if (typeof decoded !== 'object' || decoded === null || Array.isArray(decoded)) {
+          throw new CliUsageError('parameter values JSON must be an object');
+        }
+        result = await evaluateParameterValues({
+          inputPath: parsed.inputPath,
+          values: decoded as Record<string, NumericPair>,
+        });
+        break;
+      }
     }
 
     writeSuccess(io, json, command, result);

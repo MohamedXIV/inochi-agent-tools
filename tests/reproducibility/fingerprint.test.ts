@@ -16,6 +16,7 @@ describe('build fingerprint', () => {
       '0007-append-parameter-binding-json-elements.patch',
       '0008-disambiguate-guid-string-lookup.patch',
       '0009-read-binding-node-guid-from-node-field.patch',
+      '0010-serialize-node-local-transform.patch',
     ]);
   });
 });

@@ -31,3 +31,4 @@ jobs:
       - run: npm ci
       - run: npm run native:ci
       - run: npm run m1:fixture
+      - run: npm run m1:inspection-probe

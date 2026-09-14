@@ -34,8 +34,12 @@ const validInspection = {
 };
 
 describe('parsePuppetInspection', () => {
-  it('returns a validated schema v1 snapshot', () => {
-    expect(parsePuppetInspection(validInspection)).toEqual(validInspection);
+  it('returns a validated schema v1 snapshot and normalizes legacy texture fields', () => {
+    expect(parsePuppetInspection(validInspection)).toEqual({
+      ...validInspection,
+      nodes: validInspection.nodes.map((node) => ({ ...node, textures: [] })),
+      textures: [],
+    });
   });
 
   it.each([

@@ -42,3 +42,30 @@ export class RoundTripMismatchError extends Error {
     this.name = 'RoundTripMismatchError';
   }
 }
+
+export class InvalidHierarchyError extends Error {
+  readonly code = 'INVALID_HIERARCHY' as const;
+
+  constructor(message = 'Invalid or ambiguous puppet hierarchy operation') {
+    super(message);
+    this.name = 'InvalidHierarchyError';
+  }
+}
+
+export class MissingTextureError extends Error {
+  readonly code = 'MISSING_TEXTURE' as const;
+
+  constructor(message = 'Unknown transaction-local texture alias') {
+    super(message);
+    this.name = 'MissingTextureError';
+  }
+}
+
+export class InvalidTextureAssetError extends Error {
+  readonly code = 'INVALID_TEXTURE_ASSET' as const;
+
+  constructor(message = 'Invalid texture asset') {
+    super(message);
+    this.name = 'InvalidTextureAssetError';
+  }
+}

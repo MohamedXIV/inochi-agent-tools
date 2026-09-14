@@ -1,0 +1,21 @@
+diff --git a/source/inochi2d/core/format/serde/package.d b/source/inochi2d/core/format/serde/package.d
+--- a/source/inochi2d/core/format/serde/package.d
++++ b/source/inochi2d/core/format/serde/package.d
+@@ -181,8 +181,16 @@ T tryGet(T)(auto ref JSONValue data, T defaultValue = T.init) {
+     static if (__traits(isFloating, T))
+         defaultValue = 0.0;
+     
+-    static if (__traits(isScalar, T)) {
++    static if (__traits(isIntegral, T)) {
++        if (data.isScalar) {
++            static if (__traits(isUnsigned, T))
++                return cast(T)data.get!ulong();
++            else
++                return cast(T)data.get!long();
++        }
++        return defaultValue;
++    } else static if (__traits(isFloating, T)) {
+         if (data.isScalar)
+             return cast(T)data.get!float();
+         return defaultValue;
+     }

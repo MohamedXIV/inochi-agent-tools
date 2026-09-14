@@ -19,26 +19,51 @@ npm ci
 npm run verify
 npm run m1:ci
 npm run m1:authoring:ci
+npm run m2:visual:ci
 ```
 
-`m1:ci` preserves the read-only M1 inspection acceptance gate. `m1:authoring:ci` composes that gate with a separately linked native create/write/reopen probe, the process-isolated create host contract, and the real public `createPuppet` integration test.
+`m1:ci` preserves the read-only M1 inspection acceptance gate. `m1:authoring:ci` composes that gate with a separately linked native create/write/reopen probe, the process-isolated create host contract, and the real public `createPuppet` integration test. `m2:visual:ci` composes all prior gates with a genuine PNG decode/import, native hierarchy mutation probe, process-host proof, and public `editPuppet` real-artifact integration test.
 
 ## Read-only puppet inspection
 
-M1 exposes `inspectPuppet(filePath)` and `validatePuppet(filePath)` from `@inochi-agent-tools/core`. Both are read-only semantic operations: they return stable metadata, node/Part inventory, parameters, texture counts, and summary data without exposing Inochi2D pointers, allocators, raw `in_*` handles, GUID pointers, or memory offsets.
+M1 exposes `inspectPuppet(filePath)` and `validatePuppet(filePath)` from `@inochi-agent-tools/core`. Both are read-only semantic operations: they return stable metadata, node/Part inventory, parameters, texture inventory/relationships, and summary data without exposing Inochi2D pointers, allocators, raw `in_*` handles, GUID pointers, texture slots, or memory offsets.
 
 The Node/agent process does not load the D shared library directly. Inspection runs in `.build/native/iat_native_host`, which calls the private D/C ABI bridge and returns a bounded semantic JSON snapshot. Malformed puppets fail as `InvalidPuppetError`; host/process/protocol failures become `NativeBridgeError`.
 
 ## Minimal puppet creation
 
-`createPuppet({ outputPath, name })` is the first intentionally small authoring primitive. It creates a canonical minimal puppet, writes a genuine `.inp` using the exact pinned Inochi2D `inWriteINPPuppet` implementation, reopens it through the pinned loader, and returns the reopened semantic inspection snapshot.
-
-This operation is deliberately narrow: Issue #5 supports metadata plus the canonical root only. Texture/Part/arbitrary hierarchy authoring belongs to Issue #6, and parameters/bindings belong to Issue #7.
+`createPuppet({ outputPath, name })` creates a canonical minimal puppet, writes a genuine `.inp` using the exact pinned Inochi2D `inWriteINPPuppet` implementation, reopens it through the pinned loader, and returns the reopened semantic inspection snapshot.
 
 Creation fails closed when the name is blank or contains NUL, when the target is not an `.inp` path, when the target already exists, or when the saved puppet does not semantically round-trip. Existing files are never overwritten by `createPuppet`.
 
-Both inspection and authoring stay behind the process-isolated native host. The public TypeScript surface never owns a D object or native pointer, and host output is bounded to 16 MiB.
+## Visual hierarchy authoring
+
+`editPuppet({ inputPath, outputPath, operations })` applies one atomic semantic visual-edit transaction to an existing puppet and writes a new genuine `.inp`. The input is never modified in place and an existing output is never overwritten.
+
+Example:
+
+```ts
+await editPuppet({
+  inputPath: 'puppet.inp',
+  outputPath: 'puppet-with-face.inp',
+  operations: [
+    { type: 'texture.import', key: 'face', imagePath: 'face.png' },
+    { type: 'node.create', parentPath: '/Root', name: 'Body' },
+    { type: 'node.create', parentPath: '/Root', name: 'Accessories' },
+    { type: 'part.create', parentPath: '/Root/Body', name: 'Face', textureKey: 'face' },
+    { type: 'node.reparent', path: '/Root/Body/Face', newParentPath: '/Root/Accessories' },
+    { type: 'part.setTexture', path: '/Root/Accessories/Face', textureKey: 'face' },
+    { type: 'node.remove', path: '/Root/Body' },
+  ],
+});
+```
+
+Hierarchy references such as `/Root/Accessories/Face` are semantic paths, not GUIDs. Texture keys such as `face` are human-readable aliases scoped only to the current request. Persistent inspection identifies textures with content-derived `sha256:` fingerprints and reports semantic Part usages such as `albedo`; texture-cache slot numbers never become public API.
+
+Invalid/missing/ambiguous paths and unsafe cycles fail as `InvalidHierarchyError`; unknown request-local texture keys fail as `MissingTextureError`; missing/non-PNG/undecodable texture assets fail as `InvalidTextureAssetError`. The native host remains process-isolated and its captured output is bounded to 16 MiB.
+
+Issue #7 owns parameter creation/binding. Official Inochi Creator compatibility is a separate #8 gate. CLI/MCP are later adapters over this same semantic core rather than independent implementations.
 
 The real-artifact acceptance path uses official serialization from the exact pinned Inochi2D revision. Synthetic data is used only for narrow parser/adapter tests and does not substitute for `.inp` compatibility proof.
 
-See `docs/superpowers/specs/2026-09-13-inochi-agent-tools-v1-design.md` for the approved v1 design, `docs/superpowers/plans/2026-09-13-m0-foundation-upstream-contract.md` for M0, `docs/superpowers/plans/2026-09-14-m1-open-inspect-validate.md` for M1 inspection, and `docs/superpowers/plans/2026-09-14-m1-create-save-reopen.md` for the current authoring slice.
+See `docs/superpowers/specs/2026-09-13-inochi-agent-tools-v1-design.md` for the approved v1 design, `docs/superpowers/plans/2026-09-13-m0-foundation-upstream-contract.md` for M0, `docs/superpowers/plans/2026-09-14-m1-open-inspect-validate.md` for M1 inspection, `docs/superpowers/plans/2026-09-14-m1-create-save-reopen.md` for minimal creation, and `docs/superpowers/plans/2026-09-14-m2-texture-part-hierarchy.md` for visual hierarchy authoring.

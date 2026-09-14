@@ -2,17 +2,22 @@ module iat_bridge;
 
 import core.stdc.stdlib : free, malloc;
 import core.stdc.string : memcpy;
+import inmath : vec2;
 import inochi2d.core.format.inp : inLoadPuppet, inWriteINPPuppet;
+import inochi2d.core.mesh : MeshData;
 import inochi2d.core.nodes : Node;
 import inochi2d.core.nodes.drawable.part : Part;
 import inochi2d.core.puppet : Puppet;
+import inochi2d.core.render.texture : Texture, TextureData, TextureFormat;
 import inochi2d.ver : IN_VERSION;
 import nulib.threading.internal.semaphore : NativeSemaphore;
 import nulib.threading.internal.thread : NativeThread, ThreadContext;
-import std.file : exists, getSize, mkdirRecurse;
-import std.json : JSONValue, toJSON;
+import numem.core.memory : nu_dup;
+import std.digest.sha : sha256Of;
+import std.file : exists, getSize, mkdirRecurse, read, remove;
+import std.json : JSONType, JSONValue, parseJSON, toJSON;
 import std.path : dirName, extension;
-import std.string : fromStringz, strip;
+import std.string : fromStringz, split, strip;
 import std.uni : toLower;
 
 private enum upstreamVersion = IN_VERSION ~ "\0";
@@ -34,20 +39,104 @@ private char* copyCString(string value) nothrow {
     return memory;
 }
 
-private void appendNodeSnapshot(Node node, ref JSONValue nodes, ref size_t nodeCount, ref size_t partCount) {
+private int fail(char** outError, int code, string message) nothrow {
+    if (outError !is null) *outError = copyCString(message);
+    return code;
+}
+
+private void safeRemove(string path) nothrow {
+    try {
+        if (path.length > 0 && exists(path)) remove(path);
+    } catch (Throwable) {
+        // Cleanup failure must never unwind across the C ABI boundary.
+    }
+}
+
+private string lowerHex(const(ubyte)[] bytes) {
+    enum digits = "0123456789abcdef";
+    auto output = new char[](bytes.length * 2);
+    foreach (i, value; bytes) {
+        output[(i * 2)] = digits[(value >> 4) & 0x0f];
+        output[(i * 2) + 1] = digits[value & 0x0f];
+    }
+    return cast(string) output;
+}
+
+private void writeUint32LE(ref ubyte[9] header, size_t offset, uint value) {
+    header[offset] = cast(ubyte)(value & 0xff);
+    header[offset + 1] = cast(ubyte)((value >> 8) & 0xff);
+    header[offset + 2] = cast(ubyte)((value >> 16) & 0xff);
+    header[offset + 3] = cast(ubyte)((value >> 24) & 0xff);
+}
+
+private string textureFingerprint(Texture texture) {
+    if (texture is null) return "";
+
+    ubyte[9] header;
+    header[0] = cast(ubyte) texture.format;
+    writeUint32LE(header, 1, texture.width);
+    writeUint32LE(header, 5, texture.height);
+
+    ubyte[] payload;
+    payload ~= header[];
+    payload ~= cast(ubyte[]) texture.pixels;
+    auto digest = sha256Of(payload);
+    return "sha256:" ~ lowerHex(digest[]);
+}
+
+private string textureFormatName(Texture texture) {
+    if (texture is null) return "unknown";
+    final switch (texture.format) {
+        case TextureFormat.rgba8Unorm:
+            return "rgba8";
+        case TextureFormat.r8:
+            return "r8";
+        case TextureFormat.none:
+        case TextureFormat.depthStencil:
+            return "unknown";
+    }
+}
+
+private string childPath(string parentPath, string name) {
+    return parentPath ~ "/" ~ name;
+}
+
+private void appendNodeSnapshot(
+    Node node,
+    string path,
+    ref JSONValue nodes,
+    ref size_t nodeCount,
+    ref size_t partCount,
+) {
     if (node is null) return;
 
     JSONValue item = JSONValue.emptyObject;
-    item["path"] = node.getNodePath();
+    item["path"] = path;
     item["name"] = node.name.value;
     item["kind"] = cast(Part) node ? "part" : "node";
     item["childCount"] = cast(ulong) node.children.length;
+
+    JSONValue textureBindings = JSONValue.emptyArray;
+    if (auto part = cast(Part) node) {
+        static immutable usageNames = ["albedo", "emissive", "bumpmap"];
+        foreach (i, usageName; usageNames) {
+            auto texture = part.textures[i];
+            if (texture is null) continue;
+
+            JSONValue binding = JSONValue.emptyObject;
+            binding["usage"] = usageName;
+            binding["ref"] = textureFingerprint(texture);
+            textureBindings.array ~= binding;
+        }
+    }
+    item["textures"] = textureBindings;
+
     nodes.array ~= item;
     nodeCount++;
     if (cast(Part) node) partCount++;
 
     foreach (child; node.children) {
-        appendNodeSnapshot(child, nodes, nodeCount, partCount);
+        appendNodeSnapshot(child, childPath(path, child.name.value), nodes, nodeCount, partCount);
     }
 }
 
@@ -65,7 +154,8 @@ private string buildInspectionJson(Puppet puppet) {
     JSONValue nodes = JSONValue.emptyArray;
     size_t nodeCount;
     size_t partCount;
-    appendNodeSnapshot(puppet.root, nodes, nodeCount, partCount);
+    auto rootPath = "/" ~ puppet.root.name.value;
+    appendNodeSnapshot(puppet.root, rootPath, nodes, nodeCount, partCount);
     result["nodes"] = nodes;
 
     JSONValue parameters = JSONValue.emptyArray;
@@ -80,6 +170,20 @@ private string buildInspectionJson(Puppet puppet) {
         parameters.array ~= item;
     }
     result["parameters"] = parameters;
+
+    JSONValue textures = JSONValue.emptyArray;
+    if (puppet.textureCache !is null) {
+        foreach (texture; puppet.textureCache.cache) {
+            if (texture is null) continue;
+            JSONValue item = JSONValue.emptyObject;
+            item["ref"] = textureFingerprint(texture);
+            item["width"] = texture.width;
+            item["height"] = texture.height;
+            item["format"] = textureFormatName(texture);
+            textures.array ~= item;
+        }
+    }
+    result["textures"] = textures;
 
     auto textureCount = puppet.textureCache is null ? 0UL : cast(ulong) puppet.textureCache.size;
     result["textureCount"] = textureCount;
@@ -102,6 +206,72 @@ private int returnInspectionJson(Puppet puppet, char** outJson, char** outError)
         return 1;
     }
     return 0;
+}
+
+private Node resolveNodePath(Puppet puppet, string path) {
+    if (puppet is null || puppet.root is null || path.length == 0 || path[0] != '/') return null;
+    auto segments = path.split("/");
+    if (segments.length < 2 || segments[1] != puppet.root.name.value) return null;
+
+    Node current = puppet.root;
+    foreach (segment; segments[2 .. $]) {
+        if (segment.length == 0) return null;
+        Node found;
+        size_t matches;
+        foreach (child; current.children) {
+            if (child.name.value == segment) {
+                found = child;
+                matches++;
+            }
+        }
+        if (matches != 1) return null;
+        current = found;
+    }
+    return current;
+}
+
+private bool hasSiblingNamed(Node parent, string name, Node except = null) {
+    if (parent is null) return false;
+    foreach (child; parent.children) {
+        if (child !is except && child.name.value == name) return true;
+    }
+    return false;
+}
+
+private bool wouldCreateCycle(Node node, Node newParent) {
+    Node current = newParent;
+    while (current !is null) {
+        if (current is node) return true;
+        current = current.parent;
+    }
+    return false;
+}
+
+private void collectPartTextureExpectations(
+    Node node,
+    string path,
+    ref string[string] expectedPartTextureByPath,
+) {
+    if (node is null) return;
+    if (auto part = cast(Part) node) {
+        if (part.textures[0] !is null) {
+            expectedPartTextureByPath[path] = textureFingerprint(part.textures[0]);
+        }
+    }
+    foreach (child; node.children) {
+        collectPartTextureExpectations(
+            child,
+            childPath(path, child.name.value),
+            expectedPartTextureByPath,
+        );
+    }
+}
+
+private string requireJsonString(ref JSONValue object, string key) {
+    if (object.type != JSONType.object || key !in object.object || object[key].type != JSONType.string) {
+        throw new Exception("missing or invalid string field: " ~ key);
+    }
+    return object[key].str;
 }
 
 export extern(C) nothrow @nogc uint iat_bridge_abi_version() {
@@ -190,5 +360,196 @@ export extern(C) int iat_create_minimal_puppet_json(
     } catch (Throwable error) {
         *outError = copyCString(error.msg.idup);
         return 1;
+    }
+}
+
+export extern(C) int iat_edit_visual_puppet_json(
+    const(char)* inputPath,
+    const(char)* outputPath,
+    const(char)* operationsJson,
+    char** outJson,
+    char** outError,
+) nothrow {
+    if (outJson is null || outError is null) return 2;
+    *outJson = null;
+    *outError = null;
+    if (inputPath is null || outputPath is null || operationsJson is null) {
+        return fail(outError, 2, "input path, output path, and operations are required");
+    }
+
+    string output;
+    bool outputWritten;
+    try {
+        auto input = fromStringz(inputPath).idup;
+        output = fromStringz(outputPath).idup;
+        auto operationsText = fromStringz(operationsJson).idup;
+
+        if (toLower(extension(input)) != ".inp" || toLower(extension(output)) != ".inp" || input == output) {
+            return fail(outError, 5, "visual authoring requires distinct .inp input/output paths");
+        }
+        if (exists(output)) return fail(outError, 5, "puppet output already exists");
+
+        auto operations = parseJSON(operationsText);
+        if (operations.type != JSONType.array || operations.array.length == 0) {
+            return fail(outError, 2, "visual authoring operations must be a non-empty array");
+        }
+
+        auto puppet = inLoadPuppet!Puppet(input);
+        scope(exit) destroy(puppet);
+        auto initialTextureCount = puppet.textureCache is null ? 0UL : cast(ulong) puppet.textureCache.size;
+        Texture[string] texturesByKey;
+        size_t importedTextureCount;
+
+        foreach (ref operation; operations.array) {
+            auto type = requireJsonString(operation, "type");
+            if (type == "texture.import") {
+                auto key = requireJsonString(operation, "key");
+                auto imagePath = requireJsonString(operation, "imagePath");
+                if (key.strip.length == 0 || (key in texturesByKey) !is null ||
+                    toLower(extension(imagePath)) != ".png" || !exists(imagePath)) {
+                    return fail(outError, 9, "invalid texture asset or duplicate texture key");
+                }
+
+                TextureData data;
+                try {
+                    auto encoded = cast(ubyte[]) read(imagePath);
+                    auto ownedEncoded = cast(ubyte[]) encoded.nu_dup();
+                    data = TextureData.load(ownedEncoded);
+                } catch (Throwable error) {
+                    return fail(outError, 9, "failed decoding PNG texture asset");
+                }
+                if (data.width == 0 || data.height == 0 || data.data.length == 0) {
+                    data.free();
+                    return fail(outError, 9, "decoded texture asset is empty");
+                }
+
+                auto texture = Texture.createForData(data);
+                puppet.textureCache.add(texture);
+                texturesByKey[key] = texture;
+                importedTextureCount++;
+                continue;
+            }
+
+            if (type == "node.create") {
+                auto parentPath = requireJsonString(operation, "parentPath");
+                auto name = requireJsonString(operation, "name");
+                auto parent = resolveNodePath(puppet, parentPath);
+                if (parent is null || name.strip.length == 0 || hasSiblingNamed(parent, name)) {
+                    return fail(outError, 7, "invalid or ambiguous hierarchy target");
+                }
+                auto node = new Node(parent);
+                node.name = name;
+                continue;
+            }
+
+            if (type == "part.create") {
+                auto parentPath = requireJsonString(operation, "parentPath");
+                auto name = requireJsonString(operation, "name");
+                auto textureKey = requireJsonString(operation, "textureKey");
+                auto parent = resolveNodePath(puppet, parentPath);
+                if (parent is null || name.strip.length == 0 || hasSiblingNamed(parent, name)) {
+                    return fail(outError, 7, "invalid or ambiguous hierarchy target");
+                }
+                auto texturePtr = textureKey in texturesByKey;
+                if (texturePtr is null) return fail(outError, 8, "unknown transaction-local texture key");
+                auto texture = *texturePtr;
+
+                MeshData mesh;
+                float halfW = texture.width / 2.0f;
+                float halfH = texture.height / 2.0f;
+                mesh.vertices = [
+                    vec2(-halfW, -halfH),
+                    vec2(halfW, -halfH),
+                    vec2(halfW, halfH),
+                    vec2(-halfW, halfH),
+                ];
+                mesh.uvs = [vec2(0, 1), vec2(1, 1), vec2(1, 0), vec2(0, 0)];
+                mesh.indices = [0u, 1u, 2u, 2u, 3u, 0u];
+                auto part = new Part(mesh, [texture], parent);
+                part.name = name;
+                continue;
+            }
+
+            if (type == "node.reparent") {
+                auto path = requireJsonString(operation, "path");
+                auto newParentPath = requireJsonString(operation, "newParentPath");
+                auto node = resolveNodePath(puppet, path);
+                auto newParent = resolveNodePath(puppet, newParentPath);
+                if (node is null || newParent is null || node is puppet.root ||
+                    wouldCreateCycle(node, newParent) ||
+                    hasSiblingNamed(newParent, node.name.value, node)) {
+                    return fail(outError, 7, "invalid hierarchy reparent");
+                }
+                node.parent = newParent;
+                continue;
+            }
+
+            if (type == "node.remove") {
+                auto path = requireJsonString(operation, "path");
+                auto node = resolveNodePath(puppet, path);
+                if (node is null || node is puppet.root || node.parent is null) {
+                    return fail(outError, 7, "invalid hierarchy removal");
+                }
+                node.parent = null;
+                continue;
+            }
+
+            if (type == "part.setTexture") {
+                auto path = requireJsonString(operation, "path");
+                auto textureKey = requireJsonString(operation, "textureKey");
+                auto part = cast(Part) resolveNodePath(puppet, path);
+                if (part is null) return fail(outError, 7, "texture target is not a Part");
+                auto texturePtr = textureKey in texturesByKey;
+                if (texturePtr is null) return fail(outError, 8, "unknown transaction-local texture key");
+                auto texture = *texturePtr;
+                if (part.textures[0] !is texture) {
+                    if (part.textures[0] !is null) part.textures[0].release();
+                    texture.retain();
+                    part.textures[0] = texture;
+                }
+                continue;
+            }
+
+            return fail(outError, 2, "unsupported visual authoring operation");
+        }
+
+        string[string] expectedPartTextureByPath;
+        collectPartTextureExpectations(
+            puppet.root,
+            "/" ~ puppet.root.name.value,
+            expectedPartTextureByPath,
+        );
+
+        auto parentDir = dirName(output);
+        if (parentDir.length > 0) mkdirRecurse(parentDir);
+        inWriteINPPuppet(puppet, output);
+        outputWritten = exists(output);
+        if (!outputWritten || getSize(output) == 0) {
+            safeRemove(output);
+            return fail(outError, 1, "official writer produced no puppet artifact");
+        }
+
+        auto reopened = inLoadPuppet!Puppet(output);
+        scope(exit) destroy(reopened);
+        if (reopened is null || reopened.textureCache is null ||
+            reopened.textureCache.size != initialTextureCount + importedTextureCount) {
+            safeRemove(output);
+            outputWritten = false;
+            return fail(outError, 6, "visual authoring round-trip texture inventory mismatch");
+        }
+        foreach (path, expectedRef; expectedPartTextureByPath) {
+            auto node = resolveNodePath(reopened, path);
+            auto part = cast(Part) node;
+            if (part is null || part.textures[0] is null || textureFingerprint(part.textures[0]) != expectedRef) {
+                safeRemove(output);
+                outputWritten = false;
+                return fail(outError, 6, "visual authoring round-trip Part relationship mismatch");
+            }
+        }
+
+        return returnInspectionJson(reopened, outJson, outError);
+    } catch (Throwable error) {
+        if (outputWritten) safeRemove(output);
+        return fail(outError, 1, error.msg.idup);
     }
 }

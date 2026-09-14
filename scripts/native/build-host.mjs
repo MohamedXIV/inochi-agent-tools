@@ -7,6 +7,10 @@ const outDir = path.join(root, '.build', 'native');
 const fixturePath = path.join(root, 'tests', 'fixtures', 'generated', 'm1-inspection.inp');
 const createFixturePath = path.join(root, 'tests', 'fixtures', 'generated', 'm1-created-minimal.inp');
 const hostCreateFixturePath = path.join(root, 'tests', 'fixtures', 'generated', 'm1-host-created-minimal.inp');
+const visualInputPath = path.join(root, 'tests', 'fixtures', 'generated', 'm2-visual-input.inp');
+const visualOutputPath = path.join(root, 'tests', 'fixtures', 'generated', 'm2-visual-output.inp');
+const visualHostOutputPath = path.join(root, 'tests', 'fixtures', 'generated', 'm2-visual-host-output.inp');
+const visualPngPath = path.join(root, 'tests', 'fixtures', 'generated', 'm2-checker.png');
 const invalidFixturePath = path.join(root, 'tests', 'fixtures', 'invalid', 'not-a-puppet.inp');
 const fixtureExecutableName = process.platform === 'win32' ? 'm1_fixture_generator.exe' : 'm1_fixture_generator';
 const fixtureGenerator = path.join(outDir, fixtureExecutableName);
@@ -14,6 +18,8 @@ const inspectionProbeName = process.platform === 'win32' ? 'm1_inspection_probe.
 const inspectionProbe = path.join(outDir, inspectionProbeName);
 const createProbeName = process.platform === 'win32' ? 'm1_create_roundtrip_probe.exe' : 'm1_create_roundtrip_probe';
 const createProbe = path.join(outDir, createProbeName);
+const visualProbeName = process.platform === 'win32' ? 'm2_visual_authoring_probe.exe' : 'm2_visual_authoring_probe';
+const visualProbe = path.join(outDir, visualProbeName);
 const hostName = process.platform === 'win32' ? 'iat_native_host.exe' : 'iat_native_host';
 const hostPath = path.join(outDir, hostName);
 
@@ -125,6 +131,62 @@ function runCreateHostContract() {
   }
 }
 
+function runVisualHostContract() {
+  rmSync(visualInputPath, { force: true });
+  rmSync(visualHostOutputPath, { force: true });
+  run(hostPath, ['create-minimal', visualInputPath, 'M2 Visual Host Input'], { env: nativeEnv() });
+  run(process.execPath, ['scripts/fixtures/write-m2-png.mjs']);
+
+  const operations = [
+    { type: 'texture.import', key: 'face', imagePath: visualPngPath },
+    { type: 'node.create', parentPath: '/Root', name: 'Body' },
+    { type: 'node.create', parentPath: '/Root', name: 'Accessories' },
+    { type: 'part.create', parentPath: '/Root/Body', name: 'Face', textureKey: 'face' },
+    { type: 'node.reparent', path: '/Root/Body/Face', newParentPath: '/Root/Accessories' },
+    { type: 'part.setTexture', path: '/Root/Accessories/Face', textureKey: 'face' },
+    { type: 'node.remove', path: '/Root/Body' },
+  ];
+  const success = spawnSync(
+    hostPath,
+    ['edit-visual', visualInputPath, visualHostOutputPath, JSON.stringify(operations)],
+    { cwd: root, env: nativeEnv(), encoding: 'utf8' },
+  );
+  if (success.error) throw success.error;
+  if (success.status !== 0 || success.stderr !== '') {
+    console.error(success.stderr || `native visual host exited ${success.status}`);
+    process.exit(success.status ?? 1);
+  }
+
+  let snapshot;
+  try {
+    snapshot = JSON.parse(success.stdout);
+  } catch (error) {
+    console.error(`native visual host emitted invalid JSON: ${error}`);
+    process.exit(1);
+  }
+  const face = snapshot?.nodes?.find((node) => node.path === '/Root/Accessories/Face');
+  if (
+    snapshot?.textures?.length !== 1 ||
+    !face || face.kind !== 'part' || face.textures?.length !== 1 ||
+    face.textures[0]?.ref !== snapshot.textures[0]?.ref ||
+    snapshot.nodes.some((node) => node.path === '/Root/Body')
+  ) {
+    console.error('native visual host semantic snapshot mismatch');
+    process.exit(1);
+  }
+
+  const conflict = spawnSync(
+    hostPath,
+    ['edit-visual', visualInputPath, visualHostOutputPath, JSON.stringify(operations)],
+    { cwd: root, env: nativeEnv(), encoding: 'utf8' },
+  );
+  if (conflict.error) throw conflict.error;
+  if (conflict.status !== 5 || conflict.stdout !== '' || conflict.stderr.trim().length === 0) {
+    console.error('native visual host no-overwrite contract failed');
+    process.exit(1);
+  }
+}
+
 mkdirSync(outDir, { recursive: true });
 run(process.execPath, ['scripts/native/verify-toolchain.mjs']);
 run(process.execPath, ['scripts/upstream/materialize.mjs']);
@@ -164,6 +226,23 @@ if (process.argv.includes('--create-probe')) {
   run(createProbe, [createFixturePath], { env: nativeEnv() });
 }
 
+if (process.argv.includes('--visual-probe')) {
+  rmSync(visualInputPath, { force: true });
+  rmSync(visualOutputPath, { force: true });
+  buildHost();
+  run(hostPath, ['create-minimal', visualInputPath, 'M2 Visual Input'], { env: nativeEnv() });
+  run(process.execPath, ['scripts/fixtures/write-m2-png.mjs']);
+  run(process.execPath, ['scripts/native/build-bridge.mjs']);
+  run('ldc2', [
+    'native/bridge/test/visual_authoring_probe.d',
+    '-link-defaultlib-shared',
+    `-L-L${outDir}`,
+    '-L-liat_bridge',
+    `-of=${visualProbe}`,
+  ]);
+  run(visualProbe, [visualInputPath, visualOutputPath, visualPngPath], { env: nativeEnv() });
+}
+
 if (process.argv.includes('--host')) {
   buildHost();
   runHostContract();
@@ -172,4 +251,9 @@ if (process.argv.includes('--host')) {
 if (process.argv.includes('--create-host-probe')) {
   buildHost();
   runCreateHostContract();
+}
+
+if (process.argv.includes('--visual-host-probe')) {
+  buildHost();
+  runVisualHostContract();
 }

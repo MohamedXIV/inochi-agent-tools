@@ -1,4 +1,4 @@
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 
@@ -6,6 +6,7 @@ const root = process.cwd();
 const outDir = path.join(root, '.build', 'native');
 const fixturePath = path.join(root, 'tests', 'fixtures', 'generated', 'm1-inspection.inp');
 const createFixturePath = path.join(root, 'tests', 'fixtures', 'generated', 'm1-created-minimal.inp');
+const hostCreateFixturePath = path.join(root, 'tests', 'fixtures', 'generated', 'm1-host-created-minimal.inp');
 const invalidFixturePath = path.join(root, 'tests', 'fixtures', 'invalid', 'not-a-puppet.inp');
 const fixtureExecutableName = process.platform === 'win32' ? 'm1_fixture_generator.exe' : 'm1_fixture_generator';
 const fixtureGenerator = path.join(outDir, fixtureExecutableName);
@@ -34,6 +35,15 @@ function run(command, args, options = {}) {
   });
   if (result.error) throw result.error;
   if (result.status !== 0) process.exit(result.status ?? 1);
+}
+
+function buildHost() {
+  run('dub', [
+    'build',
+    '--root=native/host',
+    '--compiler=ldc2',
+    '--build=debug',
+  ]);
 }
 
 function runHostContract() {
@@ -78,6 +88,43 @@ function runHostContract() {
   }
 }
 
+function runCreateHostContract() {
+  rmSync(hostCreateFixturePath, { force: true });
+  const success = spawnSync(hostPath, ['create-minimal', hostCreateFixturePath, 'M1 Host Created Puppet'], {
+    cwd: root,
+    env: nativeEnv(),
+    encoding: 'utf8',
+  });
+  if (success.error) throw success.error;
+  if (success.status !== 0 || success.stderr !== '') {
+    console.error(success.stderr || `native create host exited ${success.status}`);
+    process.exit(success.status ?? 1);
+  }
+
+  let snapshot;
+  try {
+    snapshot = JSON.parse(success.stdout);
+  } catch (error) {
+    console.error(`native create host emitted invalid JSON: ${error}`);
+    process.exit(1);
+  }
+  if (snapshot?.schemaVersion !== 1 || snapshot?.metadata?.name !== 'M1 Host Created Puppet') {
+    console.error('native create host semantic snapshot mismatch');
+    process.exit(1);
+  }
+
+  const conflict = spawnSync(hostPath, ['create-minimal', hostCreateFixturePath, 'Replacement Puppet'], {
+    cwd: root,
+    env: nativeEnv(),
+    encoding: 'utf8',
+  });
+  if (conflict.error) throw conflict.error;
+  if (conflict.status !== 5 || conflict.stdout !== '' || conflict.stderr.trim().length === 0) {
+    console.error('native create host no-overwrite contract failed');
+    process.exit(1);
+  }
+}
+
 mkdirSync(outDir, { recursive: true });
 run(process.execPath, ['scripts/native/verify-toolchain.mjs']);
 run(process.execPath, ['scripts/upstream/materialize.mjs']);
@@ -118,11 +165,11 @@ if (process.argv.includes('--create-probe')) {
 }
 
 if (process.argv.includes('--host')) {
-  run('dub', [
-    'build',
-    '--root=native/host',
-    '--compiler=ldc2',
-    '--build=debug',
-  ]);
+  buildHost();
   runHostContract();
+}
+
+if (process.argv.includes('--create-host-probe')) {
+  buildHost();
+  runCreateHostContract();
 }

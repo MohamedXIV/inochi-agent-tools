@@ -32,5 +32,4 @@ jobs:
       - run: npm run native:ci
       - run: npm run m1:fixture
       - run: npm run m1:inspection-probe
-      - name: RED process host contract
-        run: ./.build/native/iat_native_host inspect tests/fixtures/generated/m1-inspection.inp
+      - run: npm run m1:host

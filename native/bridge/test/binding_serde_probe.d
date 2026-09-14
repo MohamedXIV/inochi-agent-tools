@@ -63,8 +63,12 @@ int main() {
 
         auto reloaded = Puppet.deserialize(whole, null);
         scope(exit) destroy(reloaded);
-        if (reloaded.root.children.length != 1 || reloaded.parameters.length != 1 ||
-            reloaded.parameters[0].bindings.length != 1) {
+        auto reloadedChildCount = reloaded.root.children.length;
+        auto reloadedParameterCount = reloaded.parameters.length;
+        auto reloadedBindingCount = reloadedParameterCount > 0 ? reloaded.parameters[0].bindings.length : 0;
+        stderr.writeln("binding-serde-probe: reloaded counts children=", reloadedChildCount,
+            " parameters=", reloadedParameterCount, " bindings=", reloadedBindingCount);
+        if (reloadedChildCount != 1 || reloadedParameterCount != 1 || reloadedBindingCount != 1) {
             stderr.writeln("binding-serde-probe: unexpected reloaded puppet shape");
             return 6;
         }

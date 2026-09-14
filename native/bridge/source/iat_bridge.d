@@ -7,7 +7,7 @@ import inochi2d.core.nodes : Node;
 import inochi2d.core.nodes.drawable.part : Part;
 import inochi2d.core.puppet : Puppet;
 import inochi2d.ver : IN_VERSION;
-import std.json : JSONValue;
+import std.json : JSONValue, toJSON;
 import std.string : fromStringz;
 
 private enum upstreamVersion = IN_VERSION ~ "\0";

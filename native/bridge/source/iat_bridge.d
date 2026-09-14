@@ -2,15 +2,18 @@ module iat_bridge;
 
 import core.stdc.stdlib : free, malloc;
 import core.stdc.string : memcpy;
-import inochi2d.core.format.inp : inLoadPuppet;
+import inochi2d.core.format.inp : inLoadPuppet, inWriteINPPuppet;
 import inochi2d.core.nodes : Node;
 import inochi2d.core.nodes.drawable.part : Part;
 import inochi2d.core.puppet : Puppet;
 import inochi2d.ver : IN_VERSION;
 import nulib.threading.internal.semaphore : NativeSemaphore;
 import nulib.threading.internal.thread : NativeThread, ThreadContext;
+import std.file : exists, getSize, mkdirRecurse;
 import std.json : JSONValue, toJSON;
-import std.string : fromStringz;
+import std.path : dirName, extension;
+import std.string : fromStringz, strip;
+import std.uni : toLower;
 
 private enum upstreamVersion = IN_VERSION ~ "\0";
 
@@ -48,6 +51,59 @@ private void appendNodeSnapshot(Node node, ref JSONValue nodes, ref size_t nodeC
     }
 }
 
+private string buildInspectionJson(Puppet puppet) {
+    JSONValue result = JSONValue.emptyObject;
+    result["schemaVersion"] = 1;
+
+    JSONValue metadata = JSONValue.emptyObject;
+    metadata["name"] = puppet.meta.name.value;
+    metadata["inochiVersion"] = puppet.meta.version_.value;
+    metadata["rigger"] = puppet.meta.rigger.value;
+    metadata["artist"] = puppet.meta.artist.value;
+    result["metadata"] = metadata;
+
+    JSONValue nodes = JSONValue.emptyArray;
+    size_t nodeCount;
+    size_t partCount;
+    appendNodeSnapshot(puppet.root, nodes, nodeCount, partCount);
+    result["nodes"] = nodes;
+
+    JSONValue parameters = JSONValue.emptyArray;
+    foreach (parameter; puppet.parameters) {
+        JSONValue item = JSONValue.emptyObject;
+        item["name"] = parameter.name.value;
+        item["dimensions"] = parameter.isVec2 ? 2 : 1;
+        item["min"] = JSONValue([parameter.min.x, parameter.min.y]);
+        item["max"] = JSONValue([parameter.max.x, parameter.max.y]);
+        item["defaultValue"] = JSONValue([parameter.defaults.x, parameter.defaults.y]);
+        item["value"] = JSONValue([parameter.value.x, parameter.value.y]);
+        parameters.array ~= item;
+    }
+    result["parameters"] = parameters;
+
+    auto textureCount = puppet.textureCache is null ? 0UL : cast(ulong) puppet.textureCache.size;
+    result["textureCount"] = textureCount;
+
+    JSONValue summary = JSONValue.emptyObject;
+    summary["nodeCount"] = cast(ulong) nodeCount;
+    summary["partCount"] = cast(ulong) partCount;
+    summary["parameterCount"] = cast(ulong) puppet.parameters.length;
+    summary["textureCount"] = textureCount;
+    result["summary"] = summary;
+
+    return result.toJSON();
+}
+
+private int returnInspectionJson(Puppet puppet, char** outJson, char** outError) {
+    auto json = buildInspectionJson(puppet);
+    *outJson = copyCString(json);
+    if (*outJson is null) {
+        *outError = copyCString("failed allocating inspection result");
+        return 1;
+    }
+    return 0;
+}
+
 export extern(C) nothrow @nogc uint iat_bridge_abi_version() {
     return 1;
 }
@@ -74,53 +130,63 @@ export extern(C) int iat_inspect_puppet_json(const(char)* path, char** outJson, 
         auto puppetPath = fromStringz(path).idup;
         auto puppet = inLoadPuppet!Puppet(puppetPath);
         scope(exit) destroy(puppet);
+        return returnInspectionJson(puppet, outJson, outError);
+    } catch (Throwable error) {
+        *outError = copyCString(error.msg.idup);
+        return 1;
+    }
+}
 
-        JSONValue result = JSONValue.emptyObject;
-        result["schemaVersion"] = 1;
+export extern(C) int iat_create_minimal_puppet_json(
+    const(char)* outputPath,
+    const(char)* name,
+    char** outJson,
+    char** outError,
+) nothrow {
+    if (outJson is null || outError is null) return 2;
+    *outJson = null;
+    *outError = null;
 
-        JSONValue metadata = JSONValue.emptyObject;
-        metadata["name"] = puppet.meta.name.value;
-        metadata["inochiVersion"] = puppet.meta.version_.value;
-        metadata["rigger"] = puppet.meta.rigger.value;
-        metadata["artist"] = puppet.meta.artist.value;
-        result["metadata"] = metadata;
+    if (outputPath is null || name is null) {
+        *outError = copyCString("output path and puppet name are required");
+        return 2;
+    }
 
-        JSONValue nodes = JSONValue.emptyArray;
-        size_t nodeCount;
-        size_t partCount;
-        appendNodeSnapshot(puppet.root, nodes, nodeCount, partCount);
-        result["nodes"] = nodes;
+    try {
+        auto output = fromStringz(outputPath).idup;
+        auto nameText = fromStringz(name).idup;
 
-        JSONValue parameters = JSONValue.emptyArray;
-        foreach (parameter; puppet.parameters) {
-            JSONValue item = JSONValue.emptyObject;
-            item["name"] = parameter.name.value;
-            item["dimensions"] = parameter.isVec2 ? 2 : 1;
-            item["min"] = JSONValue([parameter.min.x, parameter.min.y]);
-            item["max"] = JSONValue([parameter.max.x, parameter.max.y]);
-            item["defaultValue"] = JSONValue([parameter.defaults.x, parameter.defaults.y]);
-            item["value"] = JSONValue([parameter.value.x, parameter.value.y]);
-            parameters.array ~= item;
+        if (nameText.strip.length == 0 || toLower(extension(output)) != ".inp") {
+            *outError = copyCString("invalid minimal puppet authoring request");
+            return 4;
         }
-        result["parameters"] = parameters;
 
-        auto textureCount = puppet.textureCache is null ? 0UL : cast(ulong) puppet.textureCache.size;
-        result["textureCount"] = textureCount;
-
-        JSONValue summary = JSONValue.emptyObject;
-        summary["nodeCount"] = cast(ulong) nodeCount;
-        summary["partCount"] = cast(ulong) partCount;
-        summary["parameterCount"] = cast(ulong) puppet.parameters.length;
-        summary["textureCount"] = textureCount;
-        result["summary"] = summary;
-
-        auto json = result.toJSON();
-        *outJson = copyCString(json);
-        if (*outJson is null) {
-            *outError = copyCString("failed allocating inspection result");
-            return 3;
+        if (exists(output)) {
+            *outError = copyCString("puppet output already exists");
+            return 5;
         }
-        return 0;
+
+        auto parent = dirName(output);
+        if (parent.length > 0) mkdirRecurse(parent);
+
+        auto puppet = new Puppet();
+        scope(exit) destroy(puppet);
+        puppet.meta.name = nameText;
+        inWriteINPPuppet(puppet, output);
+
+        if (!exists(output) || getSize(output) == 0) {
+            *outError = copyCString("official writer produced no puppet artifact");
+            return 1;
+        }
+
+        auto reopened = inLoadPuppet!Puppet(output);
+        scope(exit) destroy(reopened);
+        if (reopened is null || reopened.meta.name.value != nameText) {
+            *outError = copyCString("saved puppet did not preserve requested metadata");
+            return 6;
+        }
+
+        return returnInspectionJson(reopened, outJson, outError);
     } catch (Throwable error) {
         *outError = copyCString(error.msg.idup);
         return 1;

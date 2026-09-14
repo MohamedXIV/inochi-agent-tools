@@ -21,6 +21,7 @@ describe('build fingerprint', () => {
       '0012-prefer-guid-over-legacy-uuid.patch',
       '0013-emit-legacy-parameter-binding-identities.patch',
       '0014-serialize-mesh-vectors-flat.patch',
+      '0015-emit-legacy-part-mask-threshold.patch',
     ]);
   });
 });

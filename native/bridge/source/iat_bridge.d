@@ -17,6 +17,7 @@ import numem.core.memory : nu_dup;
 import std.digest.sha : sha256Of;
 import std.file : exists, getSize, mkdirRecurse, read, remove;
 import std.json : JSONType, JSONValue, parseJSON, toJSON;
+import std.math : abs, isFinite;
 import std.path : dirName, extension;
 import std.string : fromStringz, split, strip;
 import std.uni : toLower;
@@ -307,6 +308,72 @@ private string requireJsonString(ref JSONValue object, string key) {
     return object[key].str;
 }
 
+private float requireJsonNumber(ref JSONValue value) {
+    final switch (value.type) {
+        case JSONType.float_:
+            return cast(float) value.floating;
+        case JSONType.integer:
+            return cast(float) value.integer;
+        case JSONType.uinteger:
+            return cast(float) value.uinteger;
+        default:
+            throw new Exception("expected finite numeric value");
+    }
+}
+
+private vec2 requireJsonPair(ref JSONValue object, string key) {
+    if (object.type != JSONType.object || key !in object.object ||
+        object[key].type != JSONType.array || object[key].array.length != 2) {
+        throw new Exception("missing or invalid numeric pair field: " ~ key);
+    }
+    auto x = requireJsonNumber(object[key].array[0]);
+    auto y = requireJsonNumber(object[key].array[1]);
+    if (!isFinite(x) || !isFinite(y)) throw new Exception("numeric pair must be finite");
+    return vec2(x, y);
+}
+
+private int requireJsonDimensions(ref JSONValue object) {
+    if (object.type != JSONType.object || "dimensions" !in object.object) {
+        throw new Exception("missing parameter dimensions");
+    }
+    auto dimensions = requireJsonNumber(object["dimensions"]);
+    if (dimensions != 1 && dimensions != 2) throw new Exception("parameter dimensions must be 1 or 2");
+    return cast(int) dimensions;
+}
+
+private Parameter resolveParameterName(Puppet puppet, string name) {
+    Parameter found;
+    size_t matches;
+    foreach (parameter; puppet.parameters) {
+        if (parameter.name.value == name) {
+            found = parameter;
+            matches++;
+        }
+    }
+    return matches == 1 ? found : null;
+}
+
+private bool hasParameterName(Puppet puppet, string name) {
+    foreach (parameter; puppet.parameters) {
+        if (parameter.name.value == name) return true;
+    }
+    return false;
+}
+
+private bool findExactKeypoint(Parameter parameter, vec2 requested, out vec2u index) {
+    enum tolerance = 0.000001f;
+    foreach (x; 0 .. parameter.axisPointCount(0)) {
+        foreach (y; 0 .. parameter.axisPointCount(1)) {
+            auto candidate = parameter.getKeypointValue(vec2u(cast(uint) x, cast(uint) y));
+            if (abs(candidate.x - requested.x) <= tolerance && abs(candidate.y - requested.y) <= tolerance) {
+                index = vec2u(cast(uint) x, cast(uint) y);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 export extern(C) nothrow @nogc uint iat_bridge_abi_version() {
     return 1;
 }
@@ -539,6 +606,65 @@ export extern(C) int iat_edit_visual_puppet_json(
                     if (part.textures[0] !is null) part.textures[0].release();
                     texture.retain();
                     part.textures[0] = texture;
+                }
+                continue;
+            }
+
+            if (type == "parameter.create") {
+                auto name = requireJsonString(operation, "name");
+                auto dimensions = requireJsonDimensions(operation);
+                auto minValue = requireJsonPair(operation, "min");
+                auto maxValue = requireJsonPair(operation, "max");
+                auto defaultValue = requireJsonPair(operation, "defaultValue");
+
+                if (name.strip.length == 0 || hasParameterName(puppet, name) ||
+                    minValue.x >= maxValue.x || defaultValue.x < minValue.x || defaultValue.x > maxValue.x ||
+                    (dimensions == 1 && (minValue.y != 0 || maxValue.y != 0 || defaultValue.y != 0)) ||
+                    (dimensions == 2 && (minValue.y >= maxValue.y || defaultValue.y < minValue.y || defaultValue.y > maxValue.y))) {
+                    return fail(outError, 10, "invalid or duplicate parameter definition");
+                }
+
+                auto parameter = new Parameter(name, dimensions == 2);
+                parameter.min = minValue;
+                parameter.max = maxValue;
+                parameter.defaults = defaultValue;
+                parameter.value = defaultValue;
+                puppet.parameters ~= parameter;
+                continue;
+            }
+
+            if (type == "parameter.bind") {
+                auto parameterName = requireJsonString(operation, "parameterName");
+                auto targetPath = requireJsonString(operation, "targetPath");
+                auto property = requireJsonString(operation, "property");
+                auto parameter = resolveParameterName(puppet, parameterName);
+                auto target = resolveNodePath(puppet, targetPath);
+                if (parameter is null || target is null || !target.hasParam(property) || parameter.hasBinding(target, property)) {
+                    return fail(outError, 10, "invalid parameter binding target or property");
+                }
+                if ("keypoints" !in operation.object || operation["keypoints"].type != JSONType.array ||
+                    operation["keypoints"].array.length == 0) {
+                    return fail(outError, 10, "parameter binding requires keypoints");
+                }
+
+                auto valueBinding = cast(ValueParameterBinding) parameter.getOrAddBinding(target, property, false);
+                if (valueBinding is null) return fail(outError, 10, "unsupported parameter binding type");
+                vec2u[] assigned;
+                foreach (ref keypoint; operation["keypoints"].array) {
+                    auto at = requireJsonPair(keypoint, "at");
+                    if ("value" !in keypoint.object) return fail(outError, 10, "binding keypoint is missing value");
+                    auto value = requireJsonNumber(keypoint["value"]);
+                    if (!isFinite(value)) return fail(outError, 10, "binding keypoint value must be finite");
+
+                    vec2u index;
+                    if (!findExactKeypoint(parameter, at, index)) {
+                        return fail(outError, 10, "binding keypoint does not match an existing parameter axis point");
+                    }
+                    foreach (previous; assigned) {
+                        if (previous == index) return fail(outError, 10, "duplicate binding keypoint");
+                    }
+                    assigned ~= index;
+                    valueBinding.setValue(index, value);
                 }
                 continue;
             }

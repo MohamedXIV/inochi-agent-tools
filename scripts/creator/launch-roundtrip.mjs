@@ -54,10 +54,10 @@ function readSettings() {
   return JSON.parse(readFileSync(settingsPath, 'utf8'));
 }
 
-function readCreatorCrashDump() {
+function readCreatorCrashDump(prefix = 'inochi-creator-crashdump-') {
   if (!existsSync(creatorCrashDir)) return '';
   const dumps = readdirSync(creatorCrashDir)
-    .filter((name) => name.startsWith('inochi-creator-crashdump-') && name.endsWith('.txt'))
+    .filter((name) => name.startsWith(prefix) && name.endsWith('.txt'))
     .sort();
   if (dumps.length === 0) return '';
   return readFileSync(resolve(creatorCrashDir, dumps.at(-1)), 'utf8');
@@ -83,8 +83,8 @@ rmSync(output, { force: true });
 mkdirSync(configDir, { recursive: true });
 // Creator v0.8.6's Linux crash handler passes the literal string
 // "$XDG_STATE_HOME/" through expandTilde(), which does not expand env vars.
-// Keep that literal relative directory available so an upstream crash does not
-// get masked by a secondary FileException and its original diagnostic remains visible.
+// Keep that literal relative directory available so upstream exceptions do not
+// get masked by a secondary FileException and their original diagnostics remain visible.
 mkdirSync(creatorCrashDir, { recursive: true });
 writeFileSync(settingsPath, JSON.stringify({ hasDoneQuickSetup: true, prev_projects: [] }));
 
@@ -127,6 +127,10 @@ try {
         `Creator exited early with code ${creatorProcess.exitCode}; ` +
         `stdout: ${creatorStdout}; stderr: ${creatorStderr}; crashdump: ${crashDump}`,
       );
+    }
+    const runtimeErrorDump = readCreatorCrashDump('inochi-creator-runtime-error-');
+    if (runtimeErrorDump) {
+      fail(`Creator rejected the input puppet: ${runtimeErrorDump}`);
     }
     const settings = readSettings();
     return Array.isArray(settings?.prev_projects) && settings.prev_projects[0] === input;

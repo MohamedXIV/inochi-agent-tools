@@ -1,0 +1,12 @@
+diff --git a/source/inochi2d/core/param/package.d b/source/inochi2d/core/param/package.d
+--- a/source/inochi2d/core/param/package.d
++++ b/source/inochi2d/core/param/package.d
+@@ -277,7 +277,7 @@ public:
+ 
+         object["bindings"] = JSONValue.emptyArray;
+         foreach(ref binding; bindings) {
+-            object["bindings"] ~= binding.serialize();
++            object["bindings"].array ~= binding.serialize();
+         }
+     }
+ 

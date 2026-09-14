@@ -5,6 +5,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   InvalidAuthoringRequestError,
+  NativeBridgeError,
   PuppetAlreadyExistsError,
   RoundTripMismatchError,
   createPuppet,
@@ -17,19 +18,29 @@ describe.skipIf(!runExecutableFixtureTests)('minimal authoring native host mappi
   let invalidRequestHost: string;
   let conflictHost: string;
   let mismatchHost: string;
+  let malformedJsonHost: string;
+  let abnormalExitHost: string;
 
   beforeAll(async () => {
     fixtureDir = await mkdtemp(path.join(tmpdir(), 'iat-authoring-host-test-'));
     invalidRequestHost = path.join(fixtureDir, 'invalid-request-host');
     conflictHost = path.join(fixtureDir, 'conflict-host');
     mismatchHost = path.join(fixtureDir, 'mismatch-host');
+    malformedJsonHost = path.join(fixtureDir, 'malformed-json-host');
+    abnormalExitHost = path.join(fixtureDir, 'abnormal-exit-host');
 
     await writeFile(invalidRequestHost, '#!/usr/bin/env node\nprocess.stderr.write("invalid request\\n"); process.exit(4);\n', 'utf8');
     await writeFile(conflictHost, '#!/usr/bin/env node\nprocess.stderr.write("already exists\\n"); process.exit(5);\n', 'utf8');
     await writeFile(mismatchHost, '#!/usr/bin/env node\nprocess.stderr.write("round trip mismatch\\n"); process.exit(6);\n', 'utf8');
-    await chmod(invalidRequestHost, 0o755);
-    await chmod(conflictHost, 0o755);
-    await chmod(mismatchHost, 0o755);
+    await writeFile(malformedJsonHost, '#!/usr/bin/env node\nprocess.stdout.write("{not-json");\n', 'utf8');
+    await writeFile(abnormalExitHost, '#!/usr/bin/env node\nprocess.stderr.write("unexpected failure\\n"); process.exit(7);\n', 'utf8');
+    await Promise.all([
+      chmod(invalidRequestHost, 0o755),
+      chmod(conflictHost, 0o755),
+      chmod(mismatchHost, 0o755),
+      chmod(malformedJsonHost, 0o755),
+      chmod(abnormalExitHost, 0o755),
+    ]);
   });
 
   afterAll(async () => {
@@ -52,5 +63,21 @@ describe.skipIf(!runExecutableFixtureTests)('minimal authoring native host mappi
     await expect(
       createPuppet({ outputPath: 'valid.inp', name: 'Valid' }, { hostPath: mismatchHost }),
     ).rejects.toBeInstanceOf(RoundTripMismatchError);
+  });
+
+  it('maps malformed success JSON to NativeBridgeError', async () => {
+    await expect(
+      createPuppet({ outputPath: 'valid.inp', name: 'Valid' }, { hostPath: malformedJsonHost }),
+    ).rejects.toBeInstanceOf(NativeBridgeError);
+  });
+
+  it('maps unsupported host exits to NativeBridgeError', async () => {
+    await expect(
+      createPuppet({ outputPath: 'valid.inp', name: 'Valid' }, { hostPath: abnormalExitHost }),
+    ).rejects.toMatchObject({
+      name: 'NativeBridgeError',
+      code: 'NATIVE_BRIDGE_FAILURE',
+      message: 'unexpected failure',
+    });
   });
 });

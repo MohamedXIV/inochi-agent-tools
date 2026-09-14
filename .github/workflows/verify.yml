@@ -31,3 +31,4 @@ jobs:
       - run: npm ci
       - run: npm run m1:authoring:ci
       - run: npm run m2:visual-probe
+      - run: npm run m2:visual-host

@@ -30,4 +30,4 @@ jobs:
           compiler: ldc-1.40.0
       - run: sudo apt-get update && sudo apt-get install -y xvfb xdotool x11-utils libsdl2-dev libfreetype6-dev
       - run: npm ci
-      - run: npm run m3:save:ci
+      - run: npm run m3:cli:ci

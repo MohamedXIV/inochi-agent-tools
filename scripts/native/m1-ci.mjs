@@ -29,6 +29,7 @@ run('native:ci');
 run('m1:fixture');
 run('m1:inspection-probe');
 run('m1:create-probe');
+run('m1:create-host');
 run('m1:host');
 run('typecheck');
 run('test', nativeEnv());

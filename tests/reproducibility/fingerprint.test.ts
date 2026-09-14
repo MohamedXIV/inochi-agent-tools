@@ -10,6 +10,7 @@ describe('build fingerprint', () => {
       '0001-accept-numeric-part-blend-mode.patch',
       '0002-copy-nstring-json-deserialization.patch',
       '0003-lowercase-parameter-nstring-view.patch',
+      '0004-serialize-puppet-meta-nstring-views.patch',
     ]);
   });
 });

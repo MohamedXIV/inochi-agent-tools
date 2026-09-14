@@ -41,7 +41,8 @@ async function waitFor(label, predicate, timeout = timeoutMs) {
   let lastError;
   while (Date.now() < deadline) {
     try {
-      if (await predicate()) return;
+      const value = await predicate();
+      if (value) return value;
     } catch (error) {
       lastError = error;
     }
@@ -142,13 +143,16 @@ try {
   if (openOnly) {
     process.stdout.write(`${JSON.stringify({ input, opened: true, creatorVersion: 'v0.8.6' })}\n`);
   } else {
-    const search = spawnSync('xdotool', ['search', '--onlyvisible', '--pid', String(creatorProcess.pid)], {
-      env,
-      encoding: 'utf8',
+    // incOpenProject records prev_projects before the SDL window is necessarily mapped.
+    // Wait for the real Creator window instead of racing a one-shot xdotool lookup.
+    const windowId = await waitFor('Creator window visibility', () => {
+      const search = spawnSync('xdotool', ['search', '--onlyvisible', '--pid', String(creatorProcess.pid)], {
+        env,
+        encoding: 'utf8',
+      });
+      if (search.status !== 0) return false;
+      return search.stdout.trim().split(/\s+/)[0] || false;
     });
-    if (search.status !== 0) fail(`could not find Creator window: ${search.stderr || search.stdout}`);
-    const windowId = search.stdout.trim().split(/\s+/)[0];
-    if (!windowId) fail('xdotool returned no Creator window id');
 
     const save = spawnSync('xdotool', [
       'windowactivate', '--sync', windowId,

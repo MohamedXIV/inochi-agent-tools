@@ -35,4 +35,10 @@ jobs:
       - run: npm run creator:fixture
       - name: Prove minimal public-core puppet opens in official Creator
         run: node scripts/creator/launch-roundtrip.mjs --open-only tests/fixtures/generated/creator-roundtrip-base.inp
+      - name: Prove visual-only puppet opens in official Creator
+        run: node scripts/creator/launch-roundtrip.mjs --open-only tests/fixtures/generated/creator-roundtrip-visual.inp
+      - name: Prove unbound-parameter puppet opens in official Creator
+        run: node scripts/creator/launch-roundtrip.mjs --open-only tests/fixtures/generated/creator-roundtrip-parameters.inp
+      - name: Prove fully-bound puppet opens in official Creator
+        run: node scripts/creator/launch-roundtrip.mjs --open-only tests/fixtures/generated/creator-roundtrip-input.inp
       - run: npm run creator:roundtrip

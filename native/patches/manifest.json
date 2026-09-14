@@ -84,6 +84,11 @@
       "file": "0017-serialize-legacy-parameter-merge-mode.patch",
       "reason": "Official Inochi Creator v0.8.6 deserializes Parameter.merge_mode through legacy enum string keys (Additive, Weighted, Multiplicative, Forced, Passthrough), while pinned v0.8.7's generic serde treats ParamMergeMode as an integral scalar and emits a number. The Creator acceptance ladder proves visual puppets open but the first unbound-parameter puppet fails, isolating the incompatibility to parameter serialization before bindings are present. Emit the legacy string key without changing the public semantic API.",
       "removalCondition": "Remove when the supported official Creator version consumes numeric v0.8.7 parameter merge modes directly, or when pinned upstream emits a backward-compatible ParamMergeMode representation itself."
+    },
+    {
+      "file": "0018-serialize-legacy-binding-interpolate-mode.patch",
+      "reason": "Official Inochi Creator v0.8.6 opens the same real puppet through unbound parameters but fails only once ValueParameterBinding records are present. Its binding schema deserializes interpolate_mode through legacy enum strings, while pinned v0.8.7 stores InterpolateMode as an explicit uint and emits that numeric value. Emit the legacy interpolation key without exposing any compatibility detail through the public semantic API.",
+      "removalCondition": "Remove when the supported official Creator version consumes numeric v0.8.7 binding interpolation modes directly, or when pinned upstream emits a backward-compatible InterpolateMode representation itself."
     }
   ]
 }

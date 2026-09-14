@@ -1,7 +1,10 @@
 import { parseArgs } from 'node:util';
 
+import { inspectPuppet } from '@inochi-agent-tools/core';
+
+import { classifyCliError } from './errors.js';
 import type { CliIo } from './output.js';
-import { writeFailure } from './output.js';
+import { writeFailure, writeSuccess } from './output.js';
 
 export type { CliIo } from './output.js';
 
@@ -37,6 +40,16 @@ function requireStringOption(
   return value;
 }
 
+function parseInputOnlyCommand(rest: string[]): string {
+  const { values } = parseArgs({
+    args: rest,
+    options: { input: { type: 'string' } },
+    strict: true,
+    allowPositionals: false,
+  });
+  return requireStringOption(values, 'input');
+}
+
 function validateKnownCommand(args: string[]): string {
   const [group, action, ...rest] = args;
   if (!group || !action) throw new CliUsageError('expected a command');
@@ -62,13 +75,7 @@ function validateKnownCommand(args: string[]): string {
       group === 'puppet' &&
       (action === 'open' || action === 'inspect' || action === 'validate')
     ) {
-      const { values } = parseArgs({
-        args: rest,
-        options: { input: { type: 'string' } },
-        strict: true,
-        allowPositionals: false,
-      });
-      requireStringOption(values, 'input');
+      parseInputOnlyCommand(rest);
       return command;
     }
 
@@ -132,9 +139,20 @@ export async function runCli(argv: string[], io: CliIo): Promise<number> {
 
   try {
     command = validateKnownCommand(args);
+
+    if (command === 'puppet inspect') {
+      const inputPath = parseInputOnlyCommand(args.slice(2));
+      const result = await inspectPuppet(inputPath);
+      writeSuccess(io, json, command, result);
+      return 0;
+    }
+
     throw new CliUsageError(`command not implemented yet: ${command}`);
   } catch (error) {
-    const descriptor = usageFailure(error instanceof Error ? error.message : String(error));
+    const descriptor =
+      error instanceof CliUsageError
+        ? usageFailure(error.message)
+        : classifyCliError(error);
     writeFailure(io, json, command, descriptor);
     return descriptor.exitCode;
   }

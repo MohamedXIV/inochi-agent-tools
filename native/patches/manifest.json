@@ -34,6 +34,11 @@
       "file": "0007-append-parameter-binding-json-elements.patch",
       "reason": "Pinned Inochi2D v0.8.7 initializes Parameter.bindings as a JSON array but appends each serialized binding with JSONValue ~= JSONValue, whose std.json overload expects an array RHS and throws 'JSONValue is not an array'. Append the serialized binding object to the array storage explicitly.",
       "removalCondition": "Remove when the pinned upstream revision can serialize a Parameter containing a ValueParameterBinding without std.json array-type failure."
+    },
+    {
+      "file": "0008-disambiguate-guid-string-lookup.patch",
+      "reason": "Pinned Inochi2D v0.8.7 calls obj.tryGet!string(guidKey) inside tryGetGUID. Because serde also has a tryGet(T)(JSONValue, T defaultValue) overload, a string guidKey binds as the default-value overload rather than the keyed lookup and valid serialized GUID strings deserialize as nil UUIDs. Passing an explicit null default selects the keyed overload and preserves node/binding identity.",
+      "removalCondition": "Remove when the pinned upstream revision resolves string GUID fields through an unambiguous keyed JSON lookup and non-root node/binding GUIDs survive whole-puppet round-trip without this patch."
     }
   ]
 }

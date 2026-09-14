@@ -43,8 +43,8 @@ function assertInspection(inspection, label) {
     assert(parameter, `${label}: missing ${expected.name}`);
     const binding = parameter.bindings.find((item) => item.targetPath === '/Root/Rig' && item.property === expected.property);
     assert(binding, `${label}: missing ${expected.name} binding`);
-    assert(binding.keypoints.some((point) => point.at[0] === -1 && point.value === expected.negative), `${label}: missing negative ${expected.name} keypoint`);
-    assert(binding.keypoints.some((point) => point.at[0] === 1 && point.value === expected.positive), `${label}: missing positive ${expected.name} keypoint`);
+    assert(binding.keypoints.some((point) => point.parameterValue[0] === -1 && point.value === expected.negative), `${label}: missing negative ${expected.name} keypoint`);
+    assert(binding.keypoints.some((point) => point.parameterValue[0] === 1 && point.value === expected.positive), `${label}: missing positive ${expected.name} keypoint`);
   }
 }
 

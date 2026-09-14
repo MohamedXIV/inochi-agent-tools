@@ -33,7 +33,7 @@ diff --git a/source/inochi2d/core/guid.d b/source/inochi2d/core/guid.d
 diff --git a/source/inochi2d/core/nodes/package.d b/source/inochi2d/core/nodes/package.d
 --- a/source/inochi2d/core/nodes/package.d
 +++ b/source/inochi2d/core/nodes/package.d
-@@ -587,6 +587,7 @@ public:
+@@ -548,6 +548,7 @@ public:
      void onSerialize(ref JSONValue object, bool recursive = true) {
          nstring guid = guid_.toString();
          object["guid"] = guid.dup;

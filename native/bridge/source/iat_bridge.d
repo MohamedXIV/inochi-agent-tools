@@ -6,9 +6,11 @@ import inochi2d.core.format.inp : inLoadPuppet, inWriteINPPuppet;
 import inochi2d.core.nodes : Node;
 import inochi2d.core.nodes.drawable.part : Part;
 import inochi2d.core.puppet : Puppet;
+import inochi2d.core.render.texture : Texture, TextureFormat;
 import inochi2d.ver : IN_VERSION;
 import nulib.threading.internal.semaphore : NativeSemaphore;
 import nulib.threading.internal.thread : NativeThread, ThreadContext;
+import std.digest.sha : sha256Of;
 import std.file : exists, getSize, mkdirRecurse;
 import std.json : JSONValue, toJSON;
 import std.path : dirName, extension;
@@ -34,6 +36,51 @@ private char* copyCString(string value) nothrow {
     return memory;
 }
 
+private string lowerHex(const(ubyte)[] bytes) {
+    enum digits = "0123456789abcdef";
+    auto output = new char[](bytes.length * 2);
+    foreach (i, value; bytes) {
+        output[(i * 2)] = digits[(value >> 4) & 0x0f];
+        output[(i * 2) + 1] = digits[value & 0x0f];
+    }
+    return cast(string) output;
+}
+
+private void writeUint32LE(ref ubyte[9] header, size_t offset, uint value) {
+    header[offset] = cast(ubyte)(value & 0xff);
+    header[offset + 1] = cast(ubyte)((value >> 8) & 0xff);
+    header[offset + 2] = cast(ubyte)((value >> 16) & 0xff);
+    header[offset + 3] = cast(ubyte)((value >> 24) & 0xff);
+}
+
+private string textureFingerprint(Texture texture) {
+    if (texture is null) return "";
+
+    ubyte[9] header;
+    header[0] = cast(ubyte) texture.format;
+    writeUint32LE(header, 1, texture.width);
+    writeUint32LE(header, 5, texture.height);
+
+    ubyte[] payload;
+    payload ~= header[];
+    payload ~= cast(ubyte[]) texture.pixels;
+    auto digest = sha256Of(payload);
+    return "sha256:" ~ lowerHex(digest[]);
+}
+
+private string textureFormatName(Texture texture) {
+    if (texture is null) return "unknown";
+    final switch (texture.format) {
+        case TextureFormat.rgba8Unorm:
+            return "rgba8";
+        case TextureFormat.r8:
+            return "r8";
+        case TextureFormat.none:
+        case TextureFormat.depthStencil:
+            return "unknown";
+    }
+}
+
 private void appendNodeSnapshot(Node node, ref JSONValue nodes, ref size_t nodeCount, ref size_t partCount) {
     if (node is null) return;
 
@@ -42,6 +89,22 @@ private void appendNodeSnapshot(Node node, ref JSONValue nodes, ref size_t nodeC
     item["name"] = node.name.value;
     item["kind"] = cast(Part) node ? "part" : "node";
     item["childCount"] = cast(ulong) node.children.length;
+
+    JSONValue textureBindings = JSONValue.emptyArray;
+    if (auto part = cast(Part) node) {
+        static immutable usageNames = ["albedo", "emissive", "bumpmap"];
+        foreach (i, usageName; usageNames) {
+            auto texture = part.textures[i];
+            if (texture is null) continue;
+
+            JSONValue binding = JSONValue.emptyObject;
+            binding["usage"] = usageName;
+            binding["ref"] = textureFingerprint(texture);
+            textureBindings.array ~= binding;
+        }
+    }
+    item["textures"] = textureBindings;
+
     nodes.array ~= item;
     nodeCount++;
     if (cast(Part) node) partCount++;
@@ -80,6 +143,20 @@ private string buildInspectionJson(Puppet puppet) {
         parameters.array ~= item;
     }
     result["parameters"] = parameters;
+
+    JSONValue textures = JSONValue.emptyArray;
+    if (puppet.textureCache !is null) {
+        foreach (texture; puppet.textureCache.cache) {
+            if (texture is null) continue;
+            JSONValue item = JSONValue.emptyObject;
+            item["ref"] = textureFingerprint(texture);
+            item["width"] = texture.width;
+            item["height"] = texture.height;
+            item["format"] = textureFormatName(texture);
+            textures.array ~= item;
+        }
+    }
+    result["textures"] = textures;
 
     auto textureCount = puppet.textureCache is null ? 0UL : cast(ulong) puppet.textureCache.size;
     result["textureCount"] = textureCount;

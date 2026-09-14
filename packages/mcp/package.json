@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": false,
   "type": "module",
+  "bin": {
+    "inochi-agent-mcp": "dist/main.js"
+  },
   "dependencies": {
     "@inochi-agent-tools/sdk": "0.1.0",
     "@modelcontextprotocol/server": "2.0.0",

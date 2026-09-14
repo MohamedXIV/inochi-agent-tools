@@ -32,3 +32,4 @@ jobs:
       - run: npm run m2:visual:ci
       - run: npm run m2:binding-serde-probe
       - run: npm run m2:parameter-probe
+      - run: npm run m2:parameter-evaluation-probe

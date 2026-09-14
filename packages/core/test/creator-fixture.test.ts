@@ -118,6 +118,7 @@ describe.skipIf(!runNative)('official Creator compatibility fixture', () => {
 
     expect(await inspectPuppet(output)).toEqual(edited.inspection);
 
-    await rm(base, { force: true });
+    // Keep the minimal public-core artifact for the official Creator preflight.
+    // The full artifact remains the actual Issue #8 acceptance target.
   });
 });

@@ -1,0 +1,16 @@
+{
+  "name": "inochi-agent-tools-probe",
+  "targetType": "executable",
+  "targetName": "bridge_probe",
+  "targetPath": "../../.build/native",
+  "dependencies": {
+    "inochi-agent-tools-bridge": { "path": "../bridge" }
+  },
+  "subConfigurations": {
+    "inochi-agent-tools-bridge": "library"
+  },
+  "toolchainRequirements": {
+    "ldc": ">=1.40.0"
+  },
+  "dflags-ldc": ["-link-defaultlib-shared"]
+}

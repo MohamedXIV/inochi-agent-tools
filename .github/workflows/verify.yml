@@ -29,12 +29,4 @@ jobs:
         with:
           compiler: ldc-1.40.0
       - run: npm ci
-      - run: npm run native:ci
-      - run: npm run m1:fixture
-      - run: npm run m1:inspection-probe
-      - run: npm run m1:host
-      - name: M1 core/native integration
-        run: npx vitest run packages/core/test/inspect-native.test.ts
-        env:
-          IAT_M1_NATIVE_TESTS: '1'
-          LD_LIBRARY_PATH: ${{ github.workspace }}/.build/native
+      - run: npm run m1:ci

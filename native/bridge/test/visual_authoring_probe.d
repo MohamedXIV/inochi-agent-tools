@@ -46,9 +46,10 @@ int main(string[] args) {
         return 4;
     }
 
-    auto decoded = parseJSON(fromStringz(json).idup);
+    auto jsonText = fromStringz(json).idup;
+    auto decoded = parseJSON(jsonText);
     if (decoded["textures"].type != JSONType.array || decoded["textures"].array.length != 1) {
-        stderr.writeln("visual-authoring-probe: expected one reopened texture");
+        stderr.writeln("visual-authoring-probe: expected one reopened texture: ", jsonText);
         return 5;
     }
     auto textureRef = decoded["textures"].array[0]["ref"].str;
@@ -60,12 +61,12 @@ int main(string[] args) {
         if (node["kind"].str != "part" || node["textures"].array.length != 1 ||
             node["textures"].array[0]["usage"].str != "albedo" ||
             node["textures"].array[0]["ref"].str != textureRef) {
-            stderr.writeln("visual-authoring-probe: Face Part texture relationship mismatch");
+            stderr.writeln("visual-authoring-probe: Face Part texture relationship mismatch: ", node.toString(), " inventoryRef=", textureRef);
             return 6;
         }
     }
     if (!foundFace) {
-        stderr.writeln("visual-authoring-probe: missing /Root/Body/Face");
+        stderr.writeln("visual-authoring-probe: missing /Root/Body/Face: ", jsonText);
         return 7;
     }
     return 0;

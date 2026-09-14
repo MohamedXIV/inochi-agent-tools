@@ -30,7 +30,4 @@ jobs:
           compiler: ldc-1.40.0
       - run: sudo apt-get update && sudo apt-get install -y xvfb xdotool x11-utils libsdl2-dev libfreetype6-dev
       - run: npm ci
-      - run: npm run m3:mcp:ci
-      - run: npm run v1:artifacts
-      - run: npm run v1:verify-artifacts
-      - run: IAT_V1_ACCEPTANCE_TESTS=1 npm run v1:artifacts:test
+      - run: npm run v1:ci

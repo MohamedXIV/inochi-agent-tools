@@ -5,11 +5,14 @@ import path from 'node:path';
 const root = process.cwd();
 const outDir = path.join(root, '.build', 'native');
 const fixturePath = path.join(root, 'tests', 'fixtures', 'generated', 'm1-inspection.inp');
+const createFixturePath = path.join(root, 'tests', 'fixtures', 'generated', 'm1-created-minimal.inp');
 const invalidFixturePath = path.join(root, 'tests', 'fixtures', 'invalid', 'not-a-puppet.inp');
 const fixtureExecutableName = process.platform === 'win32' ? 'm1_fixture_generator.exe' : 'm1_fixture_generator';
 const fixtureGenerator = path.join(outDir, fixtureExecutableName);
 const inspectionProbeName = process.platform === 'win32' ? 'm1_inspection_probe.exe' : 'm1_inspection_probe';
 const inspectionProbe = path.join(outDir, inspectionProbeName);
+const createProbeName = process.platform === 'win32' ? 'm1_create_roundtrip_probe.exe' : 'm1_create_roundtrip_probe';
+const createProbe = path.join(outDir, createProbeName);
 const hostName = process.platform === 'win32' ? 'iat_native_host.exe' : 'iat_native_host';
 const hostPath = path.join(outDir, hostName);
 
@@ -100,6 +103,18 @@ if (process.argv.includes('--inspection-probe')) {
     `-of=${inspectionProbe}`,
   ]);
   run(inspectionProbe, [fixturePath, invalidFixturePath], { env: nativeEnv() });
+}
+
+if (process.argv.includes('--create-probe')) {
+  run(process.execPath, ['scripts/native/build-bridge.mjs']);
+  run('ldc2', [
+    'native/bridge/test/create_roundtrip_probe.d',
+    '-link-defaultlib-shared',
+    `-L-L${outDir}`,
+    '-L-liat_bridge',
+    `-of=${createProbe}`,
+  ]);
+  run(createProbe, [createFixturePath], { env: nativeEnv() });
 }
 
 if (process.argv.includes('--host')) {

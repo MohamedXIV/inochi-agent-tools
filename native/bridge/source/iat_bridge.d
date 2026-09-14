@@ -230,12 +230,41 @@ private Node resolveNodePath(Puppet puppet, string path) {
     return current;
 }
 
-private bool hasSiblingNamed(Node parent, string name) {
+private bool hasSiblingNamed(Node parent, string name, Node except = null) {
     if (parent is null) return false;
     foreach (child; parent.children) {
-        if (child.name.value == name) return true;
+        if (child !is except && child.name.value == name) return true;
     }
     return false;
+}
+
+private bool wouldCreateCycle(Node node, Node newParent) {
+    Node current = newParent;
+    while (current !is null) {
+        if (current is node) return true;
+        current = current.parent;
+    }
+    return false;
+}
+
+private void collectPartTextureExpectations(
+    Node node,
+    string path,
+    ref string[string] expectedPartTextureByPath,
+) {
+    if (node is null) return;
+    if (auto part = cast(Part) node) {
+        if (part.textures[0] !is null) {
+            expectedPartTextureByPath[path] = textureFingerprint(part.textures[0]);
+        }
+    }
+    foreach (child; node.children) {
+        collectPartTextureExpectations(
+            child,
+            childPath(path, child.name.value),
+            expectedPartTextureByPath,
+        );
+    }
 }
 
 private string requireJsonString(ref JSONValue object, string key) {
@@ -369,7 +398,6 @@ export extern(C) int iat_edit_visual_puppet_json(
         scope(exit) destroy(puppet);
         auto initialTextureCount = puppet.textureCache is null ? 0UL : cast(ulong) puppet.textureCache.size;
         Texture[string] texturesByKey;
-        string[string] expectedPartTextureByPath;
         size_t importedTextureCount;
 
         foreach (ref operation; operations.array) {
@@ -439,12 +467,58 @@ export extern(C) int iat_edit_visual_puppet_json(
                 mesh.indices = [0u, 1u, 2u, 2u, 3u, 0u];
                 auto part = new Part(mesh, [texture], parent);
                 part.name = name;
-                expectedPartTextureByPath[childPath(parentPath, name)] = textureFingerprint(texture);
+                continue;
+            }
+
+            if (type == "node.reparent") {
+                auto path = requireJsonString(operation, "path");
+                auto newParentPath = requireJsonString(operation, "newParentPath");
+                auto node = resolveNodePath(puppet, path);
+                auto newParent = resolveNodePath(puppet, newParentPath);
+                if (node is null || newParent is null || node is puppet.root ||
+                    wouldCreateCycle(node, newParent) ||
+                    hasSiblingNamed(newParent, node.name.value, node)) {
+                    return fail(outError, 7, "invalid hierarchy reparent");
+                }
+                node.parent = newParent;
+                continue;
+            }
+
+            if (type == "node.remove") {
+                auto path = requireJsonString(operation, "path");
+                auto node = resolveNodePath(puppet, path);
+                if (node is null || node is puppet.root || node.parent is null) {
+                    return fail(outError, 7, "invalid hierarchy removal");
+                }
+                node.parent = null;
+                continue;
+            }
+
+            if (type == "part.setTexture") {
+                auto path = requireJsonString(operation, "path");
+                auto textureKey = requireJsonString(operation, "textureKey");
+                auto part = cast(Part) resolveNodePath(puppet, path);
+                if (part is null) return fail(outError, 7, "texture target is not a Part");
+                auto texturePtr = textureKey in texturesByKey;
+                if (texturePtr is null) return fail(outError, 8, "unknown transaction-local texture key");
+                auto texture = *texturePtr;
+                if (part.textures[0] !is texture) {
+                    if (part.textures[0] !is null) part.textures[0].release();
+                    texture.retain();
+                    part.textures[0] = texture;
+                }
                 continue;
             }
 
             return fail(outError, 2, "unsupported visual authoring operation");
         }
+
+        string[string] expectedPartTextureByPath;
+        collectPartTextureExpectations(
+            puppet.root,
+            "/" ~ puppet.root.name.value,
+            expectedPartTextureByPath,
+        );
 
         auto parentDir = dirName(output);
         if (parentDir.length > 0) mkdirRecurse(parentDir);

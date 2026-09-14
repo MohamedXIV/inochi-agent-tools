@@ -1,7 +1,7 @@
-import core.stdc.string : fromStringz;
 import std.file : exists, getSize;
 import std.json : parseJSON;
 import std.stdio : stderr;
+import std.string : fromStringz, toStringz;
 
 extern(C) int iat_create_minimal_puppet_json(
     const(char)* outputPath,
@@ -35,8 +35,8 @@ int main(string[] args) {
         return 3;
     }
 
-    auto decoded = parseJSON(fromStringz(json));
-    if (decoded["schemaVersion"].integer != 1 || decoded["metadata"]["name"].str != "M1 Created Puppet") {
+    auto decoded = parseJSON(fromStringz(json).idup);
+    if (decoded["schemaVersion"].get!long != 1 || decoded["metadata"]["name"].str != "M1 Created Puppet") {
         stderr.writeln("create-probe: semantic round-trip snapshot mismatch");
         return 4;
     }

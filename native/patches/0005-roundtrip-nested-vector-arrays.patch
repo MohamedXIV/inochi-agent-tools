@@ -1,23 +1,21 @@
 diff --git a/source/inochi2d/core/format/serde/deserializers.d b/source/inochi2d/core/format/serde/deserializers.d
 --- a/source/inochi2d/core/format/serde/deserializers.d
 +++ b/source/inochi2d/core/format/serde/deserializers.d
-@@ -52,13 +52,24 @@ if (isArray!T) {
- 
+@@ -54,12 +54,25 @@ if (isArray!T) {
      if (object.isJsonArray) {
          static if (isVector!ET) {
 -            float[] tmp = object.tryGet!(float[])();
 -            size_t dim = ET.dimension;
--
++            auto arr = object.arrayNoRef;
++            if (arr.length > 0 && arr[0].type == JSONType.array) {
++                static if (isDynamicArray!T)
++                    dst.length = arr.length;
+ 
 -            dst.length = tmp.length/dim;
 -            foreach(i; 0..dst.length) {
 -                size_t s = i*dim;
 -                size_t e = s+dim;
 -                dst[i].vector[0..dim] = tmp[s..e];
-+            auto arr = object.arrayNoRef;
-+            if (arr.length > 0 && arr[0].type == JSONType.array) {
-+                static if (isDynamicArray!T)
-+                    dst.length = arr.length;
-+
 +                foreach(i, ref JSONValue value; arr) {
 +                    static if (isStaticArray!T)
 +                        if (i >= dst.length)
@@ -36,4 +34,3 @@ diff --git a/source/inochi2d/core/format/serde/deserializers.d b/source/inochi2d
 +                }
              }
          } else static if (__traits(isScalar, ET)) {
- 

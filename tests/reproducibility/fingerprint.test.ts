@@ -23,6 +23,7 @@ describe('build fingerprint', () => {
       '0014-serialize-mesh-vectors-flat.patch',
       '0015-emit-legacy-part-mask-threshold.patch',
       '0016-serialize-legacy-part-blend-mode.patch',
+      '0017-serialize-legacy-parameter-merge-mode.patch',
     ]);
   });
 });

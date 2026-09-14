@@ -30,7 +30,7 @@ diff --git a/source/inochi2d/core/guid.d b/source/inochi2d/core/guid.d
  /**
      Creates a new GUID.
  
- diff --git a/source/inochi2d/core/nodes/package.d b/source/inochi2d/core/nodes/package.d
+diff --git a/source/inochi2d/core/nodes/package.d b/source/inochi2d/core/nodes/package.d
 --- a/source/inochi2d/core/nodes/package.d
 +++ b/source/inochi2d/core/nodes/package.d
 @@ -587,6 +587,7 @@ public:

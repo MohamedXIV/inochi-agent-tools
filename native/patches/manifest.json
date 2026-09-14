@@ -44,6 +44,11 @@
       "file": "0009-read-binding-node-guid-from-node-field.patch",
       "reason": "Pinned Inochi2D v0.8.7 serializes ParameterBinding target GUIDs under the string field 'node' but deserializes with tryGetGUID('node','target'), where the first argument is reserved for a legacy numeric UUID key and the second for the string GUID key. As a result the valid 'node' string is skipped and the binding is removed during Parameter.finalize. Read legacy numeric 'target' first and current string 'node' second.",
       "removalCondition": "Remove when the pinned upstream revision deserializes the same binding target field it serializes and a non-root ValueParameterBinding survives whole-puppet save/reopen without this patch."
+    },
+    {
+      "file": "0010-serialize-node-local-transform.patch",
+      "reason": "Pinned Inochi2D v0.8.7 Node.onSerialize writes the node's z-sort float into the 'transform' field instead of serializing localTransform. Its own permissive JSON loader masks this by defaulting the transform, but official Inochi Creator v0.8.6 rejects the malformed transform while opening even a minimal real puppet. Serialize the actual local transform object so the emitted standard Inochi schema is structurally compatible.",
+      "removalCondition": "Remove when the pinned upstream revision serializes Node.localTransform into the 'transform' field itself and official Creator can open a minimal puppet without this compatibility patch."
     }
   ]
 }

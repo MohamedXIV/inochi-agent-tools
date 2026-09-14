@@ -1,7 +1,7 @@
 diff --git a/source/inochi2d/core/guid.d b/source/inochi2d/core/guid.d
 --- a/source/inochi2d/core/guid.d
 +++ b/source/inochi2d/core/guid.d
-@@ -31,6 +31,29 @@ GUID toGuid(uint legacyUUID) @nogc {
+@@ -31,4 +31,26 @@ GUID toGuid(uint legacyUUID) @nogc {
      return GUID(legacyUUID, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255);
  }
  

@@ -35,7 +35,8 @@
     "creator:materialize": "node scripts/creator/materialize.mjs",
     "creator:fixture": "node scripts/creator/build-fixture.mjs",
     "creator:roundtrip": "node scripts/creator/launch-roundtrip.mjs",
-    "creator:verify": "node scripts/creator/verify-roundtrip.mjs"
+    "creator:verify": "node scripts/creator/verify-roundtrip.mjs",
+    "m2:creator:ci": "node scripts/creator/m2-creator-ci.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

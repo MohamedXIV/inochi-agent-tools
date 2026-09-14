@@ -2,6 +2,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -13,6 +14,8 @@ const root = process.cwd();
 const configDir = resolve(root, '.build/creator/config');
 const settingsPath = resolve(configDir, 'settings.json');
 const creator = resolve(root, '.build/creator/v0.8.6/inochi-creator');
+const creatorDir = dirname(creator);
+const creatorCrashDir = resolve(creatorDir, '$XDG_STATE_HOME');
 const input = resolve(root, 'tests/fixtures/generated/creator-roundtrip-input.inp');
 const output = resolve(root, 'tests/fixtures/generated/creator-roundtrip-input.inx');
 const display = ':99';
@@ -51,6 +54,15 @@ function readSettings() {
   return JSON.parse(readFileSync(settingsPath, 'utf8'));
 }
 
+function readCreatorCrashDump() {
+  if (!existsSync(creatorCrashDir)) return '';
+  const dumps = readdirSync(creatorCrashDir)
+    .filter((name) => name.startsWith('inochi-creator-crashdump-') && name.endsWith('.txt'))
+    .sort();
+  if (dumps.length === 0) return '';
+  return readFileSync(resolve(creatorCrashDir, dumps.at(-1)), 'utf8');
+}
+
 function killProcess(child, signal = 'SIGTERM') {
   if (!child || child.exitCode !== null) return;
   try {
@@ -66,8 +78,14 @@ if (!commandExists('Xvfb')) fail('Xvfb is required');
 if (!commandExists('xdotool')) fail('xdotool is required');
 
 rmSync(configDir, { recursive: true, force: true });
+rmSync(creatorCrashDir, { recursive: true, force: true });
 rmSync(output, { force: true });
 mkdirSync(configDir, { recursive: true });
+// Creator v0.8.6's Linux crash handler passes the literal string
+// "$XDG_STATE_HOME/" through expandTilde(), which does not expand env vars.
+// Keep that literal relative directory available so an upstream crash does not
+// get masked by a secondary FileException and its original diagnostic remains visible.
+mkdirSync(creatorCrashDir, { recursive: true });
 writeFileSync(settingsPath, JSON.stringify({ hasDoneQuickSetup: true, prev_projects: [] }));
 
 const env = {
@@ -83,6 +101,7 @@ const xvfb = spawn('Xvfb', [display, '-screen', '0', '1280x800x24', '-nolisten',
   stdio: ['ignore', 'pipe', 'pipe'],
 });
 let creatorProcess;
+let creatorStdout = '';
 let creatorStderr = '';
 let xvfbStderr = '';
 xvfb.stderr?.on('data', (chunk) => { xvfbStderr += chunk.toString(); });
@@ -94,15 +113,20 @@ try {
   }, 10_000);
 
   creatorProcess = spawn(creator, [input], {
-    cwd: dirname(creator),
+    cwd: creatorDir,
     env,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
+  creatorProcess.stdout?.on('data', (chunk) => { creatorStdout += chunk.toString(); });
   creatorProcess.stderr?.on('data', (chunk) => { creatorStderr += chunk.toString(); });
 
   await waitFor('Creator to record successful project open', () => {
     if (creatorProcess.exitCode !== null) {
-      fail(`Creator exited early with code ${creatorProcess.exitCode}; stderr: ${creatorStderr}`);
+      const crashDump = readCreatorCrashDump();
+      fail(
+        `Creator exited early with code ${creatorProcess.exitCode}; ` +
+        `stdout: ${creatorStdout}; stderr: ${creatorStderr}; crashdump: ${crashDump}`,
+      );
     }
     const settings = readSettings();
     return Array.isArray(settings?.prev_projects) && settings.prev_projects[0] === input;

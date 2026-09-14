@@ -18,6 +18,8 @@
     "mcp:typecheck": "tsc -p packages/mcp/tsconfig.json --noEmit",
     "mcp:build": "npm run sdk:build && tsc -p packages/mcp/tsconfig.json",
     "mcp:test": "npm run sdk:build && vitest run packages/mcp/test/mcp-contract.test.ts",
+    "mcp:protocol:test": "vitest run packages/mcp/test/mcp-parity.test.ts",
+    "m3:protocol:ci": "node scripts/mcp/m3-protocol-ci.mjs",
     "upstream:materialize": "node scripts/upstream/materialize.mjs",
     "upstream:verify": "node scripts/upstream/verify.mjs",
     "upstream:fingerprint": "node scripts/upstream/fingerprint.mjs",

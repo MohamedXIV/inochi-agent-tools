@@ -1,7 +1,7 @@
 diff --git a/source/inochi2d/core/format/serde/package.d b/source/inochi2d/core/format/serde/package.d
 --- a/source/inochi2d/core/format/serde/package.d
 +++ b/source/inochi2d/core/format/serde/package.d
-@@ -181,9 +181,16 @@ T tryGet(T)(auto ref JSONValue data, T defaultValue = T.init) {
+@@ -181,8 +181,16 @@ T tryGet(T)(auto ref JSONValue data, T defaultValue = T.init) {
      static if (__traits(isFloating, T))
          defaultValue = 0.0;
      

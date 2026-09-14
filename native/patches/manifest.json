@@ -59,6 +59,11 @@
       "file": "0012-prefer-guid-over-legacy-uuid.patch",
       "reason": "Emitting both modern string 'guid' and compatibility numeric 'uuid' for Creator v0.8.6 exposes pinned v0.8.7 tryGetGUID precedence: it prefers the legacy uuid and replaces the node's original GUID with a projected legacy GUID, while parameter bindings still reference the original GUID. Prefer the modern GUID whenever both are present and retain uuid as a fallback for genuinely legacy files.",
       "removalCondition": "Remove when the pinned upstream revision preserves modern GUID identity when both GUID and legacy UUID fields are present, or when legacy UUID emission is no longer required by the supported Creator compatibility target."
+    },
+    {
+      "file": "0013-emit-legacy-parameter-binding-identities.patch",
+      "reason": "Official Inochi Creator v0.8.6 requires numeric Parameter.uuid values and numeric ParameterBinding.node targets, while pinned v0.8.7 emits modern string GUID identities. Emit the legacy parameter uuid alongside guid and encode bindings with numeric node plus modern string target so Creator v0.8.6 can load them while patched v0.8.7 preserves exact GUID identity.",
+      "removalCondition": "Remove when the supported official Creator version consumes GUID parameter/binding identities directly, or when pinned upstream provides backward-compatible dual identity serialization itself."
     }
   ]
 }

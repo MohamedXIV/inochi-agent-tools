@@ -1,0 +1,43 @@
+diff --git a/source/inochi2d/core/guid.d b/source/inochi2d/core/guid.d
+--- a/source/inochi2d/core/guid.d
++++ b/source/inochi2d/core/guid.d
+@@ -31,6 +31,29 @@ GUID toGuid(uint legacyUUID) @nogc {
+     return GUID(legacyUUID, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255);
+ }
+ 
++/**
++    Projects a GUID into the legacy 32-bit node identity namespace.
++
++    This uses the UUID time-low field represented by the first eight
++    hexadecimal characters. Legacy IDs upgraded through toGuid therefore
++    round-trip exactly, while native GUIDs receive a stable compatibility ID.
++*/
++uint toLegacyUUID(GUID guid) {
++    auto text = guid.toString();
++    uint value;
++    foreach (c; text[0..8]) {
++        value <<= 4;
++        if (c >= '0' && c <= '9')
++            value |= cast(uint)(c - '0');
++        else if (c >= 'a' && c <= 'f')
++            value |= cast(uint)(c - 'a' + 10);
++        else if (c >= 'A' && c <= 'F')
++            value |= cast(uint)(c - 'A' + 10);
++    }
++    return value == uint.max ? uint.max - 1 : value;
++}
++
+ /**
+     Creates a new GUID.
+ 
+ diff --git a/source/inochi2d/core/nodes/package.d b/source/inochi2d/core/nodes/package.d
+--- a/source/inochi2d/core/nodes/package.d
++++ b/source/inochi2d/core/nodes/package.d
+@@ -587,6 +587,7 @@ public:
+     void onSerialize(ref JSONValue object, bool recursive = true) {
+         nstring guid = guid_.toString();
+         object["guid"] = guid.dup;
++        object["uuid"] = guid_.toLegacyUUID();
+         object["name"] = name;
+         object["type"] = typeId.sid;
+         object["enabled"] = enabled;

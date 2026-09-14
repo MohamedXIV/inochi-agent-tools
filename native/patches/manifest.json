@@ -49,6 +49,11 @@
       "file": "0010-serialize-node-local-transform.patch",
       "reason": "Pinned Inochi2D v0.8.7 Node.onSerialize writes the node's z-sort float into the 'transform' field instead of serializing localTransform. Its own permissive JSON loader masks this by defaulting the transform, but official Inochi Creator v0.8.6 rejects the malformed transform while opening even a minimal real puppet. Serialize the actual local transform object so the emitted standard Inochi schema is structurally compatible.",
       "removalCondition": "Remove when the pinned upstream revision serializes Node.localTransform into the 'transform' field itself and official Creator can open a minimal puppet without this compatibility patch."
+    },
+    {
+      "file": "0011-emit-legacy-node-uuid.patch",
+      "reason": "Official Inochi Creator v0.8.6 predates Inochi2D's 2025 GUID migration and its node schema serializes/loads numeric 'uuid' identities, while pinned v0.8.7 emits only string 'guid'. Emit a stable legacy 32-bit projection alongside the GUID so older official Creator can resolve the required node identity without weakening the v0.8.7 GUID path.",
+      "removalCondition": "Remove when the supported official Creator version consumes the GUID node schema directly, or when pinned upstream provides its own backward-compatible legacy node identity emission."
     }
   ]
 }

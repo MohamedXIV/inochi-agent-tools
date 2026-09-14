@@ -92,6 +92,19 @@ private string childPath(string parentPath, string name) {
     return parentPath ~ "/" ~ name;
 }
 
+private string semanticNodePath(Node node) {
+    if (node is null || node.puppet is null || node.puppet.root is null) return "";
+    auto root = node.puppet.root;
+    string path;
+    Node current = node;
+    while (current !is null) {
+        path = "/" ~ current.name.value ~ path;
+        if (current is root) return path;
+        current = current.parent;
+    }
+    return "";
+}
+
 private void appendNodeSnapshot(Node node, string path, ref JSONValue nodes, ref size_t nodeCount, ref size_t partCount) {
     if (node is null) return;
     JSONValue item = JSONValue.emptyObject;
@@ -124,8 +137,10 @@ private JSONValue parameterBindingSnapshots(Parameter parameter) {
         auto valueBinding = cast(ValueParameterBinding) binding;
         auto target = binding.getNode();
         if (valueBinding is null || target is null) continue;
+        auto targetPath = semanticNodePath(target);
+        if (targetPath.length == 0) continue;
         JSONValue item = JSONValue.emptyObject;
-        item["targetPath"] = target.getNodePath();
+        item["targetPath"] = targetPath;
         item["property"] = binding.getName();
         JSONValue keypoints = JSONValue.emptyArray;
         foreach (x; 0 .. parameter.axisPointCount(0)) {

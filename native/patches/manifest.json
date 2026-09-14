@@ -54,6 +54,11 @@
       "file": "0011-emit-legacy-node-uuid.patch",
       "reason": "Official Inochi Creator v0.8.6 predates Inochi2D's 2025 GUID migration and its node schema serializes/loads numeric 'uuid' identities, while pinned v0.8.7 emits only string 'guid'. Emit a stable legacy 32-bit projection alongside the GUID so older official Creator can resolve the required node identity without weakening the v0.8.7 GUID path.",
       "removalCondition": "Remove when the supported official Creator version consumes the GUID node schema directly, or when pinned upstream provides its own backward-compatible legacy node identity emission."
+    },
+    {
+      "file": "0012-prefer-guid-over-legacy-uuid.patch",
+      "reason": "Emitting both modern string 'guid' and compatibility numeric 'uuid' for Creator v0.8.6 exposes pinned v0.8.7 tryGetGUID precedence: it prefers the legacy uuid and replaces the node's original GUID with a projected legacy GUID, while parameter bindings still reference the original GUID. Prefer the modern GUID whenever both are present and retain uuid as a fallback for genuinely legacy files.",
+      "removalCondition": "Remove when the pinned upstream revision preserves modern GUID identity when both GUID and legacy UUID fields are present, or when legacy UUID emission is no longer required by the supported Creator compatibility target."
     }
   ]
 }

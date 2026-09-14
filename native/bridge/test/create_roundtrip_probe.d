@@ -25,17 +25,17 @@ int main(string[] args) {
         &json,
         &error,
     );
-    scope(exit) {
-        if (json !is null) iat_string_free(json);
-        if (error !is null) iat_string_free(error);
-    }
 
     if (result != 0 || json is null || error !is null) {
+        if (json !is null) iat_string_free(json);
+        if (error !is null) iat_string_free(error);
         stderr.writeln("create-probe: create failed with code ", result);
         return 3;
     }
 
     auto decoded = parseJSON(fromStringz(json).idup);
+    iat_string_free(json);
+    json = null;
     if (decoded["schemaVersion"].get!long != 1 || decoded["metadata"]["name"].str != "M1 Created Puppet") {
         stderr.writeln("create-probe: semantic round-trip snapshot mismatch");
         return 4;
@@ -45,6 +45,21 @@ int main(string[] args) {
         stderr.writeln("create-probe: writer produced no real .inp artifact");
         return 5;
     }
+    auto originalSize = getSize(args[1]);
+
+    result = iat_create_minimal_puppet_json(
+        args[1].toStringz,
+        "Replacement Puppet".toStringz,
+        &json,
+        &error,
+    );
+    if (result != 5 || json !is null || error is null || getSize(args[1]) != originalSize) {
+        if (json !is null) iat_string_free(json);
+        if (error !is null) iat_string_free(error);
+        stderr.writeln("create-probe: existing output was not rejected safely");
+        return 6;
+    }
+    iat_string_free(error);
 
     return 0;
 }

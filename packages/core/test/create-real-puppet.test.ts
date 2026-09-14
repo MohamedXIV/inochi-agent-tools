@@ -3,7 +3,7 @@ import { rm } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import { PuppetAlreadyExistsError, createPuppet, inspectPuppet } from '../src/index.js';
 
-const runNative = process.env.IAT_M1_NATIVE_TESTS === '1';
+const runNative = process.env.IAT_M1_AUTHORING_TESTS === '1';
 const output = 'tests/fixtures/generated/core-created-minimal.inp';
 
 describe.skipIf(!runNative)('real minimal puppet authoring', () => {

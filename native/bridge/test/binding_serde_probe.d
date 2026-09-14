@@ -1,9 +1,10 @@
 import inmath : vec2, vec2u;
 import inochi2d.core.format : deserialize, parseJSON, serialize, toJSON;
-import inochi2d.core.guid : GUID, tryGetGUID;
+import inochi2d.core.guid : GUID, toLegacyUUID, tryGetGUID;
 import inochi2d.core.nodes : Node;
 import inochi2d.core.param : Parameter, ValueParameterBinding;
 import inochi2d.core.puppet : Puppet;
+import std.json : JSONType;
 import std.stdio : stderr;
 
 int main() {
@@ -42,22 +43,42 @@ int main() {
             return 4;
         }
 
-        auto serializedRigGuid = whole["nodes"]["children"].array[0]["guid"].str;
-        auto serializedBindingGuid = whole["param"].array[0]["bindings"].array[0]["node"].str;
+        auto rigObject = whole["nodes"]["children"].array[0];
+        auto parameterObject = whole["param"].array[0];
+        auto bindingObject = parameterObject["bindings"].array[0];
+
+        auto serializedRigGuid = rigObject["guid"].str;
+        auto serializedBindingGuid = bindingObject["target"].str;
+        if (rigObject["uuid"].type != JSONType.uinteger ||
+            parameterObject["uuid"].type != JSONType.uinteger ||
+            bindingObject["node"].type != JSONType.uinteger) {
+            stderr.writeln("binding-serde-probe: legacy identity fields are not unsigned integers");
+            return 9;
+        }
+
+        auto serializedRigUuid = cast(uint)rigObject["uuid"].uinteger;
+        auto serializedParameterUuid = cast(uint)parameterObject["uuid"].uinteger;
+        auto serializedBindingUuid = cast(uint)bindingObject["node"].uinteger;
         stderr.writeln("binding-serde-probe: serialized Rig GUID=", serializedRigGuid);
-        stderr.writeln("binding-serde-probe: serialized binding GUID=", serializedBindingGuid);
-        if (serializedRigGuid != serializedBindingGuid) {
-            stderr.writeln("binding-serde-probe: binding target already diverged before deserialize");
+        stderr.writeln("binding-serde-probe: serialized binding target GUID=", serializedBindingGuid);
+        stderr.writeln("binding-serde-probe: serialized legacy node UUID=", serializedBindingUuid);
+        if (serializedRigGuid != serializedBindingGuid ||
+            serializedRigUuid != rig.guid.toLegacyUUID() ||
+            serializedBindingUuid != serializedRigUuid ||
+            serializedParameterUuid != parameter.guid.toLegacyUUID()) {
+            stderr.writeln("binding-serde-probe: modern/legacy identity projection diverged before deserialize");
             return 5;
         }
 
         auto directRigGuid = GUID(serializedRigGuid);
-        auto childObject = whole["nodes"]["children"].array[0];
-        auto helperRigGuid = childObject.tryGetGUID("uuid", "guid");
+        auto helperRigGuid = rigObject.tryGetGUID("uuid", "guid");
+        auto helperBindingGuid = bindingObject.tryGetGUID("node", "target");
         stderr.writeln("binding-serde-probe: direct parsed Rig GUID=", directRigGuid.toString());
         stderr.writeln("binding-serde-probe: tryGetGUID Rig GUID=", helperRigGuid.toString());
-        if (directRigGuid.toString().value != serializedRigGuid || helperRigGuid != directRigGuid) {
-            stderr.writeln("binding-serde-probe: GUID text parsing diverged before Node deserialization");
+        stderr.writeln("binding-serde-probe: tryGetGUID binding target GUID=", helperBindingGuid.toString());
+        if (directRigGuid.toString().value != serializedRigGuid ||
+            helperRigGuid != directRigGuid || helperBindingGuid != directRigGuid) {
+            stderr.writeln("binding-serde-probe: modern GUID precedence diverged before Node deserialization");
             return 8;
         }
 
@@ -79,8 +100,8 @@ int main() {
         stderr.writeln("binding-serde-probe: reloaded Rig GUID=", reloadedRig.guid.toString());
         stderr.writeln("binding-serde-probe: reloaded binding node GUID=", reloadedBinding.getNodeGUID().toString());
         stderr.writeln("binding-serde-probe: reloaded target name=", reloadedTarget is null ? "<null>" : reloadedTarget.name.value);
-        if (reloadedTarget !is reloadedRig) {
-            stderr.writeln("binding-serde-probe: full-puppet deserialize resolved binding to the wrong node");
+        if (reloadedTarget !is reloadedRig || reloadedRig.guid != directRigGuid) {
+            stderr.writeln("binding-serde-probe: full-puppet deserialize did not preserve modern binding identity");
             return 7;
         }
 

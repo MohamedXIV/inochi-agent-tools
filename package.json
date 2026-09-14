@@ -12,6 +12,7 @@
     "cli:typecheck": "tsc -p packages/cli/tsconfig.json --noEmit",
     "cli:build": "npm run core:build && tsc -p packages/cli/tsconfig.json",
     "cli:test": "npm run core:build && vitest run packages/cli/test",
+    "sdk:test": "npm run core:build && vitest run packages/sdk/test",
     "upstream:materialize": "node scripts/upstream/materialize.mjs",
     "upstream:verify": "node scripts/upstream/verify.mjs",
     "upstream:fingerprint": "node scripts/upstream/fingerprint.mjs",

@@ -33,11 +33,11 @@ diff --git a/source/inochi2d/core/guid.d b/source/inochi2d/core/guid.d
 diff --git a/source/inochi2d/core/nodes/package.d b/source/inochi2d/core/nodes/package.d
 --- a/source/inochi2d/core/nodes/package.d
 +++ b/source/inochi2d/core/nodes/package.d
-@@ -548,6 +548,7 @@ public:
+@@ -576,6 +576,7 @@ class Node : ISerializable, IDeserializable {
      void onSerialize(ref JSONValue object, bool recursive = true) {
          nstring guid = guid_.toString();
          object["guid"] = guid.dup;
 +        object["uuid"] = guid_.toLegacyUUID();
-         object["name"] = name;
+         object["name"] = name.value;
          object["type"] = typeId.sid;
          object["enabled"] = enabled;

@@ -1,5 +1,6 @@
 import core.stdc.string : fromStringz;
 import std.stdio : stderr;
+import std.string : indexOf, toStringz;
 
 extern(C) int iat_inspect_puppet_json(const(char)* path, char** outJson, char** outError);
 extern(C) void iat_string_free(char* value);
@@ -12,7 +13,8 @@ int main(string[] args) {
 
     char* json;
     char* error;
-    auto result = iat_inspect_puppet_json(args[1].ptr, &json, &error);
+    auto path = toStringz(args[1]);
+    auto result = iat_inspect_puppet_json(path, &json, &error);
     scope(exit) {
         if (json !is null) iat_string_free(json);
         if (error !is null) iat_string_free(error);

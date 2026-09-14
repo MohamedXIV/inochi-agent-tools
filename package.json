@@ -23,7 +23,9 @@
     "m1:host": "node scripts/native/build-host.mjs --host",
     "m1:host:build": "node scripts/native/build-host.mjs --host",
     "m1:ci": "node scripts/native/m1-ci.mjs",
-    "m1:authoring:ci": "node scripts/native/m1-authoring-ci.mjs"
+    "m1:authoring:ci": "node scripts/native/m1-authoring-ci.mjs",
+    "m2:png": "node scripts/fixtures/write-m2-png.mjs",
+    "m2:visual-probe": "node scripts/native/build-host.mjs --visual-probe"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -1,0 +1,33 @@
+name: Sync MCP lockfile
+
+on:
+  push:
+    branches:
+      - m3/10-mcp-sdk
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: m3/10-mcp-sdk
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Regenerate workspace lockfile
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Commit synchronized lockfile
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "package-lock.json already synchronized"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "chore: sync MCP workspace lockfile"
+          git push origin HEAD:m3/10-mcp-sdk

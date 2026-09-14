@@ -19,6 +19,7 @@ function protocolEnv() {
   return {
     ...process.env,
     IAT_MCP_PROTOCOL_TESTS: '1',
+    IAT_MCP_REAL_WORKFLOW_TESTS: '1',
     LD_LIBRARY_PATH: [outDir, process.env.LD_LIBRARY_PATH].filter(Boolean).join(':'),
     DYLD_LIBRARY_PATH: [outDir, process.env.DYLD_LIBRARY_PATH].filter(Boolean).join(':'),
     PATH: [outDir, process.env.PATH].filter(Boolean).join(path.delimiter),
@@ -28,3 +29,4 @@ function protocolEnv() {
 run('m3:cli:ci');
 run('mcp:build');
 run('mcp:protocol:test', [], protocolEnv());
+run('mcp:real-workflow:test', [], protocolEnv());

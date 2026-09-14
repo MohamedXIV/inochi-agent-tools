@@ -23,7 +23,7 @@
       "targetPath": "../../.build/native",
       "sourcePaths": ["source", "test"],
       "mainSourceFile": "test/fixture_generator.d",
-      "excludedSourceFiles": ["test/bridge_probe.d", "test/inspection_probe.d"]
+      "excludedSourceFiles": ["test/bridge_probe.d", "test/inspection_probe.d", "test/create_roundtrip_probe.d"]
     }
   ]
 }

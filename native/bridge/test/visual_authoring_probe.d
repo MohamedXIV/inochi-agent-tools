@@ -21,7 +21,11 @@ int main(string[] args) {
     auto operations = `[` ~
         `{"type":"texture.import","key":"face","imagePath":"` ~ args[3] ~ `"},` ~
         `{"type":"node.create","parentPath":"/Root","name":"Body"},` ~
-        `{"type":"part.create","parentPath":"/Root/Body","name":"Face","textureKey":"face"}` ~
+        `{"type":"node.create","parentPath":"/Root","name":"Accessories"},` ~
+        `{"type":"part.create","parentPath":"/Root/Body","name":"Face","textureKey":"face"},` ~
+        `{"type":"node.reparent","path":"/Root/Body/Face","newParentPath":"/Root/Accessories"},` ~
+        `{"type":"part.setTexture","path":"/Root/Accessories/Face","textureKey":"face"},` ~
+        `{"type":"node.remove","path":"/Root/Body"}` ~
         `]`;
 
     char* json;
@@ -56,7 +60,12 @@ int main(string[] args) {
 
     bool foundFace;
     foreach (ref node; decoded["nodes"].array) {
-        if (node["path"].str != "/Root/Body/Face") continue;
+        auto path = node["path"].str;
+        if (path == "/Root/Body") {
+            stderr.writeln("visual-authoring-probe: removed Body still present: ", jsonText);
+            return 8;
+        }
+        if (path != "/Root/Accessories/Face") continue;
         foundFace = true;
         if (node["kind"].str != "part" || node["textures"].array.length != 1 ||
             node["textures"].array[0]["usage"].str != "albedo" ||
@@ -66,7 +75,7 @@ int main(string[] args) {
         }
     }
     if (!foundFace) {
-        stderr.writeln("visual-authoring-probe: missing /Root/Body/Face: ", jsonText);
+        stderr.writeln("visual-authoring-probe: missing /Root/Accessories/Face: ", jsonText);
         return 7;
     }
     return 0;

@@ -46,3 +46,4 @@ jobs:
       - name: Prove fully-bound puppet opens in official Creator
         run: node scripts/creator/launch-roundtrip.mjs --open-only tests/fixtures/generated/creator-roundtrip-input.inp
       - run: npm run creator:roundtrip
+      - run: npm run creator:verify

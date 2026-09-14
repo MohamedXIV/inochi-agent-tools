@@ -23,6 +23,16 @@ export interface CreatePuppetResult {
   inspection: PuppetInspection;
 }
 
+export interface SavePuppetRequest {
+  inputPath: string;
+  outputPath: string;
+}
+
+export interface SavePuppetResult {
+  path: string;
+  inspection: PuppetInspection;
+}
+
 export interface NativeHostOptions {
   hostPath?: string;
 }
@@ -65,6 +75,44 @@ function validateCreatePuppetRequest(request: CreatePuppetRequest): void {
   }
 }
 
+function validateSavePuppetRequest(request: SavePuppetRequest): {
+  inputPath: string;
+  outputPath: string;
+} {
+  if (
+    path.extname(request.inputPath).toLowerCase() !== '.inp' ||
+    path.extname(request.outputPath).toLowerCase() !== '.inp'
+  ) {
+    throw new InvalidAuthoringRequestError('Puppet save-as paths must end in .inp');
+  }
+
+  const inputPath = path.resolve(process.cwd(), request.inputPath);
+  const outputPath = path.resolve(process.cwd(), request.outputPath);
+  if (inputPath === outputPath) {
+    throw new InvalidAuthoringRequestError('Puppet save-as requires distinct input and output paths');
+  }
+  return { inputPath, outputPath };
+}
+
+function parseAuthoringInspection(stdout: string): PuppetInspection {
+  let decoded: unknown;
+  try {
+    decoded = JSON.parse(stdout);
+  } catch (error) {
+    throw new NativeBridgeError(
+      `Native host emitted invalid authoring JSON: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  try {
+    return parsePuppetInspection(decoded);
+  } catch (error) {
+    throw new NativeBridgeError(
+      `Native host emitted an invalid authoring snapshot: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
 export async function createPuppet(
   request: CreatePuppetRequest,
   options: NativeHostOptions = {},
@@ -87,23 +135,7 @@ export async function createPuppet(
       },
     );
 
-    let decoded: unknown;
-    try {
-      decoded = JSON.parse(stdout);
-    } catch (error) {
-      throw new NativeBridgeError(
-        `Native host emitted invalid authoring JSON: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
-
-    let inspection: PuppetInspection;
-    try {
-      inspection = parsePuppetInspection(decoded);
-    } catch (error) {
-      throw new NativeBridgeError(
-        `Native host emitted an invalid authoring snapshot: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
+    const inspection = parseAuthoringInspection(stdout);
 
     if (inspection.metadata.name !== request.name) {
       throw new RoundTripMismatchError(
@@ -112,6 +144,45 @@ export async function createPuppet(
     }
 
     return { path: outputPath, inspection };
+  } catch (error) {
+    if (
+      error instanceof InvalidAuthoringRequestError ||
+      error instanceof PuppetAlreadyExistsError ||
+      error instanceof RoundTripMismatchError ||
+      error instanceof NativeBridgeError
+    ) {
+      throw error;
+    }
+
+    const failure = error as ExecFailure;
+    const diagnostic = failureDiagnostic(failure);
+    if (failure.code === 4) throw new InvalidAuthoringRequestError(diagnostic);
+    if (failure.code === 5) throw new PuppetAlreadyExistsError(diagnostic);
+    if (failure.code === 6) throw new RoundTripMismatchError(diagnostic);
+    throw new NativeBridgeError(diagnostic);
+  }
+}
+
+export async function savePuppet(
+  request: SavePuppetRequest,
+  options: NativeHostOptions = {},
+): Promise<SavePuppetResult> {
+  const { inputPath, outputPath } = validateSavePuppetRequest(request);
+  const hostPath = options.hostPath ?? defaultNativeHostPath();
+
+  try {
+    const { stdout } = await execFileAsync(
+      hostPath,
+      ['save-as', inputPath, outputPath],
+      {
+        cwd: process.cwd(),
+        env: nativeHostEnv(),
+        encoding: 'utf8',
+        maxBuffer: MAX_CAPTURE_BYTES,
+        windowsHide: true,
+      },
+    );
+    return { path: outputPath, inspection: parseAuthoringInspection(stdout) };
   } catch (error) {
     if (
       error instanceof InvalidAuthoringRequestError ||

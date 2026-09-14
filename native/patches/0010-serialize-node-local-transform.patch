@@ -1,0 +1,12 @@
+diff --git a/source/inochi2d/core/nodes/package.d b/source/inochi2d/core/nodes/package.d
+--- a/source/inochi2d/core/nodes/package.d
++++ b/source/inochi2d/core/nodes/package.d
+@@ -554,7 +554,7 @@ public:
+         object["type"] = typeId.sid;
+         object["enabled"] = enabled;
+         object["zsort"] = zsort_;
+-        object["transform"] = zsort_;
++        object["transform"] = localTransform.serialize();
+         object["lockToRoot"] = lockToRoot_;
+ 
+         // Allow non-recursive serialization.

@@ -1,0 +1,20 @@
+diff --git a/source/inochi2d/core/param/package.d b/source/inochi2d/core/param/package.d
+--- a/source/inochi2d/core/param/package.d
++++ b/source/inochi2d/core/param/package.d
+@@ -273,7 +273,15 @@ class Parameter : ISerializable, IDeserializable {
+         object["max"] = max.serialize();
+         object["defaults"] = defaults.serialize();
+         object["axis_points"] = axisPoints.serialize();
+-        object["merge_mode"] = mergeMode.serialize();
++        string legacyMergeMode;
++        final switch (mergeMode) with (ParamMergeMode) {
++            case additive:       legacyMergeMode = "Additive"; break;
++            case weighted:       legacyMergeMode = "Weighted"; break;
++            case multiplicative: legacyMergeMode = "Multiplicative"; break;
++            case forced:         legacyMergeMode = "Forced"; break;
++            case passthrough:    legacyMergeMode = "Passthrough"; break;
++        }
++        object["merge_mode"] = legacyMergeMode;
+ 
+         object["bindings"] = JSONValue.emptyArray;
+         foreach(ref binding; bindings) {

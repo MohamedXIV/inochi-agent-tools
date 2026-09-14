@@ -1,0 +1,28 @@
+diff --git a/source/inochi2d/core/param/binding.d b/source/inochi2d/core/param/binding.d
+--- a/source/inochi2d/core/param/binding.d
++++ b/source/inochi2d/core/param/binding.d
+@@ -268,5 +268,23 @@ abstract class ParameterBindingImpl(T) : ParameterBinding {
+         object["param_name"] = target.paramName;
+         object["values"] = values.serialize();
+         object["isSet"] = isSet_.serialize();
+-        object["interpolate_mode"] = interpolateMode_;
++        string legacyInterpolateMode;
++        final switch (interpolateMode_) {
++            case InterpolateMode.nearest:
++                legacyInterpolateMode = "Nearest";
++                break;
++            case InterpolateMode.linear:
++                legacyInterpolateMode = "Linear";
++                break;
++            case InterpolateMode.stepped:
++                legacyInterpolateMode = "Stepped";
++                break;
++            case InterpolateMode.quadratic:
++                legacyInterpolateMode = "Bezier";
++                break;
++            case InterpolateMode.cubic:
++                legacyInterpolateMode = "Cubic";
++                break;
++        }
++        object["interpolate_mode"] = legacyInterpolateMode;
+     }

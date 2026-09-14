@@ -1,0 +1,10 @@
+diff --git a/source/inochi2d/core/nodes/drawable/part.d b/source/inochi2d/core/nodes/drawable/part.d
+--- a/source/inochi2d/core/nodes/drawable/part.d
++++ b/source/inochi2d/core/nodes/drawable/part.d
+@@ -58,5 +58,6 @@ class Part : Drawable {
+         object["emissionStrength"] = emissionStrength;
+         object["masks"] = masks.serialize();
++        object["mask_threshold"] = 0.5;
+         object["opacity"] = opacity;
+     }
+ 

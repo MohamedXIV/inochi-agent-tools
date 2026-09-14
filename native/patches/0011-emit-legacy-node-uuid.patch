@@ -1,0 +1,62 @@
+diff --git a/source/inochi2d/core/guid.d b/source/inochi2d/core/guid.d
+--- a/source/inochi2d/core/guid.d
++++ b/source/inochi2d/core/guid.d
+@@ -31,4 +31,45 @@ GUID toGuid(uint legacyUUID) @nogc {
+     return GUID(legacyUUID, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255);
+ }
+ 
++/**
++    Projects a GUID into the legacy 32-bit node identity namespace.
++
++    Legacy IDs upgraded through toGuid round-trip exactly. Native v0.8.7
++    GUIDs currently carry their entropy outside time_low, so hashing the full
++    textual GUID gives older Creator versions a stable compatibility identity
++    instead of collapsing every generated node to uuid 0.
++*/
++uint toLegacyUUID(GUID guid) {
++    auto text = guid.toString();
++
++    // Preserve exact legacy UUIDs created by toGuid(uint).
++    if (
++        text[9..23] == "0000-0000-0000" &&
++        text[24..36] == "0000000000ff"
++    ) {
++        uint legacy;
++        foreach (c; text[0..8]) {
++            legacy <<= 4;
++            if (c >= '0' && c <= '9')
++                legacy |= cast(uint)(c - '0');
++            else if (c >= 'a' && c <= 'f')
++                legacy |= cast(uint)(c - 'a' + 10);
++            else if (c >= 'A' && c <= 'F')
++                legacy |= cast(uint)(c - 'A' + 10);
++        }
++        return legacy;
++    }
++
++    // FNV-1a over the complete GUID text provides a stable 32-bit projection
++    // for native GUIDs whose time_low field is zero in nulib createRandom.
++    uint value = 2166136261u;
++    foreach (c; text) {
++        value ^= cast(ubyte)c;
++        value *= 16777619u;
++    }
++    if (value == 0)
++        return 1;
++    return value == uint.max ? uint.max - 1 : value;
++}
++
+ /**
+     Creates a new GUID.
+ 
+diff --git a/source/inochi2d/core/nodes/package.d b/source/inochi2d/core/nodes/package.d
+--- a/source/inochi2d/core/nodes/package.d
++++ b/source/inochi2d/core/nodes/package.d
+@@ -576,6 +576,7 @@ class Node : ISerializable, IDeserializable {
+     void onSerialize(ref JSONValue object, bool recursive = true) {
+         nstring guid = guid_.toString();
+         object["guid"] = guid.dup;
++        object["uuid"] = guid_.toLegacyUUID();
+         object["name"] = name.value;
+         object["type"] = typeId.sid;
+         object["enabled"] = enabled;

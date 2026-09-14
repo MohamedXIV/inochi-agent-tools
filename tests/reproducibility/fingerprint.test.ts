@@ -16,6 +16,15 @@ describe('build fingerprint', () => {
       '0007-append-parameter-binding-json-elements.patch',
       '0008-disambiguate-guid-string-lookup.patch',
       '0009-read-binding-node-guid-from-node-field.patch',
+      '0010-serialize-node-local-transform.patch',
+      '0011-emit-legacy-node-uuid.patch',
+      '0012-prefer-guid-over-legacy-uuid.patch',
+      '0013-emit-legacy-parameter-binding-identities.patch',
+      '0014-serialize-mesh-vectors-flat.patch',
+      '0015-emit-legacy-part-mask-threshold.patch',
+      '0016-serialize-legacy-part-blend-mode.patch',
+      '0017-serialize-legacy-parameter-merge-mode.patch',
+      '0018-serialize-legacy-binding-interpolate-mode.patch',
     ]);
   });
 });

@@ -1,0 +1,33 @@
+diff --git a/source/inochi2d/core/param/package.d b/source/inochi2d/core/param/package.d
+--- a/source/inochi2d/core/param/package.d
++++ b/source/inochi2d/core/param/package.d
+@@ -263,7 +263,8 @@ class Parameter : ISerializable, IDeserializable {
+         
+         auto selfGuid = guid.toString();
+         object["guid"] = selfGuid.dup;
++        object["uuid"] = guid.toLegacyUUID();
+         object["name"] = name.value;
+         object["is_vec2"] = isVec2;
+         object["is_vec2"] = isVec2;
+         object["min"] = min.serialize();
+diff --git a/source/inochi2d/core/param/binding.d b/source/inochi2d/core/param/binding.d
+--- a/source/inochi2d/core/param/binding.d
++++ b/source/inochi2d/core/param/binding.d
+@@ -264,7 +264,8 @@ abstract class ParameterBindingImpl(T) : ParameterBinding {
+     override
+     void onSerialize(ref JSONValue object, bool recursive = true) {
+         auto nodeGuid = target.node.guid.toString();
+-        object["node"] = nodeGuid.dup;
++        object["target"] = nodeGuid.dup;
++        object["node"] = target.node.guid.toLegacyUUID();
+         object["param_name"] = target.paramName;
+         object["values"] = values.serialize();
+         object["isSet"] = isSet_.serialize();
+@@ -279,6 +280,6 @@ abstract class ParameterBindingImpl(T) : ParameterBinding {
+     override
+     void onDeserialize(ref JSONValue object) {
+-        this.nodeRef = object.tryGetGUID("target", "node");
++        this.nodeRef = object.tryGetGUID("node", "target");
+         object.tryGetRef(target.paramName, "param_name");
+         object.tryGetRef(values, "values");
+         object.tryGetRef(isSet_, "isSet");

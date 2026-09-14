@@ -1,0 +1,34 @@
+diff --git a/source/inochi2d/core/nodes/drawable/part.d b/source/inochi2d/core/nodes/drawable/part.d
+--- a/source/inochi2d/core/nodes/drawable/part.d
++++ b/source/inochi2d/core/nodes/drawable/part.d
+@@ -52,7 +52,29 @@ class Part : Drawable {
+             }
+         }
+ 
+-        object["blend_mode"] = blendingMode;
++        string legacyBlendMode;
++        final switch (blendingMode) with (BlendMode) {
++            case normal:        legacyBlendMode = "Normal"; break;
++            case multiply:      legacyBlendMode = "Multiply"; break;
++            case screen:        legacyBlendMode = "Screen"; break;
++            case overlay:       legacyBlendMode = "Overlay"; break;
++            case darken:        legacyBlendMode = "Darken"; break;
++            case lighten:       legacyBlendMode = "Lighten"; break;
++            case colorDodge:    legacyBlendMode = "ColorDodge"; break;
++            case linearDodge:   legacyBlendMode = "LinearDodge"; break;
++            case addGlow:       legacyBlendMode = "AddGlow"; break;
++            case colorBurn:     legacyBlendMode = "ColorBurn"; break;
++            case hardLight:     legacyBlendMode = "HardLight"; break;
++            case softLight:     legacyBlendMode = "SoftLight"; break;
++            case difference:    legacyBlendMode = "Difference"; break;
++            case exclusion:     legacyBlendMode = "Exclusion"; break;
++            case subtract:      legacyBlendMode = "Subtract"; break;
++            case inverse:       legacyBlendMode = "Inverse"; break;
++            case destinationIn: legacyBlendMode = "DestinationIn"; break;
++            case sourceIn:      legacyBlendMode = "ClipToLower"; break;
++            case sourceOut:     legacyBlendMode = "SliceFromLower"; break;
++        }
++        object["blend_mode"] = legacyBlendMode;
+         object["tint"] = tint.serialize();
+         object["screenTint"] = screenTint.serialize();
+         object["emissionStrength"] = emissionStrength;

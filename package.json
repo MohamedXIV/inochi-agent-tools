@@ -31,7 +31,12 @@
     "m2:binding-serde-probe": "dub run --root native/bridge --config=binding-serde-probe",
     "m2:parameter-probe": "node scripts/native/parameter-authoring-probe.mjs",
     "m2:parameter-evaluation-probe": "node scripts/native/parameter-evaluation-probe.mjs",
-    "m2:parameter:ci": "node scripts/native/m2-parameter-ci.mjs"
+    "m2:parameter:ci": "node scripts/native/m2-parameter-ci.mjs",
+    "creator:materialize": "node scripts/creator/materialize.mjs",
+    "creator:fixture": "node scripts/creator/build-fixture.mjs",
+    "creator:roundtrip": "node scripts/creator/launch-roundtrip.mjs",
+    "creator:verify": "node scripts/creator/verify-roundtrip.mjs",
+    "m2:creator:ci": "node scripts/creator/m2-creator-ci.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

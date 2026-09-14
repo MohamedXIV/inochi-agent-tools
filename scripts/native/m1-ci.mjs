@@ -28,6 +28,7 @@ function run(script, env = process.env) {
 run('native:ci');
 run('m1:fixture');
 run('m1:inspection-probe');
+run('m1:create-probe');
 run('m1:host');
 run('typecheck');
 run('test', nativeEnv());

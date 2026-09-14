@@ -69,6 +69,11 @@
       "file": "0014-serialize-mesh-vectors-flat.patch",
       "reason": "Official Inochi Creator v0.8.6 deserializes MeshData verts/uvs as the legacy flat scalar representation (x,y,x,y...), while pinned Inochi2D v0.8.7 generic vec2[] serialization emits nested arrays. Texture-only puppets open in Creator but the first real Part fails in FGHJ mesh decoding. Emit the standard legacy flat mesh-vector representation while keeping the v0.8.7 loader tolerant of both flat and nested arrays.",
       "removalCondition": "Remove when the supported official Creator version accepts nested vec2 mesh arrays directly, or when pinned upstream emits a mesh representation that both its own loader and the supported Creator compatibility target consume without this patch."
+    },
+    {
+      "file": "0015-emit-legacy-part-mask-threshold.patch",
+      "reason": "Official Inochi Creator v0.8.6 indexes Part.mask_threshold unconditionally during FGHJ deserialization, while pinned Inochi2D v0.8.7 removed the field from Part serialization. Base, hierarchy, and texture-only puppets open successfully, but the first Part fails with EmptyFghjException. Emit the legacy default value 0.5 as a compatibility field without reintroducing it into the public semantic API.",
+      "removalCondition": "Remove when the supported official Creator version treats missing mask_threshold as optional, or when pinned upstream emits an equivalent backward-compatible Part field itself."
     }
   ]
 }

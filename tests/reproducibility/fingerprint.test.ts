@@ -18,6 +18,7 @@ describe('build fingerprint', () => {
       '0009-read-binding-node-guid-from-node-field.patch',
       '0010-serialize-node-local-transform.patch',
       '0011-emit-legacy-node-uuid.patch',
+      '0012-prefer-guid-over-legacy-uuid.patch',
     ]);
   });
 });

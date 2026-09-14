@@ -64,6 +64,11 @@
       "file": "0013-emit-legacy-parameter-binding-identities.patch",
       "reason": "Official Inochi Creator v0.8.6 requires numeric Parameter.uuid values and numeric ParameterBinding.node targets, while pinned v0.8.7 emits modern string GUID identities. Emit the legacy parameter uuid alongside guid and encode bindings with numeric node plus modern string target so Creator v0.8.6 can load them while patched v0.8.7 preserves exact GUID identity.",
       "removalCondition": "Remove when the supported official Creator version consumes GUID parameter/binding identities directly, or when pinned upstream provides backward-compatible dual identity serialization itself."
+    },
+    {
+      "file": "0014-serialize-mesh-vectors-flat.patch",
+      "reason": "Official Inochi Creator v0.8.6 deserializes MeshData verts/uvs as the legacy flat scalar representation (x,y,x,y...), while pinned Inochi2D v0.8.7 generic vec2[] serialization emits nested arrays. Texture-only puppets open in Creator but the first real Part fails in FGHJ mesh decoding. Emit the standard legacy flat mesh-vector representation while keeping the v0.8.7 loader tolerant of both flat and nested arrays.",
+      "removalCondition": "Remove when the supported official Creator version accepts nested vec2 mesh arrays directly, or when pinned upstream emits a mesh representation that both its own loader and the supported Creator compatibility target consume without this patch."
     }
   ]
 }

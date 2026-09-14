@@ -27,7 +27,8 @@
     "m2:png": "node scripts/fixtures/write-m2-png.mjs",
     "m2:visual-probe": "node scripts/native/build-host.mjs --visual-probe",
     "m2:visual-host": "node scripts/native/build-host.mjs --visual-host-probe",
-    "m2:visual:ci": "node scripts/native/m2-visual-ci.mjs"
+    "m2:visual:ci": "node scripts/native/m2-visual-ci.mjs",
+    "m2:parameter-probe": "node scripts/native/parameter-authoring-probe.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

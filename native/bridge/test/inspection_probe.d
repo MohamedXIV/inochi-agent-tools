@@ -1,4 +1,4 @@
-import std.json : parseJSON;
+import std.json : JSONType, parseJSON;
 import std.stdio : stderr;
 import std.string : fromStringz, indexOf, toStringz;
 
@@ -43,13 +43,13 @@ int main(string[] args) {
     }
 
     auto decoded = parseJSON(text.idup);
-    if ("textures" !in decoded.object || !decoded["textures"].isArray || decoded["textures"].array.length != 0) {
+    if ("textures" !in decoded.object || decoded["textures"].type != JSONType.array || decoded["textures"].array.length != 0) {
         stderr.writeln("inspection-probe: native snapshot must expose empty top-level textures array");
         iat_string_free(json);
         return 7;
     }
     foreach (ref node; decoded["nodes"].array) {
-        if ("textures" !in node.object || !node["textures"].isArray || node["textures"].array.length != 0) {
+        if ("textures" !in node.object || node["textures"].type != JSONType.array || node["textures"].array.length != 0) {
             stderr.writeln("inspection-probe: native node snapshot must expose textures array");
             iat_string_free(json);
             return 8;

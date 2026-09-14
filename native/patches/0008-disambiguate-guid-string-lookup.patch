@@ -1,0 +1,12 @@
+diff --git a/source/inochi2d/core/guid.d b/source/inochi2d/core/guid.d
+--- a/source/inochi2d/core/guid.d
++++ b/source/inochi2d/core/guid.d
+@@ -52,7 +52,7 @@ GUID tryGetGUID(ref JSONValue obj, string uuidKey, string guidKey = "guid") {
+     if (obj.hasKey(uuidKey) && obj[uuidKey].isScalar)
+         return obj.tryGet!uint(uuidKey).toGuid;
+     else {
+-        return GUID(obj.tryGet!string(guidKey));
++        return GUID(obj.tryGet!string(guidKey, null));
+     }
+ }
+ 

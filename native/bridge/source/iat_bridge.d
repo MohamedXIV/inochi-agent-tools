@@ -12,6 +12,7 @@ import inochi2d.core.render.texture : Texture, TextureData, TextureFormat;
 import inochi2d.ver : IN_VERSION;
 import nulib.threading.internal.semaphore : NativeSemaphore;
 import nulib.threading.internal.thread : NativeThread, ThreadContext;
+import numem.core.memory : nu_dup;
 import std.digest.sha : sha256Of;
 import std.file : exists, getSize, mkdirRecurse, read, remove;
 import std.json : JSONType, JSONValue, parseJSON, toJSON;
@@ -383,7 +384,9 @@ export extern(C) int iat_edit_visual_puppet_json(
 
                 TextureData data;
                 try {
-                    data = TextureData.load(cast(ubyte[]) read(imagePath));
+                    auto encoded = cast(ubyte[]) read(imagePath);
+                    auto ownedEncoded = cast(ubyte[]) encoded.nu_dup();
+                    data = TextureData.load(ownedEncoded);
                 } catch (Throwable error) {
                     return fail(outError, 9, "failed decoding PNG texture asset");
                 }

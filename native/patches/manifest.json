@@ -38,7 +38,12 @@
     {
       "file": "0008-disambiguate-guid-string-lookup.patch",
       "reason": "Pinned Inochi2D v0.8.7 calls obj.tryGet!string(guidKey) inside tryGetGUID. Because serde also has a tryGet(T)(JSONValue, T defaultValue) overload, a string guidKey binds as the default-value overload rather than the keyed lookup and valid serialized GUID strings deserialize as nil UUIDs. Passing an explicit null default selects the keyed overload and preserves node/binding identity.",
-      "removalCondition": "Remove when the pinned upstream revision resolves string GUID fields through an unambiguous keyed JSON lookup and non-root node/binding GUIDs survive whole-puppet round-trip without this patch."
+      "removalCondition": "Remove when the pinned upstream revision resolves string GUID fields through an unambiguous keyed JSON lookup and non-root node GUIDs survive whole-puppet round-trip without this patch."
+    },
+    {
+      "file": "0009-read-binding-node-guid-from-node-field.patch",
+      "reason": "Pinned Inochi2D v0.8.7 serializes ParameterBinding target GUIDs under the string field 'node' but deserializes with tryGetGUID('node','target'), where the first argument is reserved for a legacy numeric UUID key and the second for the string GUID key. As a result the valid 'node' string is skipped and the binding is removed during Parameter.finalize. Read legacy numeric 'target' first and current string 'node' second.",
+      "removalCondition": "Remove when the pinned upstream revision deserializes the same binding target field it serializes and a non-root ValueParameterBinding survives whole-puppet save/reopen without this patch."
     }
   ]
 }

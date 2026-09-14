@@ -43,6 +43,14 @@ private int fail(char** outError, int code, string message) nothrow {
     return code;
 }
 
+private void safeRemove(string path) nothrow {
+    try {
+        if (path.length > 0 && exists(path)) remove(path);
+    } catch (Throwable) {
+        // Cleanup failure must never unwind across the C ABI boundary.
+    }
+}
+
 private string lowerHex(const(ubyte)[] bytes) {
     enum digits = "0123456789abcdef";
     auto output = new char[](bytes.length * 2);
@@ -425,7 +433,7 @@ export extern(C) int iat_edit_visual_puppet_json(
                     vec2(-halfW, halfH),
                 ];
                 mesh.uvs = [vec2(0, 1), vec2(1, 1), vec2(1, 0), vec2(0, 0)];
-                mesh.indices = [0, 1, 2, 2, 3, 0];
+                mesh.indices = [0u, 1u, 2u, 2u, 3u, 0u];
                 auto part = new Part(mesh, [texture], parent);
                 part.name = name;
                 expectedPartTextureByPath[childPath(parentPath, name)] = textureFingerprint(texture);
@@ -440,7 +448,7 @@ export extern(C) int iat_edit_visual_puppet_json(
         inWriteINPPuppet(puppet, output);
         outputWritten = exists(output);
         if (!outputWritten || getSize(output) == 0) {
-            if (outputWritten) remove(output);
+            safeRemove(output);
             return fail(outError, 1, "official writer produced no puppet artifact");
         }
 
@@ -448,7 +456,7 @@ export extern(C) int iat_edit_visual_puppet_json(
         scope(exit) destroy(reopened);
         if (reopened is null || reopened.textureCache is null ||
             reopened.textureCache.size != initialTextureCount + importedTextureCount) {
-            remove(output);
+            safeRemove(output);
             outputWritten = false;
             return fail(outError, 6, "visual authoring round-trip texture inventory mismatch");
         }
@@ -456,7 +464,7 @@ export extern(C) int iat_edit_visual_puppet_json(
             auto node = resolveNodePath(reopened, path);
             auto part = cast(Part) node;
             if (part is null || part.textures[0] is null || textureFingerprint(part.textures[0]) != expectedRef) {
-                remove(output);
+                safeRemove(output);
                 outputWritten = false;
                 return fail(outError, 6, "visual authoring round-trip Part relationship mismatch");
             }
@@ -464,7 +472,7 @@ export extern(C) int iat_edit_visual_puppet_json(
 
         return returnInspectionJson(reopened, outJson, outError);
     } catch (Throwable error) {
-        if (outputWritten && output.length > 0 && exists(output)) remove(output);
+        if (outputWritten) safeRemove(output);
         return fail(outError, 1, error.msg.idup);
     }
 }

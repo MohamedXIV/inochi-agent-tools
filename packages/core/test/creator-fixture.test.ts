@@ -9,6 +9,8 @@ import {
 
 const runNative = process.env.IAT_M2_CREATOR_TESTS === '1';
 const base = 'tests/fixtures/generated/creator-roundtrip-base.inp';
+const hierarchy = 'tests/fixtures/generated/creator-roundtrip-hierarchy.inp';
+const texture = 'tests/fixtures/generated/creator-roundtrip-texture.inp';
 const visual = 'tests/fixtures/generated/creator-roundtrip-visual.inp';
 const parameters = 'tests/fixtures/generated/creator-roundtrip-parameters.inp';
 const output = 'tests/fixtures/generated/creator-roundtrip-input.inp';
@@ -16,19 +18,38 @@ const imagePath = 'tests/fixtures/generated/m2-checker.png';
 
 describe.skipIf(!runNative)('official Creator compatibility fixture', () => {
   it('authors staged real acceptance puppets through the public semantic core', async () => {
-    await rm(base, { force: true });
-    await rm(visual, { force: true });
-    await rm(parameters, { force: true });
-    await rm(output, { force: true });
+    for (const file of [base, hierarchy, texture, visual, parameters, output]) {
+      await rm(file, { force: true });
+    }
 
     await createPuppet({ outputPath: base, name: 'Creator Roundtrip Fixture' });
 
-    const visualEdited = await editPuppet({
+    const hierarchyEdited = await editPuppet({
       inputPath: base,
+      outputPath: hierarchy,
+      operations: [
+        { type: 'node.create', parentPath: '/Root', name: 'Art' },
+      ],
+    });
+    expect(hierarchyEdited.inspection.nodes.some((node) => node.path === '/Root/Art')).toBe(true);
+    expect(hierarchyEdited.inspection.summary.textureCount).toBe(0);
+    expect(hierarchyEdited.inspection.summary.partCount).toBe(0);
+
+    const textureEdited = await editPuppet({
+      inputPath: base,
+      outputPath: texture,
+      operations: [
+        { type: 'texture.import', key: 'face', imagePath },
+      ],
+    });
+    expect(textureEdited.inspection.textures).toHaveLength(1);
+    expect(textureEdited.inspection.summary.partCount).toBe(0);
+
+    const visualEdited = await editPuppet({
+      inputPath: hierarchy,
       outputPath: visual,
       operations: [
         { type: 'texture.import', key: 'face', imagePath },
-        { type: 'node.create', parentPath: '/Root', name: 'Art' },
         { type: 'part.create', parentPath: '/Root/Art', name: 'Face', textureKey: 'face' },
       ],
     });
@@ -138,11 +159,10 @@ describe.skipIf(!runNative)('official Creator compatibility fixture', () => {
       }),
     ]);
 
+    expect(await inspectPuppet(hierarchy)).toEqual(hierarchyEdited.inspection);
+    expect(await inspectPuppet(texture)).toEqual(textureEdited.inspection);
     expect(await inspectPuppet(visual)).toEqual(visualEdited.inspection);
     expect(await inspectPuppet(parameters)).toEqual(parameterEdited.inspection);
     expect(await inspectPuppet(output)).toEqual(edited.inspection);
-
-    // Keep each real staged artifact so official Creator can isolate the first
-    // incompatible semantic boundary without substituting synthetic fixtures.
   });
 });

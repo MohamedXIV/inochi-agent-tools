@@ -482,6 +482,18 @@ export extern(C) int iat_edit_visual_puppet_json(const(char)* inputPath, const(c
                 }
                 continue;
             }
+            if (type == "parameter.unbind") {
+                auto parameterName = requireJsonString(operation, "parameterName");
+                auto targetPath = requireJsonString(operation, "targetPath");
+                auto property = requireJsonString(operation, "property");
+                auto parameter = resolveParameterName(puppet, parameterName);
+                auto target = resolveNodePath(puppet, targetPath);
+                if (parameter is null || target is null || !target.hasParam(property)) return fail(outError, 10, "invalid parameter binding target or property");
+                auto binding = parameter.getBinding(target, property);
+                if (binding is null) return fail(outError, 10, "parameter binding does not exist");
+                parameter.removeBinding(binding);
+                continue;
+            }
             return fail(outError, 2, "unsupported visual authoring operation");
         }
         string[string] expectedPartTextureByPath;

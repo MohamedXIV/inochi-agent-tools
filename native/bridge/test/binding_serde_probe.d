@@ -1,5 +1,6 @@
 import inmath : vec2, vec2u;
 import inochi2d.core.format : deserialize, parseJSON, serialize, toJSON;
+import inochi2d.core.guid : GUID, tryGetGUID;
 import inochi2d.core.nodes : Node;
 import inochi2d.core.param : Parameter, ValueParameterBinding;
 import inochi2d.core.puppet : Puppet;
@@ -48,6 +49,16 @@ int main() {
         if (serializedRigGuid != serializedBindingGuid) {
             stderr.writeln("binding-serde-probe: binding target already diverged before deserialize");
             return 5;
+        }
+
+        auto directRigGuid = GUID(serializedRigGuid);
+        auto childObject = whole["nodes"]["children"].array[0];
+        auto helperRigGuid = childObject.tryGetGUID("uuid", "guid");
+        stderr.writeln("binding-serde-probe: direct parsed Rig GUID=", directRigGuid.toString());
+        stderr.writeln("binding-serde-probe: tryGetGUID Rig GUID=", helperRigGuid.toString());
+        if (directRigGuid.toString().value != serializedRigGuid || helperRigGuid != directRigGuid) {
+            stderr.writeln("binding-serde-probe: GUID text parsing diverged before Node deserialization");
+            return 8;
         }
 
         auto reloaded = Puppet.deserialize(whole, null);

@@ -7,7 +7,7 @@
   "scripts": {
     "typecheck": "tsc -p packages/core/tsconfig.json --noEmit",
     "test": "vitest run",
-    "verify": "npm run typecheck && npm test",
+    "verify": "npm run typecheck && npm run cli:typecheck && npm test",
     "cli:typecheck": "tsc -p packages/cli/tsconfig.json --noEmit",
     "cli:build": "tsc -p packages/cli/tsconfig.json",
     "cli:test": "vitest run packages/cli/test",

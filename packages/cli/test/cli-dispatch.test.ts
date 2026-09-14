@@ -1,7 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const coreMocks = vi.hoisted(() => ({
   createPuppet: vi.fn(),
+  editPuppet: vi.fn(),
+  evaluateParameterValues: vi.fn(),
   inspectPuppet: vi.fn(),
   savePuppet: vi.fn(),
   validatePuppet: vi.fn(),
@@ -10,6 +16,8 @@ const coreMocks = vi.hoisted(() => ({
 vi.mock('@inochi-agent-tools/core', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@inochi-agent-tools/core')>()),
   createPuppet: coreMocks.createPuppet,
+  editPuppet: coreMocks.editPuppet,
+  evaluateParameterValues: coreMocks.evaluateParameterValues,
   inspectPuppet: coreMocks.inspectPuppet,
   savePuppet: coreMocks.savePuppet,
   validatePuppet: coreMocks.validatePuppet,
@@ -62,12 +70,28 @@ const inspection = {
   },
 };
 
+const tempDirs: string[] = [];
+
+async function writeJsonFixture(value: unknown): Promise<string> {
+  const directory = await mkdtemp(path.join(tmpdir(), 'iat-cli-dispatch-'));
+  tempDirs.push(directory);
+  const fixturePath = path.join(directory, 'payload.json');
+  await writeFile(fixturePath, JSON.stringify(value), 'utf8');
+  return fixturePath;
+}
+
 describe('CLI semantic command dispatch', () => {
   beforeEach(() => {
     coreMocks.createPuppet.mockReset();
+    coreMocks.editPuppet.mockReset();
+    coreMocks.evaluateParameterValues.mockReset();
     coreMocks.inspectPuppet.mockReset();
     coreMocks.savePuppet.mockReset();
     coreMocks.validatePuppet.mockReset();
+  });
+
+  afterEach(async () => {
+    await Promise.all(tempDirs.splice(0).map((directory) => rm(directory, { recursive: true, force: true })));
   });
 
   it('dispatches puppet inspect to the semantic core and preserves its JSON result', async () => {
@@ -168,6 +192,133 @@ describe('CLI semantic command dispatch', () => {
       ok: true,
       command: 'puppet save',
       result: saved,
+    });
+  });
+
+  it('reads puppet edit operations from a JSON file and passes the array unchanged to the core', async () => {
+    const operations = [
+      { type: 'node.create', parentPath: '/Root', name: 'Rig' },
+    ];
+    const operationsPath = await writeJsonFixture(operations);
+    const edited = { path: '/tmp/edited.inp', inspection };
+    coreMocks.editPuppet.mockResolvedValue(edited);
+    const capture = captureIo();
+
+    const exitCode = await runCli(
+      [
+        '--json',
+        'puppet',
+        'edit',
+        '--input',
+        'source.inp',
+        '--output',
+        'edited.inp',
+        '--operations',
+        operationsPath,
+      ],
+      capture.io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(coreMocks.editPuppet).toHaveBeenCalledWith({
+      inputPath: 'source.inp',
+      outputPath: 'edited.inp',
+      operations,
+    });
+    expect(JSON.parse(capture.stdout[0])).toEqual({
+      ok: true,
+      command: 'puppet edit',
+      result: edited,
+    });
+  });
+
+  it('reads parameter values from stdin and passes the object unchanged to the core', async () => {
+    const values = { 'Move X': [1, 0] };
+    const evaluated = {
+      appliedParameters: [{ name: 'Move X', value: [1, 0] }],
+      targets: [],
+      restoredParameters: [{ name: 'Move X', value: [0, 0] }],
+    };
+    coreMocks.evaluateParameterValues.mockResolvedValue(evaluated);
+    const capture = captureIo();
+    const io = {
+      ...capture.io,
+      stdin: async () => JSON.stringify(values),
+    } as CliIo & { stdin(): Promise<string> };
+
+    const exitCode = await runCli(
+      ['--json', 'parameter', 'evaluate', '--input', 'fixture.inp', '--values', '-'],
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(coreMocks.evaluateParameterValues).toHaveBeenCalledWith({
+      inputPath: 'fixture.inp',
+      values,
+    });
+    expect(JSON.parse(capture.stdout[0])).toEqual({
+      ok: true,
+      command: 'parameter evaluate',
+      result: evaluated,
+    });
+  });
+
+  it('returns CLI_USAGE for malformed JSON before calling the semantic core', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'iat-cli-dispatch-'));
+    tempDirs.push(directory);
+    const operationsPath = path.join(directory, 'malformed.json');
+    await writeFile(operationsPath, '{not-json', 'utf8');
+    const capture = captureIo();
+
+    const exitCode = await runCli(
+      [
+        '--json',
+        'puppet',
+        'edit',
+        '--input',
+        'source.inp',
+        '--output',
+        'edited.inp',
+        '--operations',
+        operationsPath,
+      ],
+      capture.io,
+    );
+
+    expect(exitCode).toBe(2);
+    expect(coreMocks.editPuppet).not.toHaveBeenCalled();
+    expect(JSON.parse(capture.stdout[0])).toMatchObject({
+      ok: false,
+      command: 'puppet edit',
+      error: { code: 'CLI_USAGE' },
+    });
+  });
+
+  it('returns CLI_USAGE for a non-array edit payload before calling the semantic core', async () => {
+    const operationsPath = await writeJsonFixture({ type: 'node.create' });
+    const capture = captureIo();
+
+    const exitCode = await runCli(
+      [
+        '--json',
+        'puppet',
+        'edit',
+        '--input',
+        'source.inp',
+        '--output',
+        'edited.inp',
+        '--operations',
+        operationsPath,
+      ],
+      capture.io,
+    );
+
+    expect(exitCode).toBe(2);
+    expect(coreMocks.editPuppet).not.toHaveBeenCalled();
+    expect(JSON.parse(capture.stdout[0])).toMatchObject({
+      ok: false,
+      command: 'puppet edit',
+      error: { code: 'CLI_USAGE' },
     });
   });
 });

@@ -28,6 +28,7 @@
     "m2:visual-probe": "node scripts/native/build-host.mjs --visual-probe",
     "m2:visual-host": "node scripts/native/build-host.mjs --visual-host-probe",
     "m2:visual:ci": "node scripts/native/m2-visual-ci.mjs",
+    "m2:binding-serde-probe": "dub run --root native/bridge --config=binding-serde-probe",
     "m2:parameter-probe": "node scripts/native/parameter-authoring-probe.mjs"
   },
   "devDependencies": {

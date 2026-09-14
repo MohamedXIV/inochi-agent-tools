@@ -154,9 +154,10 @@ try {
       return search.stdout.trim().split(/\s+/)[0] || false;
     });
 
+    // Bare Xvfb intentionally has no EWMH window manager, so windowactivate is
+    // not available. Target the mapped Creator window directly instead.
     const save = spawnSync('xdotool', [
-      'windowactivate', '--sync', windowId,
-      'key', '--clearmodifiers', 'ctrl+s',
+      'key', '--window', windowId, '--clearmodifiers', 'ctrl+s',
     ], { env, encoding: 'utf8' });
     if (save.status !== 0) fail(`Ctrl+S dispatch failed: ${save.stderr || save.stdout}`);
 

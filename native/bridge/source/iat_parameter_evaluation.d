@@ -77,7 +77,7 @@ private bool decodePair(ref JSONValue value, out vec2 pair) {
     if (value.type != JSONType.array || value.array.length != 2) return false;
     float number(ref JSONValue item, out bool ok) {
         ok = true;
-        final switch (item.type) {
+        switch (item.type) {
             case JSONType.float_: return cast(float) item.floating;
             case JSONType.integer: return cast(float) item.integer;
             case JSONType.uinteger: return cast(float) item.uinteger;

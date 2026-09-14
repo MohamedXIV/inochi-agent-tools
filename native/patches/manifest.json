@@ -24,6 +24,11 @@
       "file": "0005-roundtrip-nested-vector-arrays.patch",
       "reason": "Pinned Inochi2D v0.8.7 serializes vec2 arrays such as MeshData verts/uvs as nested JSON arrays, while the generic vector-array deserializer assumes a flat float array and calls get!float on each nested array. Accept the serializer's nested representation while retaining the legacy flat-vector path.",
       "removalCondition": "Remove when the pinned upstream revision can round-trip non-empty MeshData vec2 arrays produced by its own serializer without this compatibility patch."
+    },
+    {
+      "file": "0006-preserve-integral-json-scalar-precision.patch",
+      "reason": "Pinned Inochi2D v0.8.7 routes all scalar tryGet values through JSONValue.get!float, so uint sentinel values such as Part.NO_TEXTURE (4294967295) lose precision and reload as texture slot 0, incorrectly duplicating albedo into emissive and bumpmap. Integral scalar reads must use JSON integer/uinteger accessors.",
+      "removalCondition": "Remove when the pinned upstream revision preserves full signed/unsigned integer precision in serde tryGet and Part texture NO_TEXTURE sentinels round-trip without becoming slot 0."
     }
   ]
 }

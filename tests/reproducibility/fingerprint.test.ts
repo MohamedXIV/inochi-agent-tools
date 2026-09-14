@@ -14,6 +14,7 @@ describe('build fingerprint', () => {
       '0005-roundtrip-nested-vector-arrays.patch',
       '0006-preserve-integral-json-scalar-precision.patch',
       '0007-append-parameter-binding-json-elements.patch',
+      '0008-disambiguate-guid-string-lookup.patch',
     ]);
   });
 });

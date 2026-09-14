@@ -1,10 +1,12 @@
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 
 const root = process.cwd();
 const outDir = path.join(root, '.build', 'native');
-const inputPath = path.join(root, 'tests', 'fixtures', 'generated', 'm2-parameter-authoring.inp');
+const baseInputPath = path.join(root, 'tests', 'fixtures', 'generated', 'm1-host-created-minimal.inp');
+const inputPath = path.join(root, 'tests', 'fixtures', 'generated', 'm2-parameter-evaluation.inp');
+const hostPath = path.join(outDir, process.platform === 'win32' ? 'iat_native_host.exe' : 'iat_native_host');
 const executable = path.join(
   outDir,
   process.platform === 'win32' ? 'm2_parameter_evaluation_probe.exe' : 'm2_parameter_evaluation_probe',
@@ -31,7 +33,23 @@ function nativeEnv() {
 }
 
 mkdirSync(outDir, { recursive: true });
-run(process.execPath, ['scripts/native/parameter-authoring-probe.mjs']);
+rmSync(inputPath, { force: true });
+run(process.execPath, ['scripts/native/build-host.mjs', '--create-host-probe']);
+
+const operations = [
+  { type: 'node.create', parentPath: '/Root', name: 'Rig' },
+  { type: 'parameter.create', name: 'Move X', dimensions: 1, min: [-1, 0], max: [1, 0], defaultValue: [0, 0] },
+  { type: 'parameter.create', name: 'Move Y', dimensions: 1, min: [-1, 0], max: [1, 0], defaultValue: [0, 0] },
+  {
+    type: 'parameter.bind', parameterName: 'Move X', targetPath: '/Root/Rig', property: 'transform.t.x',
+    keypoints: [{ at: [-1, 0], value: -20 }, { at: [1, 0], value: 20 }],
+  },
+  {
+    type: 'parameter.bind', parameterName: 'Move Y', targetPath: '/Root/Rig', property: 'transform.t.y',
+    keypoints: [{ at: [-1, 0], value: -12 }, { at: [1, 0], value: 12 }],
+  },
+];
+run(hostPath, ['edit-visual', baseInputPath, inputPath, JSON.stringify(operations)], { env: nativeEnv() });
 run(process.execPath, ['scripts/native/build-bridge.mjs']);
 run('ldc2', [
   'native/bridge/test/parameter_evaluation_probe.d',

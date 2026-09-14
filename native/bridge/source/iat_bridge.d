@@ -2,11 +2,12 @@ module iat_bridge;
 
 import core.stdc.stdlib : free, malloc;
 import core.stdc.string : memcpy;
-import inmath : vec2;
+import inmath : vec2, vec2u;
 import inochi2d.core.format.inp : inLoadPuppet, inWriteINPPuppet;
 import inochi2d.core.mesh : MeshData;
 import inochi2d.core.nodes : Node;
 import inochi2d.core.nodes.drawable.part : Part;
+import inochi2d.core.param : Parameter, ValueParameterBinding;
 import inochi2d.core.puppet : Puppet;
 import inochi2d.core.render.texture : Texture, TextureData, TextureFormat;
 import inochi2d.ver : IN_VERSION;
@@ -140,6 +141,37 @@ private void appendNodeSnapshot(
     }
 }
 
+private JSONValue parameterBindingSnapshots(Parameter parameter) {
+    JSONValue bindings = JSONValue.emptyArray;
+    foreach (binding; parameter.bindings) {
+        auto valueBinding = cast(ValueParameterBinding) binding;
+        auto target = binding.getNode();
+        if (valueBinding is null || target is null) continue;
+
+        JSONValue item = JSONValue.emptyObject;
+        item["targetPath"] = target.getNodePath();
+        item["property"] = binding.getName();
+
+        JSONValue keypoints = JSONValue.emptyArray;
+        foreach (x; 0 .. parameter.axisPointCount(0)) {
+            foreach (y; 0 .. parameter.axisPointCount(1)) {
+                auto index = vec2u(cast(uint) x, cast(uint) y);
+                if (!binding.isSet(index)) continue;
+
+                auto parameterValue = parameter.getKeypointValue(index);
+                JSONValue keypoint = JSONValue.emptyObject;
+                keypoint["index"] = JSONValue([cast(ulong) x, cast(ulong) y]);
+                keypoint["parameterValue"] = JSONValue([parameterValue.x, parameterValue.y]);
+                keypoint["value"] = valueBinding.getValue(index);
+                keypoints.array ~= keypoint;
+            }
+        }
+        item["keypoints"] = keypoints;
+        bindings.array ~= item;
+    }
+    return bindings;
+}
+
 private string buildInspectionJson(Puppet puppet) {
     JSONValue result = JSONValue.emptyObject;
     result["schemaVersion"] = 1;
@@ -167,6 +199,7 @@ private string buildInspectionJson(Puppet puppet) {
         item["max"] = JSONValue([parameter.max.x, parameter.max.y]);
         item["defaultValue"] = JSONValue([parameter.defaults.x, parameter.defaults.y]);
         item["value"] = JSONValue([parameter.value.x, parameter.value.y]);
+        item["bindings"] = parameterBindingSnapshots(parameter);
         parameters.array ~= item;
     }
     result["parameters"] = parameters;

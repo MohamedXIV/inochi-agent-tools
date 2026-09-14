@@ -34,7 +34,8 @@
     "m2:parameter:ci": "node scripts/native/m2-parameter-ci.mjs",
     "creator:materialize": "node scripts/creator/materialize.mjs",
     "creator:fixture": "node scripts/creator/build-fixture.mjs",
-    "creator:roundtrip": "node scripts/creator/launch-roundtrip.mjs"
+    "creator:roundtrip": "node scripts/creator/launch-roundtrip.mjs",
+    "creator:verify": "node scripts/creator/verify-roundtrip.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

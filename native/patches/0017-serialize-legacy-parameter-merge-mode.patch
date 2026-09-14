@@ -1,7 +1,7 @@
 diff --git a/source/inochi2d/core/param/package.d b/source/inochi2d/core/param/package.d
 --- a/source/inochi2d/core/param/package.d
 +++ b/source/inochi2d/core/param/package.d
-@@ -273,7 +273,16 @@ class Parameter : ISerializable, IDeserializable {
+@@ -273,7 +273,15 @@ class Parameter : ISerializable, IDeserializable {
          object["max"] = max.serialize();
          object["defaults"] = defaults.serialize();
          object["axis_points"] = axisPoints.serialize();

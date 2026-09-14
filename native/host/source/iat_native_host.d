@@ -21,6 +21,11 @@ extern(C) int iat_evaluate_parameters_json(
     char** outJson,
     char** outError,
 );
+extern(C) int iat_save_puppet(
+    const(char)* inputPath,
+    const(char)* outputPath,
+    char** outError,
+);
 extern(C) void iat_string_free(char* value);
 
 private int emitResult(int result, char* json, char* error, string fallback) {
@@ -101,6 +106,26 @@ private int runEvaluateParameters(string inputPath, string valuesJson) {
     return emitResult(result, json, error, "native parameter evaluation failed");
 }
 
+private int runSaveAs(string inputPath, string outputPath) {
+    char* error;
+    auto result = iat_save_puppet(
+        toStringz(inputPath),
+        toStringz(outputPath),
+        &error,
+    );
+    if (result != 0) {
+        if (error !is null) {
+            stderr.writeln(fromStringz(error));
+            iat_string_free(error);
+        } else {
+            stderr.writeln("native puppet save-as failed");
+        }
+        return result;
+    }
+    if (error !is null) iat_string_free(error);
+    return runInspect(outputPath);
+}
+
 int main(string[] args) {
     if (args.length == 3 && args[1] == "inspect") {
         return runInspect(args[2]);
@@ -108,6 +133,10 @@ int main(string[] args) {
 
     if (args.length == 4 && args[1] == "create-minimal") {
         return runCreateMinimal(args[2], args[3]);
+    }
+
+    if (args.length == 4 && args[1] == "save-as") {
+        return runSaveAs(args[2], args[3]);
     }
 
     if (args.length == 5 && args[1] == "edit-visual") {
@@ -121,6 +150,7 @@ int main(string[] args) {
     stderr.writeln(
         "usage: iat_native_host inspect <puppet-path> | " ~
         "create-minimal <output.inp> <name> | " ~
+        "save-as <input.inp> <output.inp> | " ~
         "edit-visual <input.inp> <output.inp> <operations-json> | " ~
         "evaluate-parameters <input.inp> <values-json>",
     );

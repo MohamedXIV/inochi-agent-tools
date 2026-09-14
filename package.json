@@ -6,8 +6,12 @@
   "workspaces": ["packages/*"],
   "scripts": {
     "typecheck": "tsc -p packages/core/tsconfig.json --noEmit",
-    "test": "vitest run",
-    "verify": "npm run typecheck && npm test",
+    "core:build": "tsc -p packages/core/tsconfig.json",
+    "test": "npm run core:build && vitest run",
+    "verify": "npm run typecheck && npm run cli:typecheck && npm test",
+    "cli:typecheck": "tsc -p packages/cli/tsconfig.json --noEmit",
+    "cli:build": "npm run core:build && tsc -p packages/cli/tsconfig.json",
+    "cli:test": "npm run core:build && vitest run packages/cli/test",
     "upstream:materialize": "node scripts/upstream/materialize.mjs",
     "upstream:verify": "node scripts/upstream/verify.mjs",
     "upstream:fingerprint": "node scripts/upstream/fingerprint.mjs",
@@ -36,7 +40,9 @@
     "creator:fixture": "node scripts/creator/build-fixture.mjs",
     "creator:roundtrip": "node scripts/creator/launch-roundtrip.mjs",
     "creator:verify": "node scripts/creator/verify-roundtrip.mjs",
-    "m2:creator:ci": "node scripts/creator/m2-creator-ci.mjs"
+    "m2:creator:ci": "node scripts/creator/m2-creator-ci.mjs",
+    "m3:save:ci": "node scripts/cli/m3-save-ci.mjs",
+    "m3:cli:ci": "node scripts/cli/m3-cli-ci.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

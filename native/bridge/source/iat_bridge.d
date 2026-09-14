@@ -7,10 +7,21 @@ import inochi2d.core.nodes : Node;
 import inochi2d.core.nodes.drawable.part : Part;
 import inochi2d.core.puppet : Puppet;
 import inochi2d.ver : IN_VERSION;
+import nulib.threading.internal.semaphore : NativeSemaphore;
+import nulib.threading.internal.thread : NativeThread, ThreadContext;
 import std.json : JSONValue, toJSON;
 import std.string : fromStringz;
 
 private enum upstreamVersion = IN_VERSION ~ "\0";
+
+// NuLib 0.3.8's Linux/LDC POSIX package documents that LDC can discard
+// threading TypeInfo when static archives are consumed by a shared library.
+// Keep explicit bridge-owned references so the archive members defining these
+// runtime metadata symbols are pulled into libiat_bridge instead of surfacing
+// as unresolved symbols when an external process loads the bridge.
+private __gshared TypeInfo nulibThreadContextTypeInfo = typeid(ThreadContext);
+private __gshared ClassInfo nulibNativeThreadClassInfo = NativeThread.classinfo;
+private __gshared ClassInfo nulibNativeSemaphoreClassInfo = NativeSemaphore.classinfo;
 
 private char* copyCString(string value) nothrow {
     auto memory = cast(char*) malloc(value.length + 1);

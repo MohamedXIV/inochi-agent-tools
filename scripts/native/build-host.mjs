@@ -7,6 +7,9 @@ const outDir = path.join(root, '.build', 'native');
 const fixturePath = path.join(root, 'tests', 'fixtures', 'generated', 'm1-inspection.inp');
 const createFixturePath = path.join(root, 'tests', 'fixtures', 'generated', 'm1-created-minimal.inp');
 const hostCreateFixturePath = path.join(root, 'tests', 'fixtures', 'generated', 'm1-host-created-minimal.inp');
+const visualInputPath = path.join(root, 'tests', 'fixtures', 'generated', 'm2-visual-input.inp');
+const visualOutputPath = path.join(root, 'tests', 'fixtures', 'generated', 'm2-visual-output.inp');
+const visualPngPath = path.join(root, 'tests', 'fixtures', 'generated', 'm2-checker.png');
 const invalidFixturePath = path.join(root, 'tests', 'fixtures', 'invalid', 'not-a-puppet.inp');
 const fixtureExecutableName = process.platform === 'win32' ? 'm1_fixture_generator.exe' : 'm1_fixture_generator';
 const fixtureGenerator = path.join(outDir, fixtureExecutableName);
@@ -14,6 +17,8 @@ const inspectionProbeName = process.platform === 'win32' ? 'm1_inspection_probe.
 const inspectionProbe = path.join(outDir, inspectionProbeName);
 const createProbeName = process.platform === 'win32' ? 'm1_create_roundtrip_probe.exe' : 'm1_create_roundtrip_probe';
 const createProbe = path.join(outDir, createProbeName);
+const visualProbeName = process.platform === 'win32' ? 'm2_visual_authoring_probe.exe' : 'm2_visual_authoring_probe';
+const visualProbe = path.join(outDir, visualProbeName);
 const hostName = process.platform === 'win32' ? 'iat_native_host.exe' : 'iat_native_host';
 const hostPath = path.join(outDir, hostName);
 
@@ -162,6 +167,23 @@ if (process.argv.includes('--create-probe')) {
     `-of=${createProbe}`,
   ]);
   run(createProbe, [createFixturePath], { env: nativeEnv() });
+}
+
+if (process.argv.includes('--visual-probe')) {
+  rmSync(visualInputPath, { force: true });
+  rmSync(visualOutputPath, { force: true });
+  buildHost();
+  run(hostPath, ['create-minimal', visualInputPath, 'M2 Visual Input'], { env: nativeEnv() });
+  run(process.execPath, ['scripts/fixtures/write-m2-png.mjs']);
+  run(process.execPath, ['scripts/native/build-bridge.mjs']);
+  run('ldc2', [
+    'native/bridge/test/visual_authoring_probe.d',
+    '-link-defaultlib-shared',
+    `-L-L${outDir}`,
+    '-L-liat_bridge',
+    `-of=${visualProbe}`,
+  ]);
+  run(visualProbe, [visualInputPath, visualOutputPath, visualPngPath], { env: nativeEnv() });
 }
 
 if (process.argv.includes('--host')) {

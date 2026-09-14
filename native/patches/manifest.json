@@ -79,6 +79,11 @@
       "file": "0016-serialize-legacy-part-blend-mode.patch",
       "reason": "Official Inochi Creator v0.8.6 deserializes Part.blend_mode through the legacy enum string keys (Normal, Multiply, Screen, etc.), while pinned Inochi2D v0.8.7 changed BlendMode to explicit uint values and serializes the integral value. After restoring the required mask_threshold field, Creator reaches blend_mode and rejects the numeric representation. Emit the legacy string key while retaining v0.8.7 loader support for both string and numeric inputs.",
       "removalCondition": "Remove when the supported official Creator version consumes numeric v0.8.7 blend modes directly, or when pinned upstream emits a backward-compatible blend-mode representation itself."
+    },
+    {
+      "file": "0017-serialize-legacy-parameter-merge-mode.patch",
+      "reason": "Official Inochi Creator v0.8.6 deserializes Parameter.merge_mode through legacy enum string keys (Additive, Weighted, Multiplicative, Forced, Passthrough), while pinned v0.8.7's generic serde treats ParamMergeMode as an integral scalar and emits a number. The Creator acceptance ladder proves visual puppets open but the first unbound-parameter puppet fails, isolating the incompatibility to parameter serialization before bindings are present. Emit the legacy string key without changing the public semantic API.",
+      "removalCondition": "Remove when the supported official Creator version consumes numeric v0.8.7 parameter merge modes directly, or when pinned upstream emits a backward-compatible ParamMergeMode representation itself."
     }
   ]
 }

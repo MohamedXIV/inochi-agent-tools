@@ -2,5 +2,6 @@ node_modules/
 coverage/
 .deps/
 .build/
+tests/fixtures/generated/
 *.log
 .DS_Store

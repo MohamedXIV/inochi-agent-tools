@@ -1,3 +1,24 @@
 {
-  "patches": []
+  "patches": [
+    {
+      "file": "0001-accept-numeric-part-blend-mode.patch",
+      "reason": "Pinned Inochi2D v0.8.7 serializes Part.blend_mode as an integral enum but deserializes it as a string, preventing genuine Part-containing puppets produced by inWriteINPPuppet from being reopened for M1 real-artifact inspection.",
+      "removalCondition": "Remove when the pinned upstream revision can round-trip its own Part.blend_mode output without this compatibility patch."
+    },
+    {
+      "file": "0002-copy-nstring-json-deserialization.patch",
+      "reason": "Pinned Inochi2D v0.8.7 JSON deserialization treats nulib nstring as a D string and uses cast(T)data.str, bypassing nstring ownership/copy semantics and leaving metadata/node names backed by transient JSON memory after inLoadPuppet returns.",
+      "removalCondition": "Remove when the pinned upstream revision deserializes nulib nstring values through an owning constructor/assignment and loaded strings remain valid after JSON parser storage is released."
+    },
+    {
+      "file": "0003-lowercase-parameter-nstring-view.patch",
+      "reason": "Pinned Inochi2D v0.8.7 passes nulib nstring directly to std.uni.toLower when rebuilding Parameter.indexableName; the alias conversion reaches std.uni with invalid range behavior for loaded parameter names. Passing the owned D-string view explicitly preserves the same lowercase semantics without the bounds failure.",
+      "removalCondition": "Remove when the pinned upstream revision can finalize a loaded Parameter with nstring names without a std.uni bounds failure."
+    },
+    {
+      "file": "0004-serialize-puppet-meta-nstring-views.patch",
+      "reason": "Pinned Inochi2D v0.8.7 duplicates PuppetMeta serialization inside Puppet.onSerialize and assigns nulib nstring values directly into std.json, so whole-puppet JSON loses metadata even though PuppetMeta.onSerialize itself is corrected. Serialize the duplicated fields from their stable D-string views.",
+      "removalCondition": "Remove when the pinned upstream revision serializes Puppet metadata through one nstring-safe path and inToJson(Puppet) preserves metadata strings without this compatibility patch."
+    }
+  ]
 }

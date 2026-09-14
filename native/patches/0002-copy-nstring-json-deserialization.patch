@@ -1,0 +1,72 @@
+diff --git a/source/inochi2d/core/format/serde/package.d b/source/inochi2d/core/format/serde/package.d
+--- a/source/inochi2d/core/format/serde/package.d
++++ b/source/inochi2d/core/format/serde/package.d
+@@ -3,6 +3,7 @@ import inochi2d.core.math;
+ import inochi2d.core;
+ import inmath.util;
+ import std.traits;
++import nulib.string : isSomeNString;
+ 
+ public import std.json : JSONValue, JSONType, parseJSON, toJSON;
+ public import inochi2d.core.format.serde.deserializers;
+@@ -101,6 +102,9 @@ void deserialize(T)(ref JSONValue data, ref T destination) {
+ 
+     static if (is(T == JSONValue)) {
+         destination = data;
++    } else static if (isSomeNString!T) {
++        if (!data.isNull)
++            destination.opAssign(data.str);
+     } else static if (isDeserializable!T) {
+         static if (is(T == class) && is(typeof((ref T a) { a = new T; }))) {
+             if (!destination)
+diff --git a/source/inochi2d/core/param/package.d b/source/inochi2d/core/param/package.d
+--- a/source/inochi2d/core/param/package.d
++++ b/source/inochi2d/core/param/package.d
+@@ -263,7 +263,7 @@ class Parameter : ISerializable, IDeserializable {
+         
+         auto selfGuid = guid.toString();
+         object["guid"] = selfGuid.dup;
+-        object["name"] = name;
++        object["name"] = name.value;
+         object["is_vec2"] = isVec2;
+         object["is_vec2"] = isVec2;
+         object["min"] = min.serialize();
+diff --git a/source/inochi2d/core/nodes/package.d b/source/inochi2d/core/nodes/package.d
+--- a/source/inochi2d/core/nodes/package.d
++++ b/source/inochi2d/core/nodes/package.d
+@@ -576,7 +576,7 @@ class Node : ISerializable, IDeserializable {
+     void onSerialize(ref JSONValue object, bool recursive = true) {
+         nstring guid = guid_.toString();
+         object["guid"] = guid.dup;
+-        object["name"] = name;
++        object["name"] = name.value;
+         object["type"] = typeId.sid;
+         object["enabled"] = enabled;
+         object["zsort"] = zsort_;
+diff --git a/source/inochi2d/core/puppet.d b/source/inochi2d/core/puppet.d
+--- a/source/inochi2d/core/puppet.d
++++ b/source/inochi2d/core/puppet.d
+@@ -174,15 +174,15 @@ class PuppetMeta {
+         Serializes the type.
+     */
+     void onSerialize(ref JSONValue object, bool recursive = true) {
+-        object["name"] = this.name;
+-        object["version"] = this.version_;
+-        object["rigger"] = this.rigger;
+-        object["artist"] = this.artist;
++        object["name"] = this.name.value;
++        object["version"] = this.version_.value;
++        object["rigger"] = this.rigger.value;
++        object["artist"] = this.artist.value;
+         object["rights"] = this.rights.serialize();
+-        object["copyright"] = this.copyright;
+-        object["licenseURL"] = this.licenseURL;
+-        object["contact"] = this.contact;
+-        object["reference"] = this.reference;
++        object["copyright"] = this.copyright.value;
++        object["licenseURL"] = this.licenseURL.value;
++        object["contact"] = this.contact.value;
++        object["reference"] = this.reference.value;
+         object["thumbnailId"] = this.thumbnailId;
+         object["preservePixels"] = this.preservePixels;
+     }

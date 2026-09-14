@@ -1,0 +1,17 @@
+{
+  "name": "inochi-agent-tools-native-host",
+  "targetType": "executable",
+  "targetName": "iat_native_host",
+  "targetPath": "../../.build/native",
+  "sourcePaths": ["source"],
+  "dependencies": {
+    "inochi-agent-tools-bridge": { "path": "../bridge" }
+  },
+  "subConfigurations": {
+    "inochi-agent-tools-bridge": "library"
+  },
+  "toolchainRequirements": {
+    "ldc": ">=1.40.0"
+  },
+  "dflags-ldc": ["-link-defaultlib-shared"]
+}

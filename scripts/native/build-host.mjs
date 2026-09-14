@@ -5,6 +5,7 @@ import path from 'node:path';
 const root = process.cwd();
 const outDir = path.join(root, '.build', 'native');
 const fixturePath = path.join(root, 'tests', 'fixtures', 'generated', 'm1-inspection.inp');
+const invalidFixturePath = path.join(root, 'tests', 'fixtures', 'invalid', 'not-a-puppet.inp');
 const fixtureExecutableName = process.platform === 'win32' ? 'm1_fixture_generator.exe' : 'm1_fixture_generator';
 const fixtureGenerator = path.join(outDir, fixtureExecutableName);
 const inspectionProbeName = process.platform === 'win32' ? 'm1_inspection_probe.exe' : 'm1_inspection_probe';
@@ -45,7 +46,7 @@ if (process.argv.includes('--inspection-probe')) {
     '-L-liat_bridge',
     `-of=${inspectionProbe}`,
   ]);
-  run(inspectionProbe, [fixturePath], {
+  run(inspectionProbe, [fixturePath, invalidFixturePath], {
     env: {
       ...process.env,
       LD_LIBRARY_PATH: [outDir, process.env.LD_LIBRARY_PATH].filter(Boolean).join(':'),

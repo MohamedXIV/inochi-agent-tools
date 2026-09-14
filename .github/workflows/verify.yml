@@ -33,4 +33,6 @@ jobs:
       - run: npm run m2:parameter:ci
       - run: npm run creator:materialize
       - run: npm run creator:fixture
+      - name: Prove minimal public-core puppet opens in official Creator
+        run: node scripts/creator/launch-roundtrip.mjs --open-only tests/fixtures/generated/creator-roundtrip-base.inp
       - run: npm run creator:roundtrip

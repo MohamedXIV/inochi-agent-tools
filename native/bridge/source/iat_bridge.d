@@ -2,11 +2,12 @@ module iat_bridge;
 
 import core.stdc.stdlib : free, malloc;
 import core.stdc.string : memcpy;
-import inmath : vec2;
+import inmath : vec2, vec2u;
 import inochi2d.core.format.inp : inLoadPuppet, inWriteINPPuppet;
 import inochi2d.core.mesh : MeshData;
 import inochi2d.core.nodes : Node;
 import inochi2d.core.nodes.drawable.part : Part;
+import inochi2d.core.param : Parameter, ValueParameterBinding;
 import inochi2d.core.puppet : Puppet;
 import inochi2d.core.render.texture : Texture, TextureData, TextureFormat;
 import inochi2d.ver : IN_VERSION;
@@ -16,17 +17,13 @@ import numem.core.memory : nu_dup;
 import std.digest.sha : sha256Of;
 import std.file : exists, getSize, mkdirRecurse, read, remove;
 import std.json : JSONType, JSONValue, parseJSON, toJSON;
+import std.math : abs, isFinite;
 import std.path : dirName, extension;
 import std.string : fromStringz, split, strip;
 import std.uni : toLower;
 
 private enum upstreamVersion = IN_VERSION ~ "\0";
 
-// NuLib 0.3.8's Linux/LDC POSIX package documents that LDC can discard
-// threading TypeInfo when static archives are consumed by a shared library.
-// Keep explicit bridge-owned references so the archive members defining these
-// runtime metadata symbols are pulled into libiat_bridge instead of surfacing
-// as unresolved symbols when an external process loads the bridge.
 private __gshared TypeInfo nulibThreadContextTypeInfo = typeid(ThreadContext);
 private __gshared ClassInfo nulibNativeThreadClassInfo = NativeThread.classinfo;
 private __gshared ClassInfo nulibNativeSemaphoreClassInfo = NativeSemaphore.classinfo;
@@ -48,7 +45,6 @@ private void safeRemove(string path) nothrow {
     try {
         if (path.length > 0 && exists(path)) remove(path);
     } catch (Throwable) {
-        // Cleanup failure must never unwind across the C ABI boundary.
     }
 }
 
@@ -71,12 +67,10 @@ private void writeUint32LE(ref ubyte[9] header, size_t offset, uint value) {
 
 private string textureFingerprint(Texture texture) {
     if (texture is null) return "";
-
     ubyte[9] header;
     header[0] = cast(ubyte) texture.format;
     writeUint32LE(header, 1, texture.width);
     writeUint32LE(header, 5, texture.height);
-
     ubyte[] payload;
     payload ~= header[];
     payload ~= cast(ubyte[]) texture.pixels;
@@ -87,13 +81,10 @@ private string textureFingerprint(Texture texture) {
 private string textureFormatName(Texture texture) {
     if (texture is null) return "unknown";
     final switch (texture.format) {
-        case TextureFormat.rgba8Unorm:
-            return "rgba8";
-        case TextureFormat.r8:
-            return "r8";
+        case TextureFormat.rgba8Unorm: return "rgba8";
+        case TextureFormat.r8: return "r8";
         case TextureFormat.none:
-        case TextureFormat.depthStencil:
-            return "unknown";
+        case TextureFormat.depthStencil: return "unknown";
     }
 }
 
@@ -101,28 +92,32 @@ private string childPath(string parentPath, string name) {
     return parentPath ~ "/" ~ name;
 }
 
-private void appendNodeSnapshot(
-    Node node,
-    string path,
-    ref JSONValue nodes,
-    ref size_t nodeCount,
-    ref size_t partCount,
-) {
-    if (node is null) return;
+private string semanticNodePath(Node node) {
+    if (node is null || node.puppet is null || node.puppet.root is null) return "";
+    auto root = node.puppet.root;
+    string path;
+    Node current = node;
+    while (current !is null) {
+        path = "/" ~ current.name.value ~ path;
+        if (current is root) return path;
+        current = current.parent;
+    }
+    return "";
+}
 
+private void appendNodeSnapshot(Node node, string path, ref JSONValue nodes, ref size_t nodeCount, ref size_t partCount) {
+    if (node is null) return;
     JSONValue item = JSONValue.emptyObject;
     item["path"] = path;
     item["name"] = node.name.value;
     item["kind"] = cast(Part) node ? "part" : "node";
     item["childCount"] = cast(ulong) node.children.length;
-
     JSONValue textureBindings = JSONValue.emptyArray;
     if (auto part = cast(Part) node) {
         static immutable usageNames = ["albedo", "emissive", "bumpmap"];
         foreach (i, usageName; usageNames) {
             auto texture = part.textures[i];
             if (texture is null) continue;
-
             JSONValue binding = JSONValue.emptyObject;
             binding["usage"] = usageName;
             binding["ref"] = textureFingerprint(texture);
@@ -130,34 +125,57 @@ private void appendNodeSnapshot(
         }
     }
     item["textures"] = textureBindings;
-
     nodes.array ~= item;
     nodeCount++;
     if (cast(Part) node) partCount++;
+    foreach (child; node.children) appendNodeSnapshot(child, childPath(path, child.name.value), nodes, nodeCount, partCount);
+}
 
-    foreach (child; node.children) {
-        appendNodeSnapshot(child, childPath(path, child.name.value), nodes, nodeCount, partCount);
+private JSONValue parameterBindingSnapshots(Parameter parameter) {
+    JSONValue bindings = JSONValue.emptyArray;
+    foreach (binding; parameter.bindings) {
+        auto valueBinding = cast(ValueParameterBinding) binding;
+        auto target = binding.getNode();
+        if (valueBinding is null || target is null) continue;
+        auto targetPath = semanticNodePath(target);
+        if (targetPath.length == 0) continue;
+        JSONValue item = JSONValue.emptyObject;
+        item["targetPath"] = targetPath;
+        item["property"] = binding.getName();
+        JSONValue keypoints = JSONValue.emptyArray;
+        foreach (x; 0 .. parameter.axisPointCount(0)) {
+            foreach (y; 0 .. parameter.axisPointCount(1)) {
+                auto index = vec2u(cast(uint) x, cast(uint) y);
+                if (!binding.isSet(index)) continue;
+                auto parameterValue = parameter.getKeypointValue(index);
+                JSONValue keypoint = JSONValue.emptyObject;
+                keypoint["index"] = JSONValue([cast(ulong) x, cast(ulong) y]);
+                keypoint["parameterValue"] = JSONValue([parameterValue.x, parameterValue.y]);
+                keypoint["value"] = valueBinding.getValue(index);
+                keypoints.array ~= keypoint;
+            }
+        }
+        item["keypoints"] = keypoints;
+        bindings.array ~= item;
     }
+    return bindings;
 }
 
 private string buildInspectionJson(Puppet puppet) {
     JSONValue result = JSONValue.emptyObject;
     result["schemaVersion"] = 1;
-
     JSONValue metadata = JSONValue.emptyObject;
     metadata["name"] = puppet.meta.name.value;
     metadata["inochiVersion"] = puppet.meta.version_.value;
     metadata["rigger"] = puppet.meta.rigger.value;
     metadata["artist"] = puppet.meta.artist.value;
     result["metadata"] = metadata;
-
     JSONValue nodes = JSONValue.emptyArray;
     size_t nodeCount;
     size_t partCount;
     auto rootPath = "/" ~ puppet.root.name.value;
     appendNodeSnapshot(puppet.root, rootPath, nodes, nodeCount, partCount);
     result["nodes"] = nodes;
-
     JSONValue parameters = JSONValue.emptyArray;
     foreach (parameter; puppet.parameters) {
         JSONValue item = JSONValue.emptyObject;
@@ -167,10 +185,10 @@ private string buildInspectionJson(Puppet puppet) {
         item["max"] = JSONValue([parameter.max.x, parameter.max.y]);
         item["defaultValue"] = JSONValue([parameter.defaults.x, parameter.defaults.y]);
         item["value"] = JSONValue([parameter.value.x, parameter.value.y]);
+        item["bindings"] = parameterBindingSnapshots(parameter);
         parameters.array ~= item;
     }
     result["parameters"] = parameters;
-
     JSONValue textures = JSONValue.emptyArray;
     if (puppet.textureCache !is null) {
         foreach (texture; puppet.textureCache.cache) {
@@ -184,17 +202,14 @@ private string buildInspectionJson(Puppet puppet) {
         }
     }
     result["textures"] = textures;
-
     auto textureCount = puppet.textureCache is null ? 0UL : cast(ulong) puppet.textureCache.size;
     result["textureCount"] = textureCount;
-
     JSONValue summary = JSONValue.emptyObject;
     summary["nodeCount"] = cast(ulong) nodeCount;
     summary["partCount"] = cast(ulong) partCount;
     summary["parameterCount"] = cast(ulong) puppet.parameters.length;
     summary["textureCount"] = textureCount;
     result["summary"] = summary;
-
     return result.toJSON();
 }
 
@@ -212,17 +227,13 @@ private Node resolveNodePath(Puppet puppet, string path) {
     if (puppet is null || puppet.root is null || path.length == 0 || path[0] != '/') return null;
     auto segments = path.split("/");
     if (segments.length < 2 || segments[1] != puppet.root.name.value) return null;
-
     Node current = puppet.root;
     foreach (segment; segments[2 .. $]) {
         if (segment.length == 0) return null;
         Node found;
         size_t matches;
         foreach (child; current.children) {
-            if (child.name.value == segment) {
-                found = child;
-                matches++;
-            }
+            if (child.name.value == segment) { found = child; matches++; }
         }
         if (matches != 1) return null;
         current = found;
@@ -232,9 +243,7 @@ private Node resolveNodePath(Puppet puppet, string path) {
 
 private bool hasSiblingNamed(Node parent, string name, Node except = null) {
     if (parent is null) return false;
-    foreach (child; parent.children) {
-        if (child !is except && child.name.value == name) return true;
-    }
+    foreach (child; parent.children) if (child !is except && child.name.value == name) return true;
     return false;
 }
 
@@ -247,253 +256,182 @@ private bool wouldCreateCycle(Node node, Node newParent) {
     return false;
 }
 
-private void collectPartTextureExpectations(
-    Node node,
-    string path,
-    ref string[string] expectedPartTextureByPath,
-) {
+private void collectPartTextureExpectations(Node node, string path, ref string[string] expectedPartTextureByPath) {
     if (node is null) return;
-    if (auto part = cast(Part) node) {
-        if (part.textures[0] !is null) {
-            expectedPartTextureByPath[path] = textureFingerprint(part.textures[0]);
-        }
-    }
-    foreach (child; node.children) {
-        collectPartTextureExpectations(
-            child,
-            childPath(path, child.name.value),
-            expectedPartTextureByPath,
-        );
-    }
+    if (auto part = cast(Part) node) if (part.textures[0] !is null) expectedPartTextureByPath[path] = textureFingerprint(part.textures[0]);
+    foreach (child; node.children) collectPartTextureExpectations(child, childPath(path, child.name.value), expectedPartTextureByPath);
 }
 
 private string requireJsonString(ref JSONValue object, string key) {
-    if (object.type != JSONType.object || key !in object.object || object[key].type != JSONType.string) {
-        throw new Exception("missing or invalid string field: " ~ key);
-    }
+    if (object.type != JSONType.object || key !in object.object || object[key].type != JSONType.string) throw new Exception("missing or invalid string field: " ~ key);
     return object[key].str;
 }
 
-export extern(C) nothrow @nogc uint iat_bridge_abi_version() {
-    return 1;
+private float requireJsonNumber(ref JSONValue value) {
+    switch (value.type) {
+        case JSONType.float_: return cast(float) value.floating;
+        case JSONType.integer: return cast(float) value.integer;
+        case JSONType.uinteger: return cast(float) value.uinteger;
+        default: throw new Exception("expected finite numeric value");
+    }
 }
 
-export extern(C) nothrow @nogc const(char)* iat_bridge_upstream_version() {
-    return upstreamVersion.ptr;
+private vec2 requireJsonPair(ref JSONValue object, string key) {
+    if (object.type != JSONType.object || key !in object.object || object[key].type != JSONType.array || object[key].array.length != 2) throw new Exception("missing or invalid numeric pair field: " ~ key);
+    auto x = requireJsonNumber(object[key].array[0]);
+    auto y = requireJsonNumber(object[key].array[1]);
+    if (!isFinite(x) || !isFinite(y)) throw new Exception("numeric pair must be finite");
+    return vec2(x, y);
 }
 
-export extern(C) void iat_string_free(char* value) nothrow {
-    if (value !is null) free(value);
+private int requireJsonDimensions(ref JSONValue object) {
+    if (object.type != JSONType.object || "dimensions" !in object.object) throw new Exception("missing parameter dimensions");
+    auto dimensions = requireJsonNumber(object["dimensions"]);
+    if (dimensions != 1 && dimensions != 2) throw new Exception("parameter dimensions must be 1 or 2");
+    return cast(int) dimensions;
 }
+
+private Parameter resolveParameterName(Puppet puppet, string name) {
+    Parameter found;
+    size_t matches;
+    foreach (parameter; puppet.parameters) if (parameter.name.value == name) { found = parameter; matches++; }
+    return matches == 1 ? found : null;
+}
+
+private bool hasParameterName(Puppet puppet, string name) {
+    foreach (parameter; puppet.parameters) if (parameter.name.value == name) return true;
+    return false;
+}
+
+private bool findExactKeypoint(Parameter parameter, vec2 requested, out vec2u index) {
+    enum tolerance = 0.000001f;
+    foreach (x; 0 .. parameter.axisPointCount(0)) {
+        foreach (y; 0 .. parameter.axisPointCount(1)) {
+            auto candidate = parameter.getKeypointValue(vec2u(cast(uint) x, cast(uint) y));
+            if (abs(candidate.x - requested.x) <= tolerance && abs(candidate.y - requested.y) <= tolerance) {
+                index = vec2u(cast(uint) x, cast(uint) y);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+export extern(C) nothrow @nogc uint iat_bridge_abi_version() { return 1; }
+export extern(C) nothrow @nogc const(char)* iat_bridge_upstream_version() { return upstreamVersion.ptr; }
+export extern(C) void iat_string_free(char* value) nothrow { if (value !is null) free(value); }
 
 export extern(C) int iat_inspect_puppet_json(const(char)* path, char** outJson, char** outError) nothrow {
     if (outJson is null || outError is null) return 2;
-    *outJson = null;
-    *outError = null;
-
-    if (path is null) {
-        *outError = copyCString("puppet path is null");
-        return 2;
-    }
-
+    *outJson = null; *outError = null;
+    if (path is null) { *outError = copyCString("puppet path is null"); return 2; }
     try {
         auto puppetPath = fromStringz(path).idup;
         auto puppet = inLoadPuppet!Puppet(puppetPath);
         scope(exit) destroy(puppet);
         return returnInspectionJson(puppet, outJson, outError);
-    } catch (Throwable error) {
-        *outError = copyCString(error.msg.idup);
-        return 1;
-    }
+    } catch (Throwable error) { *outError = copyCString(error.msg.idup); return 1; }
 }
 
-export extern(C) int iat_create_minimal_puppet_json(
-    const(char)* outputPath,
-    const(char)* name,
-    char** outJson,
-    char** outError,
-) nothrow {
+export extern(C) int iat_create_minimal_puppet_json(const(char)* outputPath, const(char)* name, char** outJson, char** outError) nothrow {
     if (outJson is null || outError is null) return 2;
-    *outJson = null;
-    *outError = null;
-
-    if (outputPath is null || name is null) {
-        *outError = copyCString("output path and puppet name are required");
-        return 2;
-    }
-
+    *outJson = null; *outError = null;
+    if (outputPath is null || name is null) { *outError = copyCString("output path and puppet name are required"); return 2; }
     try {
         auto output = fromStringz(outputPath).idup;
         auto nameText = fromStringz(name).idup;
-
-        if (nameText.strip.length == 0 || toLower(extension(output)) != ".inp") {
-            *outError = copyCString("invalid minimal puppet authoring request");
-            return 4;
-        }
-
-        if (exists(output)) {
-            *outError = copyCString("puppet output already exists");
-            return 5;
-        }
-
+        if (nameText.strip.length == 0 || toLower(extension(output)) != ".inp") { *outError = copyCString("invalid minimal puppet authoring request"); return 4; }
+        if (exists(output)) { *outError = copyCString("puppet output already exists"); return 5; }
         auto parent = dirName(output);
         if (parent.length > 0) mkdirRecurse(parent);
-
         auto puppet = new Puppet();
         scope(exit) destroy(puppet);
         puppet.meta.name = nameText;
         inWriteINPPuppet(puppet, output);
-
-        if (!exists(output) || getSize(output) == 0) {
-            *outError = copyCString("official writer produced no puppet artifact");
-            return 1;
-        }
-
+        if (!exists(output) || getSize(output) == 0) { *outError = copyCString("official writer produced no puppet artifact"); return 1; }
         auto reopened = inLoadPuppet!Puppet(output);
         scope(exit) destroy(reopened);
-        if (reopened is null || reopened.meta.name.value != nameText) {
-            *outError = copyCString("saved puppet did not preserve requested metadata");
-            return 6;
-        }
-
+        if (reopened is null || reopened.meta.name.value != nameText) { *outError = copyCString("saved puppet did not preserve requested metadata"); return 6; }
         return returnInspectionJson(reopened, outJson, outError);
-    } catch (Throwable error) {
-        *outError = copyCString(error.msg.idup);
-        return 1;
-    }
+    } catch (Throwable error) { *outError = copyCString(error.msg.idup); return 1; }
 }
 
-export extern(C) int iat_edit_visual_puppet_json(
-    const(char)* inputPath,
-    const(char)* outputPath,
-    const(char)* operationsJson,
-    char** outJson,
-    char** outError,
-) nothrow {
+export extern(C) int iat_edit_visual_puppet_json(const(char)* inputPath, const(char)* outputPath, const(char)* operationsJson, char** outJson, char** outError) nothrow {
     if (outJson is null || outError is null) return 2;
-    *outJson = null;
-    *outError = null;
-    if (inputPath is null || outputPath is null || operationsJson is null) {
-        return fail(outError, 2, "input path, output path, and operations are required");
-    }
-
+    *outJson = null; *outError = null;
+    if (inputPath is null || outputPath is null || operationsJson is null) return fail(outError, 2, "input path, output path, and operations are required");
     string output;
     bool outputWritten;
     try {
         auto input = fromStringz(inputPath).idup;
         output = fromStringz(outputPath).idup;
         auto operationsText = fromStringz(operationsJson).idup;
-
-        if (toLower(extension(input)) != ".inp" || toLower(extension(output)) != ".inp" || input == output) {
-            return fail(outError, 5, "visual authoring requires distinct .inp input/output paths");
-        }
+        if (toLower(extension(input)) != ".inp" || toLower(extension(output)) != ".inp" || input == output) return fail(outError, 5, "visual authoring requires distinct .inp input/output paths");
         if (exists(output)) return fail(outError, 5, "puppet output already exists");
-
         auto operations = parseJSON(operationsText);
-        if (operations.type != JSONType.array || operations.array.length == 0) {
-            return fail(outError, 2, "visual authoring operations must be a non-empty array");
-        }
-
+        if (operations.type != JSONType.array || operations.array.length == 0) return fail(outError, 2, "visual authoring operations must be a non-empty array");
         auto puppet = inLoadPuppet!Puppet(input);
         scope(exit) destroy(puppet);
         auto initialTextureCount = puppet.textureCache is null ? 0UL : cast(ulong) puppet.textureCache.size;
         Texture[string] texturesByKey;
         size_t importedTextureCount;
-
         foreach (ref operation; operations.array) {
             auto type = requireJsonString(operation, "type");
             if (type == "texture.import") {
                 auto key = requireJsonString(operation, "key");
                 auto imagePath = requireJsonString(operation, "imagePath");
-                if (key.strip.length == 0 || (key in texturesByKey) !is null ||
-                    toLower(extension(imagePath)) != ".png" || !exists(imagePath)) {
-                    return fail(outError, 9, "invalid texture asset or duplicate texture key");
-                }
-
+                if (key.strip.length == 0 || (key in texturesByKey) !is null || toLower(extension(imagePath)) != ".png" || !exists(imagePath)) return fail(outError, 9, "invalid texture asset or duplicate texture key");
                 TextureData data;
                 try {
                     auto encoded = cast(ubyte[]) read(imagePath);
                     auto ownedEncoded = cast(ubyte[]) encoded.nu_dup();
                     data = TextureData.load(ownedEncoded);
-                } catch (Throwable error) {
-                    return fail(outError, 9, "failed decoding PNG texture asset");
-                }
-                if (data.width == 0 || data.height == 0 || data.data.length == 0) {
-                    data.free();
-                    return fail(outError, 9, "decoded texture asset is empty");
-                }
-
+                } catch (Throwable error) { return fail(outError, 9, "failed decoding PNG texture asset"); }
+                if (data.width == 0 || data.height == 0 || data.data.length == 0) { data.free(); return fail(outError, 9, "decoded texture asset is empty"); }
                 auto texture = Texture.createForData(data);
                 puppet.textureCache.add(texture);
                 texturesByKey[key] = texture;
                 importedTextureCount++;
                 continue;
             }
-
             if (type == "node.create") {
                 auto parentPath = requireJsonString(operation, "parentPath");
                 auto name = requireJsonString(operation, "name");
                 auto parent = resolveNodePath(puppet, parentPath);
-                if (parent is null || name.strip.length == 0 || hasSiblingNamed(parent, name)) {
-                    return fail(outError, 7, "invalid or ambiguous hierarchy target");
-                }
-                auto node = new Node(parent);
-                node.name = name;
-                continue;
+                if (parent is null || name.strip.length == 0 || hasSiblingNamed(parent, name)) return fail(outError, 7, "invalid or ambiguous hierarchy target");
+                auto node = new Node(parent); node.name = name; continue;
             }
-
             if (type == "part.create") {
                 auto parentPath = requireJsonString(operation, "parentPath");
                 auto name = requireJsonString(operation, "name");
                 auto textureKey = requireJsonString(operation, "textureKey");
                 auto parent = resolveNodePath(puppet, parentPath);
-                if (parent is null || name.strip.length == 0 || hasSiblingNamed(parent, name)) {
-                    return fail(outError, 7, "invalid or ambiguous hierarchy target");
-                }
+                if (parent is null || name.strip.length == 0 || hasSiblingNamed(parent, name)) return fail(outError, 7, "invalid or ambiguous hierarchy target");
                 auto texturePtr = textureKey in texturesByKey;
                 if (texturePtr is null) return fail(outError, 8, "unknown transaction-local texture key");
                 auto texture = *texturePtr;
-
                 MeshData mesh;
                 float halfW = texture.width / 2.0f;
                 float halfH = texture.height / 2.0f;
-                mesh.vertices = [
-                    vec2(-halfW, -halfH),
-                    vec2(halfW, -halfH),
-                    vec2(halfW, halfH),
-                    vec2(-halfW, halfH),
-                ];
+                mesh.vertices = [vec2(-halfW, -halfH), vec2(halfW, -halfH), vec2(halfW, halfH), vec2(-halfW, halfH)];
                 mesh.uvs = [vec2(0, 1), vec2(1, 1), vec2(1, 0), vec2(0, 0)];
                 mesh.indices = [0u, 1u, 2u, 2u, 3u, 0u];
-                auto part = new Part(mesh, [texture], parent);
-                part.name = name;
-                continue;
+                auto part = new Part(mesh, [texture], parent); part.name = name; continue;
             }
-
             if (type == "node.reparent") {
                 auto path = requireJsonString(operation, "path");
                 auto newParentPath = requireJsonString(operation, "newParentPath");
                 auto node = resolveNodePath(puppet, path);
                 auto newParent = resolveNodePath(puppet, newParentPath);
-                if (node is null || newParent is null || node is puppet.root ||
-                    wouldCreateCycle(node, newParent) ||
-                    hasSiblingNamed(newParent, node.name.value, node)) {
-                    return fail(outError, 7, "invalid hierarchy reparent");
-                }
-                node.parent = newParent;
-                continue;
+                if (node is null || newParent is null || node is puppet.root || wouldCreateCycle(node, newParent) || hasSiblingNamed(newParent, node.name.value, node)) return fail(outError, 7, "invalid hierarchy reparent");
+                node.parent = newParent; continue;
             }
-
             if (type == "node.remove") {
                 auto path = requireJsonString(operation, "path");
                 auto node = resolveNodePath(puppet, path);
-                if (node is null || node is puppet.root || node.parent is null) {
-                    return fail(outError, 7, "invalid hierarchy removal");
-                }
-                node.parent = null;
-                continue;
+                if (node is null || node is puppet.root || node.parent is null) return fail(outError, 7, "invalid hierarchy removal");
+                node.parent = null; continue;
             }
-
             if (type == "part.setTexture") {
                 auto path = requireJsonString(operation, "path");
                 auto textureKey = requireJsonString(operation, "textureKey");
@@ -504,49 +442,79 @@ export extern(C) int iat_edit_visual_puppet_json(
                 auto texture = *texturePtr;
                 if (part.textures[0] !is texture) {
                     if (part.textures[0] !is null) part.textures[0].release();
-                    texture.retain();
-                    part.textures[0] = texture;
+                    texture.retain(); part.textures[0] = texture;
                 }
                 continue;
             }
-
+            if (type == "parameter.create") {
+                auto name = requireJsonString(operation, "name");
+                auto dimensions = requireJsonDimensions(operation);
+                auto minValue = requireJsonPair(operation, "min");
+                auto maxValue = requireJsonPair(operation, "max");
+                auto defaultValue = requireJsonPair(operation, "defaultValue");
+                if (name.strip.length == 0 || hasParameterName(puppet, name) || minValue.x >= maxValue.x || defaultValue.x < minValue.x || defaultValue.x > maxValue.x || (dimensions == 1 && (minValue.y != 0 || maxValue.y != 0 || defaultValue.y != 0)) || (dimensions == 2 && (minValue.y >= maxValue.y || defaultValue.y < minValue.y || defaultValue.y > maxValue.y))) return fail(outError, 10, "invalid or duplicate parameter definition");
+                auto parameter = new Parameter(name, dimensions == 2);
+                parameter.min = minValue; parameter.max = maxValue; parameter.defaults = defaultValue; parameter.value = defaultValue;
+                puppet.parameters ~= parameter;
+                continue;
+            }
+            if (type == "parameter.bind") {
+                auto parameterName = requireJsonString(operation, "parameterName");
+                auto targetPath = requireJsonString(operation, "targetPath");
+                auto property = requireJsonString(operation, "property");
+                auto parameter = resolveParameterName(puppet, parameterName);
+                auto target = resolveNodePath(puppet, targetPath);
+                if (parameter is null || target is null || !target.hasParam(property) || parameter.hasBinding(target, property)) return fail(outError, 10, "invalid parameter binding target or property");
+                if ("keypoints" !in operation.object || operation["keypoints"].type != JSONType.array || operation["keypoints"].array.length == 0) return fail(outError, 10, "parameter binding requires keypoints");
+                auto valueBinding = cast(ValueParameterBinding) parameter.getOrAddBinding(target, property, false);
+                if (valueBinding is null) return fail(outError, 10, "unsupported parameter binding type");
+                vec2u[] assigned;
+                foreach (ref keypoint; operation["keypoints"].array) {
+                    auto at = requireJsonPair(keypoint, "at");
+                    if ("value" !in keypoint.object) return fail(outError, 10, "binding keypoint is missing value");
+                    auto value = requireJsonNumber(keypoint["value"]);
+                    if (!isFinite(value)) return fail(outError, 10, "binding keypoint value must be finite");
+                    vec2u index;
+                    if (!findExactKeypoint(parameter, at, index)) return fail(outError, 10, "binding keypoint does not match an existing parameter axis point");
+                    foreach (previous; assigned) if (previous == index) return fail(outError, 10, "duplicate binding keypoint");
+                    assigned ~= index;
+                    valueBinding.setValue(index, value);
+                }
+                continue;
+            }
+            if (type == "parameter.unbind") {
+                auto parameterName = requireJsonString(operation, "parameterName");
+                auto targetPath = requireJsonString(operation, "targetPath");
+                auto property = requireJsonString(operation, "property");
+                auto parameter = resolveParameterName(puppet, parameterName);
+                auto target = resolveNodePath(puppet, targetPath);
+                if (parameter is null || target is null || !target.hasParam(property)) return fail(outError, 10, "invalid parameter binding target or property");
+                auto binding = parameter.getBinding(target, property);
+                if (binding is null) return fail(outError, 10, "parameter binding does not exist");
+                parameter.removeBinding(binding);
+                continue;
+            }
             return fail(outError, 2, "unsupported visual authoring operation");
         }
-
         string[string] expectedPartTextureByPath;
-        collectPartTextureExpectations(
-            puppet.root,
-            "/" ~ puppet.root.name.value,
-            expectedPartTextureByPath,
-        );
-
+        collectPartTextureExpectations(puppet.root, "/" ~ puppet.root.name.value, expectedPartTextureByPath);
         auto parentDir = dirName(output);
         if (parentDir.length > 0) mkdirRecurse(parentDir);
         inWriteINPPuppet(puppet, output);
         outputWritten = exists(output);
-        if (!outputWritten || getSize(output) == 0) {
-            safeRemove(output);
-            return fail(outError, 1, "official writer produced no puppet artifact");
-        }
-
+        if (!outputWritten || getSize(output) == 0) { safeRemove(output); return fail(outError, 1, "official writer produced no puppet artifact"); }
         auto reopened = inLoadPuppet!Puppet(output);
         scope(exit) destroy(reopened);
-        if (reopened is null || reopened.textureCache is null ||
-            reopened.textureCache.size != initialTextureCount + importedTextureCount) {
-            safeRemove(output);
-            outputWritten = false;
-            return fail(outError, 6, "visual authoring round-trip texture inventory mismatch");
+        if (reopened is null || reopened.textureCache is null || reopened.textureCache.size != initialTextureCount + importedTextureCount) {
+            safeRemove(output); outputWritten = false; return fail(outError, 6, "visual authoring round-trip texture inventory mismatch");
         }
         foreach (path, expectedRef; expectedPartTextureByPath) {
             auto node = resolveNodePath(reopened, path);
             auto part = cast(Part) node;
             if (part is null || part.textures[0] is null || textureFingerprint(part.textures[0]) != expectedRef) {
-                safeRemove(output);
-                outputWritten = false;
-                return fail(outError, 6, "visual authoring round-trip Part relationship mismatch");
+                safeRemove(output); outputWritten = false; return fail(outError, 6, "visual authoring round-trip Part relationship mismatch");
             }
         }
-
         return returnInspectionJson(reopened, outJson, outError);
     } catch (Throwable error) {
         if (outputWritten) safeRemove(output);

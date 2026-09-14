@@ -29,6 +29,21 @@
       "file": "0006-preserve-integral-json-scalar-precision.patch",
       "reason": "Pinned Inochi2D v0.8.7 routes all scalar tryGet values through JSONValue.get!float, so uint sentinel values such as Part.NO_TEXTURE (4294967295) lose precision and reload as texture slot 0, incorrectly duplicating albedo into emissive and bumpmap. Integral scalar reads must use JSON integer/uinteger accessors.",
       "removalCondition": "Remove when the pinned upstream revision preserves full signed/unsigned integer precision in serde tryGet and Part texture NO_TEXTURE sentinels round-trip without becoming slot 0."
+    },
+    {
+      "file": "0007-append-parameter-binding-json-elements.patch",
+      "reason": "Pinned Inochi2D v0.8.7 initializes Parameter.bindings as a JSON array but appends each serialized binding with JSONValue ~= JSONValue, whose std.json overload expects an array RHS and throws 'JSONValue is not an array'. Append the serialized binding object to the array storage explicitly.",
+      "removalCondition": "Remove when the pinned upstream revision can serialize a Parameter containing a ValueParameterBinding without std.json array-type failure."
+    },
+    {
+      "file": "0008-disambiguate-guid-string-lookup.patch",
+      "reason": "Pinned Inochi2D v0.8.7 calls obj.tryGet!string(guidKey) inside tryGetGUID. Because serde also has a tryGet(T)(JSONValue, T defaultValue) overload, a string guidKey binds as the default-value overload rather than the keyed lookup and valid serialized GUID strings deserialize as nil UUIDs. Passing an explicit null default selects the keyed overload and preserves node/binding identity.",
+      "removalCondition": "Remove when the pinned upstream revision resolves string GUID fields through an unambiguous keyed JSON lookup and non-root node GUIDs survive whole-puppet round-trip without this patch."
+    },
+    {
+      "file": "0009-read-binding-node-guid-from-node-field.patch",
+      "reason": "Pinned Inochi2D v0.8.7 serializes ParameterBinding target GUIDs under the string field 'node' but deserializes with tryGetGUID('node','target'), where the first argument is reserved for a legacy numeric UUID key and the second for the string GUID key. As a result the valid 'node' string is skipped and the binding is removed during Parameter.finalize. Read legacy numeric 'target' first and current string 'node' second.",
+      "removalCondition": "Remove when the pinned upstream revision deserializes the same binding target field it serializes and a non-root ValueParameterBinding survives whole-puppet save/reopen without this patch."
     }
   ]
 }

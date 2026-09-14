@@ -2,6 +2,16 @@ export type NodeKind = 'node' | 'part' | 'other';
 export type NumericPair = [number, number];
 export type PuppetTextureFormat = 'rgba8' | 'r8' | 'unknown';
 export type PuppetTextureUsage = 'albedo' | 'emissive' | 'bumpmap';
+export type ParameterBindingProperty =
+  | 'zSort'
+  | 'transform.t.x'
+  | 'transform.t.y'
+  | 'transform.t.z'
+  | 'transform.r.x'
+  | 'transform.r.y'
+  | 'transform.r.z'
+  | 'transform.s.x'
+  | 'transform.s.y';
 
 export interface PuppetInspectionNodeTexture {
   usage: PuppetTextureUsage;
@@ -23,6 +33,18 @@ export interface PuppetInspectionTexture {
   format: PuppetTextureFormat;
 }
 
+export interface PuppetInspectionParameterBindingKeypoint {
+  index: [number, number];
+  parameterValue: NumericPair;
+  value: number;
+}
+
+export interface PuppetInspectionParameterBinding {
+  targetPath: string;
+  property: ParameterBindingProperty;
+  keypoints: PuppetInspectionParameterBindingKeypoint[];
+}
+
 export interface PuppetInspectionParameter {
   name: string;
   dimensions: 1 | 2;
@@ -30,6 +52,7 @@ export interface PuppetInspectionParameter {
   max: NumericPair;
   defaultValue: NumericPair;
   value: NumericPair;
+  bindings: PuppetInspectionParameterBinding[];
 }
 
 export interface PuppetInspection {
@@ -109,6 +132,16 @@ function numericPair(value: unknown, path: string): NumericPair {
   ];
 }
 
+function indexPair(value: unknown, path: string): [number, number] {
+  if (!Array.isArray(value) || value.length !== 2) {
+    fail(path, 'expected two-integer array');
+  }
+  return [
+    nonNegativeInteger(value[0], `${path}[0]`),
+    nonNegativeInteger(value[1], `${path}[1]`),
+  ];
+}
+
 function nodeKind(value: unknown, path: string): NodeKind {
   if (value !== 'node' && value !== 'part' && value !== 'other') {
     fail(path, 'expected node, part, or other');
@@ -128,6 +161,23 @@ function textureFormat(value: unknown, path: string): PuppetTextureFormat {
     fail(path, 'expected rgba8, r8, or unknown');
   }
   return value;
+}
+
+function parameterBindingProperty(value: unknown, path: string): ParameterBindingProperty {
+  switch (value) {
+    case 'zSort':
+    case 'transform.t.x':
+    case 'transform.t.y':
+    case 'transform.t.z':
+    case 'transform.r.x':
+    case 'transform.r.y':
+    case 'transform.r.z':
+    case 'transform.s.x':
+    case 'transform.s.y':
+      return value;
+    default:
+      fail(path, 'expected supported parameter binding property');
+  }
 }
 
 function parseNodeTexture(value: unknown, nodeIndex: number, index: number): PuppetInspectionNodeTexture {
@@ -164,6 +214,38 @@ function parseTexture(value: unknown, index: number): PuppetInspectionTexture {
   };
 }
 
+function parseParameterBindingKeypoint(
+  value: unknown,
+  parameterIndex: number,
+  bindingIndex: number,
+  keypointIndex: number,
+): PuppetInspectionParameterBindingKeypoint {
+  const path = `parameters[${parameterIndex}].bindings[${bindingIndex}].keypoints[${keypointIndex}]`;
+  const input = record(value, path);
+  return {
+    index: indexPair(input.index, `${path}.index`),
+    parameterValue: numericPair(input.parameterValue, `${path}.parameterValue`),
+    value: finiteNumber(input.value, `${path}.value`),
+  };
+}
+
+function parseParameterBinding(
+  value: unknown,
+  parameterIndex: number,
+  bindingIndex: number,
+): PuppetInspectionParameterBinding {
+  const path = `parameters[${parameterIndex}].bindings[${bindingIndex}]`;
+  const input = record(value, path);
+  if (!Array.isArray(input.keypoints)) fail(`${path}.keypoints`, 'expected array');
+  return {
+    targetPath: stringValue(input.targetPath, `${path}.targetPath`),
+    property: parameterBindingProperty(input.property, `${path}.property`),
+    keypoints: input.keypoints.map((keypoint, keypointIndex) =>
+      parseParameterBindingKeypoint(keypoint, parameterIndex, bindingIndex, keypointIndex),
+    ),
+  };
+}
+
 function parseParameter(value: unknown, index: number): PuppetInspectionParameter {
   const path = `parameters[${index}]`;
   const input = record(value, path);
@@ -171,6 +253,8 @@ function parseParameter(value: unknown, index: number): PuppetInspectionParamete
   if (dimensions !== 1 && dimensions !== 2) {
     fail(`${path}.dimensions`, 'expected 1 or 2');
   }
+  const bindings = input.bindings === undefined ? [] : input.bindings;
+  if (!Array.isArray(bindings)) fail(`${path}.bindings`, 'expected array');
 
   return {
     name: stringValue(input.name, `${path}.name`),
@@ -179,6 +263,7 @@ function parseParameter(value: unknown, index: number): PuppetInspectionParamete
     max: numericPair(input.max, `${path}.max`),
     defaultValue: numericPair(input.defaultValue, `${path}.defaultValue`),
     value: numericPair(input.value, `${path}.value`),
+    bindings: bindings.map((binding, bindingIndex) => parseParameterBinding(binding, index, bindingIndex)),
   };
 }
 

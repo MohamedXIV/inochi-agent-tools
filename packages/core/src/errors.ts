@@ -69,3 +69,12 @@ export class InvalidTextureAssetError extends Error {
     this.name = 'InvalidTextureAssetError';
   }
 }
+
+export class InvalidBindingError extends Error {
+  readonly code = 'INVALID_BINDING' as const;
+
+  constructor(message = 'Invalid parameter definition or binding') {
+    super(message);
+    this.name = 'InvalidBindingError';
+  }
+}

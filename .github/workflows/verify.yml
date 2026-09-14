@@ -29,4 +29,4 @@ jobs:
         with:
           compiler: ldc-1.40.0
       - run: npm ci
-      - run: npm run m2:visual:ci
+      - run: npm run m2:parameter:ci

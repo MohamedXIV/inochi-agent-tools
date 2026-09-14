@@ -34,10 +34,14 @@ const validInspection = {
 };
 
 describe('parsePuppetInspection', () => {
-  it('returns a validated schema v1 snapshot and normalizes legacy texture fields', () => {
+  it('returns a validated schema v1 snapshot and normalizes legacy texture and binding fields', () => {
     expect(parsePuppetInspection(validInspection)).toEqual({
       ...validInspection,
       nodes: validInspection.nodes.map((node) => ({ ...node, textures: [] })),
+      parameters: validInspection.parameters.map((parameter) => ({
+        ...parameter,
+        bindings: [],
+      })),
       textures: [],
     });
   });

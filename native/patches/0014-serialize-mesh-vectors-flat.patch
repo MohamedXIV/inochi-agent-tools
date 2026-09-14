@@ -1,0 +1,24 @@
+diff --git a/source/inochi2d/core/mesh.d b/source/inochi2d/core/mesh.d
+--- a/source/inochi2d/core/mesh.d
++++ b/source/inochi2d/core/mesh.d
+@@ -260,8 +260,18 @@ struct MeshData {
+ 
+     /// Serialization handler
+     void onSerialize(ref JSONValue object) {
+-        object["verts"] = vertices.serialize();
+-        object["uvs"] = uvs.serialize();
++        object["verts"] = JSONValue.emptyArray;
++        foreach(vertex; vertices) {
++            object["verts"].array ~= JSONValue(vertex.x);
++            object["verts"].array ~= JSONValue(vertex.y);
++        }
++
++        object["uvs"] = JSONValue.emptyArray;
++        foreach(uv; uvs) {
++            object["uvs"].array ~= JSONValue(uv.x);
++            object["uvs"].array ~= JSONValue(uv.y);
++        }
++
+         object["indices"] = indices.serialize();
+     }
+ 

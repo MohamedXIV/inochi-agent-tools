@@ -1,6 +1,11 @@
 import { parseArgs } from 'node:util';
 
-import { inspectPuppet } from '@inochi-agent-tools/core';
+import {
+  createPuppet,
+  inspectPuppet,
+  savePuppet,
+  validatePuppet,
+} from '@inochi-agent-tools/core';
 
 import { classifyCliError } from './errors.js';
 import type { CliIo } from './output.js';
@@ -40,17 +45,21 @@ function requireStringOption(
   return value;
 }
 
-function parseInputOnlyCommand(rest: string[]): string {
-  const { values } = parseArgs({
-    args: rest,
-    options: { input: { type: 'string' } },
-    strict: true,
-    allowPositionals: false,
-  });
-  return requireStringOption(values, 'input');
-}
+type ParsedCommand =
+  | { command: 'puppet create'; outputPath: string; name: string }
+  | { command: 'puppet open'; inputPath: string }
+  | { command: 'puppet inspect'; inputPath: string }
+  | { command: 'puppet validate'; inputPath: string }
+  | { command: 'puppet save'; inputPath: string; outputPath: string }
+  | {
+      command: 'puppet edit';
+      inputPath: string;
+      outputPath: string;
+      operationsSource: string;
+    }
+  | { command: 'parameter evaluate'; inputPath: string; valuesSource: string };
 
-function validateKnownCommand(args: string[]): string {
+function parseKnownCommand(args: string[]): ParsedCommand {
   const [group, action, ...rest] = args;
   if (!group || !action) throw new CliUsageError('expected a command');
 
@@ -66,17 +75,25 @@ function validateKnownCommand(args: string[]): string {
         strict: true,
         allowPositionals: false,
       });
-      requireStringOption(values, 'output');
-      requireStringOption(values, 'name');
-      return command;
+      return {
+        command: 'puppet create',
+        outputPath: requireStringOption(values, 'output'),
+        name: requireStringOption(values, 'name'),
+      };
     }
 
     if (
       group === 'puppet' &&
       (action === 'open' || action === 'inspect' || action === 'validate')
     ) {
-      parseInputOnlyCommand(rest);
-      return command;
+      const { values } = parseArgs({
+        args: rest,
+        options: { input: { type: 'string' } },
+        strict: true,
+        allowPositionals: false,
+      });
+      const inputPath = requireStringOption(values, 'input');
+      return { command: `puppet ${action}`, inputPath } as ParsedCommand;
     }
 
     if (group === 'puppet' && action === 'save') {
@@ -89,9 +106,11 @@ function validateKnownCommand(args: string[]): string {
         strict: true,
         allowPositionals: false,
       });
-      requireStringOption(values, 'input');
-      requireStringOption(values, 'output');
-      return command;
+      return {
+        command: 'puppet save',
+        inputPath: requireStringOption(values, 'input'),
+        outputPath: requireStringOption(values, 'output'),
+      };
     }
 
     if (group === 'puppet' && action === 'edit') {
@@ -105,10 +124,12 @@ function validateKnownCommand(args: string[]): string {
         strict: true,
         allowPositionals: false,
       });
-      requireStringOption(values, 'input');
-      requireStringOption(values, 'output');
-      requireStringOption(values, 'operations');
-      return command;
+      return {
+        command: 'puppet edit',
+        inputPath: requireStringOption(values, 'input'),
+        outputPath: requireStringOption(values, 'output'),
+        operationsSource: requireStringOption(values, 'operations'),
+      };
     }
 
     if (group === 'parameter' && action === 'evaluate') {
@@ -121,9 +142,11 @@ function validateKnownCommand(args: string[]): string {
         strict: true,
         allowPositionals: false,
       });
-      requireStringOption(values, 'input');
-      requireStringOption(values, 'values');
-      return command;
+      return {
+        command: 'parameter evaluate',
+        inputPath: requireStringOption(values, 'input'),
+        valuesSource: requireStringOption(values, 'values'),
+      };
     }
   } catch (error) {
     if (error instanceof CliUsageError) throw error;
@@ -138,16 +161,36 @@ export async function runCli(argv: string[], io: CliIo): Promise<number> {
   let command: string | null = null;
 
   try {
-    command = validateKnownCommand(args);
+    const parsed = parseKnownCommand(args);
+    command = parsed.command;
 
-    if (command === 'puppet inspect') {
-      const inputPath = parseInputOnlyCommand(args.slice(2));
-      const result = await inspectPuppet(inputPath);
-      writeSuccess(io, json, command, result);
-      return 0;
+    let result: unknown;
+    switch (parsed.command) {
+      case 'puppet create':
+        result = await createPuppet({
+          outputPath: parsed.outputPath,
+          name: parsed.name,
+        });
+        break;
+      case 'puppet open':
+      case 'puppet inspect':
+        result = await inspectPuppet(parsed.inputPath);
+        break;
+      case 'puppet validate':
+        result = await validatePuppet(parsed.inputPath);
+        break;
+      case 'puppet save':
+        result = await savePuppet({
+          inputPath: parsed.inputPath,
+          outputPath: parsed.outputPath,
+        });
+        break;
+      default:
+        throw new CliUsageError(`command not implemented yet: ${parsed.command}`);
     }
 
-    throw new CliUsageError(`command not implemented yet: ${command}`);
+    writeSuccess(io, json, command, result);
+    return 0;
   } catch (error) {
     const descriptor =
       error instanceof CliUsageError

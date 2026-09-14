@@ -12,6 +12,7 @@ describe('build fingerprint', () => {
       '0003-lowercase-parameter-nstring-view.patch',
       '0004-serialize-puppet-meta-nstring-views.patch',
       '0005-roundtrip-nested-vector-arrays.patch',
+      '0006-preserve-integral-json-scalar-precision.patch',
     ]);
   });
 });

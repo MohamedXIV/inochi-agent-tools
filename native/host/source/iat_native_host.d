@@ -8,13 +8,43 @@ extern(C) int iat_create_minimal_puppet_json(
     char** outJson,
     char** outError,
 );
+extern(C) int iat_edit_visual_puppet_json(
+    const(char)* inputPath,
+    const(char)* outputPath,
+    const(char)* operationsJson,
+    char** outJson,
+    char** outError,
+);
 extern(C) void iat_string_free(char* value);
+
+private int emitResult(int result, char* json, char* error, string fallback) {
+    if (result != 0) {
+        if (error !is null) {
+            stderr.writeln(fromStringz(error));
+            iat_string_free(error);
+        } else {
+            stderr.writeln(fallback);
+        }
+        if (json !is null) iat_string_free(json);
+        return result;
+    }
+
+    if (json is null) {
+        if (error !is null) iat_string_free(error);
+        stderr.writeln(fallback ~ " returned no JSON");
+        return 1;
+    }
+
+    stdout.write(fromStringz(json));
+    iat_string_free(json);
+    if (error !is null) iat_string_free(error);
+    return 0;
+}
 
 private int runInspect(string path) {
     char* json;
     char* error;
     auto result = iat_inspect_puppet_json(toStringz(path), &json, &error);
-
     if (result != 0) {
         if (error !is null) {
             stderr.writeln(fromStringz(error));
@@ -25,17 +55,7 @@ private int runInspect(string path) {
         if (json !is null) iat_string_free(json);
         return 3;
     }
-
-    if (json is null) {
-        if (error !is null) iat_string_free(error);
-        stderr.writeln("native puppet inspection returned no JSON");
-        return 3;
-    }
-
-    stdout.write(fromStringz(json));
-    iat_string_free(json);
-    if (error !is null) iat_string_free(error);
-    return 0;
+    return emitResult(0, json, error, "native puppet inspection");
 }
 
 private int runCreateMinimal(string outputPath, string name) {
@@ -47,28 +67,20 @@ private int runCreateMinimal(string outputPath, string name) {
         &json,
         &error,
     );
+    return emitResult(result, json, error, "native minimal puppet creation failed");
+}
 
-    if (result != 0) {
-        if (error !is null) {
-            stderr.writeln(fromStringz(error));
-            iat_string_free(error);
-        } else {
-            stderr.writeln("native minimal puppet creation failed");
-        }
-        if (json !is null) iat_string_free(json);
-        return result;
-    }
-
-    if (json is null) {
-        if (error !is null) iat_string_free(error);
-        stderr.writeln("native minimal puppet creation returned no JSON");
-        return 1;
-    }
-
-    stdout.write(fromStringz(json));
-    iat_string_free(json);
-    if (error !is null) iat_string_free(error);
-    return 0;
+private int runEditVisual(string inputPath, string outputPath, string operationsJson) {
+    char* json;
+    char* error;
+    auto result = iat_edit_visual_puppet_json(
+        toStringz(inputPath),
+        toStringz(outputPath),
+        toStringz(operationsJson),
+        &json,
+        &error,
+    );
+    return emitResult(result, json, error, "native visual puppet authoring failed");
 }
 
 int main(string[] args) {
@@ -80,6 +92,14 @@ int main(string[] args) {
         return runCreateMinimal(args[2], args[3]);
     }
 
-    stderr.writeln("usage: iat_native_host inspect <puppet-path> | create-minimal <output.inp> <name>");
+    if (args.length == 5 && args[1] == "edit-visual") {
+        return runEditVisual(args[2], args[3], args[4]);
+    }
+
+    stderr.writeln(
+        "usage: iat_native_host inspect <puppet-path> | " ~
+        "create-minimal <output.inp> <name> | " ~
+        "edit-visual <input.inp> <output.inp> <operations-json>",
+    );
     return 2;
 }

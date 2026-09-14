@@ -24,14 +24,51 @@ int main() {
 
         auto encodedValue = parameter.serialize();
         auto encoded = encodedValue.toJSON();
-        stderr.writeln("binding-serde-probe: JSON=", encoded);
+        stderr.writeln("binding-serde-probe: parameter JSON=", encoded);
 
         auto parsed = parseJSON(encoded);
         auto decoded = new Parameter();
-        stderr.writeln("binding-serde-probe: deserialize parameter");
+        stderr.writeln("binding-serde-probe: deserialize standalone parameter");
         parsed.deserialize(decoded);
         stderr.writeln("binding-serde-probe: decoded bindings=", decoded.bindings.length);
         if (decoded.bindings.length != 1) return 3;
+
+        auto whole = puppet.serialize();
+        if (whole["nodes"]["children"].array.length != 1 ||
+            whole["param"].array.length != 1 ||
+            whole["param"].array[0]["bindings"].array.length != 1) {
+            stderr.writeln("binding-serde-probe: unexpected whole-puppet JSON shape: ", whole.toJSON());
+            return 4;
+        }
+
+        auto serializedRigGuid = whole["nodes"]["children"].array[0]["guid"].str;
+        auto serializedBindingGuid = whole["param"].array[0]["bindings"].array[0]["node"].str;
+        stderr.writeln("binding-serde-probe: serialized Rig GUID=", serializedRigGuid);
+        stderr.writeln("binding-serde-probe: serialized binding GUID=", serializedBindingGuid);
+        if (serializedRigGuid != serializedBindingGuid) {
+            stderr.writeln("binding-serde-probe: binding target already diverged before deserialize");
+            return 5;
+        }
+
+        auto reloaded = Puppet.deserialize(whole, null);
+        scope(exit) destroy(reloaded);
+        if (reloaded.root.children.length != 1 || reloaded.parameters.length != 1 ||
+            reloaded.parameters[0].bindings.length != 1) {
+            stderr.writeln("binding-serde-probe: unexpected reloaded puppet shape");
+            return 6;
+        }
+
+        auto reloadedRig = reloaded.root.children[0];
+        auto reloadedBinding = reloaded.parameters[0].bindings[0];
+        auto reloadedTarget = reloadedBinding.getNode();
+        stderr.writeln("binding-serde-probe: reloaded Rig GUID=", reloadedRig.guid.toString());
+        stderr.writeln("binding-serde-probe: reloaded binding node GUID=", reloadedBinding.getNodeGUID().toString());
+        stderr.writeln("binding-serde-probe: reloaded target name=", reloadedTarget is null ? "<null>" : reloadedTarget.name.value);
+        if (reloadedTarget !is reloadedRig) {
+            stderr.writeln("binding-serde-probe: full-puppet deserialize resolved binding to the wrong node");
+            return 7;
+        }
+
         return 0;
     } catch (Throwable error) {
         stderr.writeln("binding-serde-probe: exception: ", error.msg);

@@ -1,6 +1,5 @@
-import core.stdc.string : fromStringz;
 import std.stdio : stderr;
-import std.string : indexOf, toStringz;
+import std.string : fromStringz, indexOf, toStringz;
 
 extern(C) int iat_inspect_puppet_json(const(char)* path, char** outJson, char** outError);
 extern(C) void iat_string_free(char* value);

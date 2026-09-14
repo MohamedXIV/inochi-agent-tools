@@ -17,7 +17,10 @@
     "native:ci": "npm run upstream:materialize && npm run upstream:verify && npm run native:toolchain:verify && npm run native:build && npm run native:probe && npm run upstream:fingerprint -- --json",
     "m1:fixture": "node scripts/native/build-host.mjs --fixture",
     "m1:inspection-probe": "node scripts/native/build-host.mjs --inspection-probe",
-    "m1:host": "node scripts/native/build-host.mjs --host"
+    "m1:probe": "node scripts/native/build-host.mjs --inspection-probe",
+    "m1:host": "node scripts/native/build-host.mjs --host",
+    "m1:host:build": "node scripts/native/build-host.mjs --host",
+    "m1:ci": "node scripts/native/m1-ci.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -24,9 +24,10 @@ npm run m2:parameter:ci
 npm run m2:creator:ci
 npm run m3:cli:ci
 npm run m3:mcp:ci
+npm run v1:ci
 ```
 
-`m1:ci` preserves the read-only M1 inspection acceptance gate. `m1:authoring:ci` composes that gate with a separately linked native create/write/reopen probe, the process-isolated create host contract, and the real public `createPuppet` integration test. `m2:visual:ci` composes all prior gates with a genuine PNG decode/import, native hierarchy mutation probe, process-host proof, and public `editPuppet` real-artifact integration test. `m2:parameter:ci` adds real parameter/binding serialization, create/bind/unbind probes, runtime set/readback/restore, and the public end-to-end parameter acceptance test. `m2:creator:ci` is the authoritative M2 compatibility gate: it composes the parameter gate with the pinned official Creator materialization, real full fixture construction, staged Creator-open proofs, Creator's normal Save operation, and headless semantic/evaluation verification of the Creator-produced artifact. `m3:cli:ci` is the authoritative M3 CLI gate: it first preserves the full Creator compatibility gate, then typechecks/builds the CLI and runs its public contract plus spawned real-artifact authoring/evaluation workflow. `m3:mcp:ci` extends that same acceptance chain with the public SDK contract, stdio MCP protocol parity, and a spawned real MCP authoring workflow using real `.inp` and PNG artifacts.
+`m1:ci` preserves the read-only M1 inspection acceptance gate. `m1:authoring:ci` composes that gate with a separately linked native create/write/reopen probe, the process-isolated create host contract, and the real public `createPuppet` integration test. `m2:visual:ci` composes all prior gates with a genuine PNG decode/import, native hierarchy mutation probe, process-host proof, and public `editPuppet` real-artifact integration test. `m2:parameter:ci` adds real parameter/binding serialization, create/bind/unbind probes, runtime set/readback/restore, and the public end-to-end parameter acceptance test. `m2:creator:ci` is the authoritative M2 compatibility gate: it composes the parameter gate with the pinned official Creator materialization, real full fixture construction, staged Creator-open proofs, Creator's normal Save operation, and headless semantic/evaluation verification of the Creator-produced artifact. `m3:cli:ci` is the authoritative M3 CLI gate: it first preserves the full Creator compatibility gate, then typechecks/builds the CLI and runs its public contract plus spawned real-artifact authoring/evaluation workflow. `m3:mcp:ci` extends that same acceptance chain with the public SDK contract, stdio MCP protocol parity, and a spawned real MCP authoring workflow using real `.inp` and PNG artifacts. `v1:ci` is the strongest repository acceptance gate: it preserves the complete M3 chain, builds independent real CLI and MCP authored `.inp` artifacts from a real PNG, opens both artifacts in official Inochi Creator v0.8.6, reopens and validates them headlessly, verifies semantic/evaluation parity including `Move X = +20`, `Move Y = -12`, and restore-to-zero, then emits the exact pinned upstream/patch fingerprint.
 
 ## Read-only puppet inspection
 
@@ -248,4 +249,25 @@ Creator GUI automation is acceptance infrastructure only. It does not enter the 
 
 The real-artifact acceptance path uses official serialization from the exact pinned Inochi2D revision. Synthetic data is used only for narrow parser/adapter tests and does not substitute for `.inp` compatibility proof.
 
-See `docs/superpowers/specs/2026-09-13-inochi-agent-tools-v1-design.md` for the approved v1 design, `docs/superpowers/plans/2026-09-13-m0-foundation-upstream-contract.md` for M0, `docs/superpowers/plans/2026-09-14-m1-open-inspect-validate.md` for M1 inspection, `docs/superpowers/plans/2026-09-14-m1-create-save-reopen.md` for minimal creation, `docs/superpowers/plans/2026-09-14-m2-texture-part-hierarchy.md` for visual hierarchy authoring, `docs/superpowers/plans/2026-09-14-m2-parameter-binding.md` for parameter authoring/evaluation, `docs/superpowers/plans/2026-09-14-m2-creator-roundtrip.md` for the official Creator compatibility gate, `docs/superpowers/plans/2026-09-14-m3-semantic-cli.md` for the stable CLI milestone, and `docs/superpowers/plans/2026-09-14-m3-mcp-sdk.md` for the public SDK/MCP milestone.
+## v1 reproducibility and patch policy
+
+The v1 reproducibility contract is intentionally exact and fail-closed:
+
+- Upstream authority is Inochi2D commit `fdb241da048dbe330152f7b0015e2129dc392844` on `v0_8`, declaring `v0.8.7`. Acceptance builds never follow moving upstream HEAD.
+- The compiler floor is LDC >= `1.40.0`; CI authority is LDC `1.40.0`.
+- The upstream patch layer lives only under `native/patches`. Every patch must address a concrete blocked capability, document why it exists and the condition under which it can be removed, and be covered by integration/acceptance evidence. Compatibility preference remains standard upstream behavior whenever possible.
+- Exact upstream plus patch provenance is emitted with `npm run upstream:fingerprint -- --json` and is part of `npm run v1:ci`.
+- Official Inochi Creator v0.8.6 is compatibility acceptance infrastructure only. It is not the serialization authority and is not a runtime or public API dependency; serialization authority remains the exact pinned Inochi2D revision plus the explicit isolated patch layer.
+- Real `.inp` and PNG artifacts are required for integration/compatibility acceptance. Synthetic fixtures may support narrow unit tests but cannot substitute for real compatibility proof.
+
+For final v1 acceptance, use:
+
+```bash
+npm ci
+npm run verify
+npm run v1:ci
+```
+
+The `v1:ci` gate proves both public adapter paths independently: a real CLI-authored artifact and a real stdio-MCP-authored artifact are produced from the same semantic operation recipe, opened in official Creator v0.8.6, reopened headlessly, compared semantically, evaluated through the runtime path, restored to defaults, and tied to the exact upstream/patch fingerprint.
+
+See `docs/superpowers/specs/2026-09-13-inochi-agent-tools-v1-design.md` for the approved v1 design, `docs/superpowers/plans/2026-09-13-m0-foundation-upstream-contract.md` for M0, `docs/superpowers/plans/2026-09-14-m1-open-inspect-validate.md` for M1 inspection, `docs/superpowers/plans/2026-09-14-m1-create-save-reopen.md` for minimal creation, `docs/superpowers/plans/2026-09-14-m2-texture-part-hierarchy.md` for visual hierarchy authoring, `docs/superpowers/plans/2026-09-14-m2-parameter-binding.md` for parameter authoring/evaluation, `docs/superpowers/plans/2026-09-14-m2-creator-roundtrip.md` for the official Creator compatibility gate, `docs/superpowers/plans/2026-09-14-m3-semantic-cli.md` for the stable CLI milestone, `docs/superpowers/plans/2026-09-14-m3-mcp-sdk.md` for the public SDK/MCP milestone, and `docs/superpowers/plans/2026-09-15-v1-agent-acceptance.md` for the final v1 acceptance composition.

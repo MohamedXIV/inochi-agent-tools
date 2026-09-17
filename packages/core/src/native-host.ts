@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 import { InvalidPuppetError, NativeBridgeError } from './errors.js';
@@ -7,18 +8,27 @@ import { parsePuppetInspection, type PuppetInspection } from './inspection.js';
 
 const execFileAsync = promisify(execFile);
 const MAX_CAPTURE_BYTES = 16 * 1024 * 1024;
+const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
 export interface InspectPuppetOptions {
   hostPath?: string;
 }
 
+function defaultNativeDir(): string {
+  if (process.env.IAT_NATIVE_DIR) {
+    return path.resolve(process.env.IAT_NATIVE_DIR);
+  }
+
+  return path.resolve(moduleDir, '..', '..', '..', '.build', 'native');
+}
+
 function defaultNativeHostPath(): string {
   const executable = process.platform === 'win32' ? 'iat_native_host.exe' : 'iat_native_host';
-  return path.resolve(process.cwd(), '.build', 'native', executable);
+  return path.join(defaultNativeDir(), executable);
 }
 
 function nativeHostEnv(): NodeJS.ProcessEnv {
-  const outDir = path.resolve(process.cwd(), '.build', 'native');
+  const outDir = defaultNativeDir();
   return {
     ...process.env,
     LD_LIBRARY_PATH: [outDir, process.env.LD_LIBRARY_PATH].filter(Boolean).join(':'),

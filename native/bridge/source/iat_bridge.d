@@ -4,7 +4,7 @@ import core.stdc.stdlib : free, malloc;
 import core.stdc.string : memcpy;
 import inmath : vec2, vec2u;
 import inochi2d.core.format.inp : inLoadPuppet, inWriteINPPuppet;
-import inochi2d.core.mesh : MeshData;
+import inochi2d.core.mesh : Mesh, MeshData;
 import inochi2d.core.nodes : Node;
 import inochi2d.core.nodes.drawable.part : Part;
 import inochi2d.core.param : Parameter, ValueParameterBinding;
@@ -105,6 +105,23 @@ private string semanticNodePath(Node node) {
     return "";
 }
 
+private JSONValue meshSnapshot(Part part) {
+    JSONValue result = JSONValue.emptyObject;
+    JSONValue vertices = JSONValue.emptyArray;
+    JSONValue uvs = JSONValue.emptyArray;
+    JSONValue indices = JSONValue.emptyArray;
+    if (part.mesh !is null) {
+        auto mesh = part.mesh.toMeshData();
+        foreach (vertex; mesh.vertices) vertices.array ~= JSONValue([vertex.x, vertex.y]);
+        foreach (uv; mesh.uvs) uvs.array ~= JSONValue([uv.x, uv.y]);
+        foreach (index; mesh.indices) indices.array ~= JSONValue(cast(ulong) index);
+    }
+    result["vertices"] = vertices;
+    result["uvs"] = uvs;
+    result["indices"] = indices;
+    return result;
+}
+
 private void appendNodeSnapshot(Node node, string path, ref JSONValue nodes, ref size_t nodeCount, ref size_t partCount) {
     if (node is null) return;
     JSONValue item = JSONValue.emptyObject;
@@ -123,6 +140,7 @@ private void appendNodeSnapshot(Node node, string path, ref JSONValue nodes, ref
             binding["ref"] = textureFingerprint(texture);
             textureBindings.array ~= binding;
         }
+        item["mesh"] = meshSnapshot(part);
     }
     item["textures"] = textureBindings;
     nodes.array ~= item;
@@ -282,6 +300,48 @@ private vec2 requireJsonPair(ref JSONValue object, string key) {
     auto y = requireJsonNumber(object[key].array[1]);
     if (!isFinite(x) || !isFinite(y)) throw new Exception("numeric pair must be finite");
     return vec2(x, y);
+}
+
+private MeshData requireJsonMesh(ref JSONValue operation) {
+    if (operation.type != JSONType.object || "mesh" !in operation.object || operation["mesh"].type != JSONType.object) throw new Exception("missing or invalid mesh field");
+    auto meshObject = operation["mesh"];
+    if ("vertices" !in meshObject.object || meshObject["vertices"].type != JSONType.array ||
+        "uvs" !in meshObject.object || meshObject["uvs"].type != JSONType.array ||
+        "indices" !in meshObject.object || meshObject["indices"].type != JSONType.array) throw new Exception("mesh requires vertices, uvs, and indices");
+    if (meshObject["vertices"].array.length == 0 || meshObject["vertices"].array.length != meshObject["uvs"].array.length || meshObject["indices"].array.length == 0 || meshObject["indices"].array.length % 3 != 0) throw new Exception("invalid mesh cardinality");
+    MeshData mesh;
+    foreach (ref vertex; meshObject["vertices"].array) {
+        if (vertex.type != JSONType.array || vertex.array.length != 2) throw new Exception("mesh vertex must be a numeric pair");
+        auto x = requireJsonNumber(vertex.array[0]);
+        auto y = requireJsonNumber(vertex.array[1]);
+        if (!isFinite(x) || !isFinite(y)) throw new Exception("mesh vertex must be finite");
+        mesh.vertices ~= vec2(x, y);
+    }
+    foreach (ref uv; meshObject["uvs"].array) {
+        if (uv.type != JSONType.array || uv.array.length != 2) throw new Exception("mesh UV must be a numeric pair");
+        auto x = requireJsonNumber(uv.array[0]);
+        auto y = requireJsonNumber(uv.array[1]);
+        if (!isFinite(x) || !isFinite(y)) throw new Exception("mesh UV must be finite");
+        mesh.uvs ~= vec2(x, y);
+    }
+    foreach (ref indexValue; meshObject["indices"].array) {
+        ulong index;
+        final switch (indexValue.type) {
+            case JSONType.uinteger: index = indexValue.uinteger; break;
+            case JSONType.integer:
+                if (indexValue.integer < 0) throw new Exception("mesh index must be non-negative");
+                index = cast(ulong) indexValue.integer;
+                break;
+            case JSONType.float_:
+                if (!isFinite(indexValue.floating) || indexValue.floating < 0 || indexValue.floating != cast(ulong) indexValue.floating) throw new Exception("mesh index must be a non-negative integer");
+                index = cast(ulong) indexValue.floating;
+                break;
+            default: throw new Exception("mesh index must be a non-negative integer");
+        }
+        if (index >= mesh.vertices.length || index > uint.max) throw new Exception("mesh index is outside vertex range");
+        mesh.indices ~= cast(uint) index;
+    }
+    return mesh;
 }
 
 private int requireJsonDimensions(ref JSONValue object) {
@@ -444,6 +504,16 @@ export extern(C) int iat_edit_visual_puppet_json(const(char)* inputPath, const(c
                     if (part.textures[0] !is null) part.textures[0].release();
                     texture.retain(); part.textures[0] = texture;
                 }
+                continue;
+            }
+            if (type == "part.setMesh") {
+                auto path = requireJsonString(operation, "path");
+                auto part = cast(Part) resolveNodePath(puppet, path);
+                if (part is null) return fail(outError, 7, "mesh target is not a Part");
+                auto meshData = requireJsonMesh(operation);
+                auto replacement = Mesh.fromMeshData(meshData);
+                part.mesh = replacement;
+                replacement.release();
                 continue;
             }
             if (type == "parameter.create") {

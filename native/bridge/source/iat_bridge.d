@@ -326,7 +326,7 @@ private MeshData requireJsonMesh(ref JSONValue operation) {
     }
     foreach (ref indexValue; meshObject["indices"].array) {
         ulong index;
-        final switch (indexValue.type) {
+        switch (indexValue.type) {
             case JSONType.uinteger: index = indexValue.uinteger; break;
             case JSONType.integer:
                 if (indexValue.integer < 0) throw new Exception("mesh index must be non-negative");

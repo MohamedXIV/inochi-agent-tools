@@ -30,8 +30,20 @@ jobs:
           compiler: ldc-1.40.0
       - run: sudo apt-get update && sudo apt-get install -y xvfb xdotool x11-utils libsdl2-dev libfreetype6-dev
       - run: npm ci
-      - name: v1 acceptance
-        run: npm run v1:ci
+      - name: v1 MCP/CLI acceptance
+        run: npm run m3:mcp:ci
+      - name: Build v1 agent artifacts
+        run: npm run v1:artifacts
+      - name: Materialize Creator
+        run: npm run creator:materialize
+      - name: Creator-open v1 CLI artifact
+        run: node scripts/creator/launch-roundtrip.mjs --open-only tests/fixtures/generated/v1-cli-authored.inp
+      - name: Creator-open v1 MCP artifact
+        run: node scripts/creator/launch-roundtrip.mjs --open-only tests/fixtures/generated/v1-mcp-authored.inp
+      - name: Verify v1 artifacts
+        run: npm run v1:verify-artifacts
+      - name: Verify upstream fingerprint
+        run: npm run upstream:fingerprint -- --json
       - name: Build v1.1 bundle
         run: npm run v1.1:bundle
       - name: Smoke packaged bundle

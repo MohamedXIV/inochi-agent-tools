@@ -79,7 +79,7 @@ describe.skipIf(!runNative)('real parameter-driven opacity authoring', () => {
       targetPath: '/Root/Face',
       property: 'opacity',
       appliedValue: 0.25,
-      restoredValue: 1,
+      restoredValue: 0.625,
     });
   });
 });

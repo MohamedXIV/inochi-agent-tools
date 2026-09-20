@@ -1,0 +1,14 @@
+diff --git a/source/inochi2d/core/nodes/deformer/meshdeformer.d b/source/inochi2d/core/nodes/deformer/meshdeformer.d
+--- a/source/inochi2d/core/nodes/deformer/meshdeformer.d
++++ b/source/inochi2d/core/nodes/deformer/meshdeformer.d
+@@ -56,6 +56,10 @@ public:
+         if (value is mesh_)
+             return;
+         
++        if (this.deformed_ is null)
++            this.deformed_ = nogc_new!DeformedMesh();
++        if (this.base_ is null)
++            this.base_ = nogc_new!DeformedMesh();
+         if (mesh_)
+             mesh_.release();
+ 

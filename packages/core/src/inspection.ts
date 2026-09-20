@@ -1,4 +1,4 @@
-export type NodeKind = 'node' | 'part' | 'other';
+export type NodeKind = 'node' | 'part' | 'mesh-deformer' | 'other';
 export type NumericPair = [number, number];
 export type PuppetTextureFormat = 'rgba8' | 'r8' | 'unknown';
 export type PuppetTextureUsage = 'albedo' | 'emissive' | 'bumpmap';
@@ -41,7 +41,7 @@ function nonNegativeInteger(value: unknown, path: string): number { const parsed
 function positiveInteger(value: unknown, path: string): number { const parsed = nonNegativeInteger(value, path); if (parsed === 0) fail(path, 'expected positive integer'); return parsed; }
 function numericPair(value: unknown, path: string): NumericPair { if (!Array.isArray(value) || value.length !== 2) fail(path, 'expected two-number array'); return [finiteNumber(value[0], `${path}[0]`), finiteNumber(value[1], `${path}[1]`)]; }
 function indexPair(value: unknown, path: string): [number, number] { if (!Array.isArray(value) || value.length !== 2) fail(path, 'expected two-integer array'); return [nonNegativeInteger(value[0], `${path}[0]`), nonNegativeInteger(value[1], `${path}[1]`)]; }
-function nodeKind(value: unknown, path: string): NodeKind { if (value !== 'node' && value !== 'part' && value !== 'other') fail(path, 'expected node, part, or other'); return value; }
+function nodeKind(value: unknown, path: string): NodeKind { if (value !== 'node' && value !== 'part' && value !== 'mesh-deformer' && value !== 'other') fail(path, 'expected node, part, mesh-deformer, or other'); return value; }
 function textureUsage(value: unknown, path: string): PuppetTextureUsage { if (value !== 'albedo' && value !== 'emissive' && value !== 'bumpmap') fail(path, 'expected albedo, emissive, or bumpmap'); return value; }
 function textureFormat(value: unknown, path: string): PuppetTextureFormat { if (value !== 'rgba8' && value !== 'r8' && value !== 'unknown') fail(path, 'expected rgba8, r8, or unknown'); return value; }
 function parameterBindingProperty(value: unknown, path: string): ParameterBindingProperty { switch (value) { case 'zSort': case 'transform.t.x': case 'transform.t.y': case 'transform.t.z': case 'transform.r.x': case 'transform.r.y': case 'transform.r.z': case 'transform.s.x': case 'transform.s.y': return value; default: fail(path, 'expected supported parameter binding property'); } }
@@ -63,7 +63,7 @@ function parseNode(value: unknown, index: number): PuppetInspectionNode {
   const path = `nodes[${index}]`; const input = record(value, path); const textures = input.textures === undefined ? [] : input.textures; if (!Array.isArray(textures)) fail(`${path}.textures`, 'expected array');
   const kind = nodeKind(input.kind, `${path}.kind`);
   const node: PuppetInspectionNode = { path: stringValue(input.path, `${path}.path`), name: stringValue(input.name, `${path}.name`), kind, childCount: nonNegativeInteger(input.childCount, `${path}.childCount`), textures: textures.map((texture, textureIndex) => parseNodeTexture(texture, index, textureIndex)) };
-  if (input.mesh !== undefined) { if (kind !== 'part') fail(`${path}.mesh`, 'mesh is only valid for Part nodes'); node.mesh = parseMesh(input.mesh, `${path}.mesh`); }
+  if (input.mesh !== undefined) { if (kind !== 'part' && kind !== 'mesh-deformer') fail(`${path}.mesh`, 'mesh is only valid for Part or mesh-deformer nodes'); node.mesh = parseMesh(input.mesh, `${path}.mesh`); }
   return node;
 }
 function parseTexture(value: unknown, index: number): PuppetInspectionTexture { const path = `textures[${index}]`; const input = record(value, path); return { ref: sha256Ref(input.ref, `${path}.ref`), width: positiveInteger(input.width, `${path}.width`), height: positiveInteger(input.height, `${path}.height`), format: textureFormat(input.format, `${path}.format`) }; }

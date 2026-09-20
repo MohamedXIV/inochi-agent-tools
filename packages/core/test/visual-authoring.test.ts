@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   InvalidAuthoringRequestError,
+  InvalidBindingError,
   InvalidHierarchyError,
   InvalidTextureAssetError,
   MissingTextureError,
@@ -51,6 +52,25 @@ describe('editPuppet semantic request validation', () => {
       },
       { hostPath: '/definitely/missing/iat_native_host' },
     )).rejects.toBeInstanceOf(InvalidAuthoringRequestError);
+  });
+
+  it('rejects out-of-range opacity keypoints before native work', async () => {
+    await expect(editPuppet(
+      {
+        inputPath: 'input.inp',
+        outputPath: 'output.inp',
+        operations: [
+          {
+            type: 'parameter.bind',
+            parameterName: 'Visibility',
+            targetPath: '/Root/Face',
+            property: 'opacity',
+            keypoints: [{ at: [-1, 0], value: 1.25 }],
+          },
+        ],
+      },
+      { hostPath: '/definitely/missing/iat_native_host' },
+    )).rejects.toBeInstanceOf(InvalidBindingError);
   });
 
   it('keeps a valid request dependent on the native host boundary', async () => {

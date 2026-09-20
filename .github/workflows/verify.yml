@@ -30,6 +30,16 @@ jobs:
           compiler: ldc-1.40.0
       - run: sudo apt-get update && sudo apt-get install -y xvfb xdotool x11-utils libsdl2-dev libfreetype6-dev
       - run: npm ci
+      - name: Materialize pinned upstream
+        run: npm run upstream:materialize
+      - name: Verify pinned upstream
+        run: npm run upstream:verify
+      - name: Verify native toolchain
+        run: npm run native:toolchain:verify
+      - name: Build native bridge
+        run: npm run native:build
+      - name: Probe native bridge
+        run: npm run native:probe
       - name: v1 MCP/CLI acceptance
         run: npm run m3:mcp:ci
       - name: Build v1 agent artifacts

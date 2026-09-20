@@ -8,3 +8,4 @@ export * from './inspection.js';
 export * from './native-host.js';
 export * from './parameter-evaluation.js';
 export * from './visual-authoring.js';
+export * from './visual-capabilities.js';

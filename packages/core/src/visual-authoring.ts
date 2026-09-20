@@ -102,6 +102,7 @@ interface ExecFailure extends Error {
 
 const BINDING_PROPERTIES = new Set<ParameterBindingProperty>([
   'zSort',
+  'opacity',
   'transform.t.x',
   'transform.t.y',
   'transform.t.z',

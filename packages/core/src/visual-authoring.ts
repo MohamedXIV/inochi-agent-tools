@@ -29,6 +29,8 @@ export interface MeshTopology {
   indices: number[];
 }
 
+export interface DeformerCreateOperation { type: 'deformer.create'; kind: 'mesh'; parentPath: string; name: string; mesh: MeshTopology; }
+export interface DeformerSetMeshOperation { type: 'deformer.setMesh'; path: string; mesh: MeshTopology; }
 export interface ParameterCreateOperation { type: 'parameter.create'; name: string; dimensions: 1 | 2; min: NumericPair; max: NumericPair; defaultValue: NumericPair; }
 export interface ParameterBindOperation { type: 'parameter.bind'; parameterName: string; targetPath: string; property: ParameterBindingProperty; keypoints: Array<{ at: NumericPair; value: number }>; }
 export interface ParameterUnbindOperation { type: 'parameter.unbind'; parameterName: string; targetPath: string; property: ParameterBindingProperty; }
@@ -39,6 +41,8 @@ export type PuppetEditOperation =
   | { type: 'part.create'; parentPath: string; name: string; textureKey: string }
   | { type: 'part.setTexture'; path: string; textureKey: string }
   | { type: 'part.setMesh'; path: string; mesh: MeshTopology }
+  | DeformerCreateOperation
+  | DeformerSetMeshOperation
   | { type: 'node.reparent'; path: string; newParentPath: string }
   | { type: 'node.remove'; path: string }
   | ParameterCreateOperation | ParameterBindOperation | ParameterUnbindOperation;
@@ -56,11 +60,11 @@ function requireBindingText(value: string, label: string): void { if (!value.tri
 function isFinitePair(value: unknown): value is NumericPair { return Array.isArray(value) && value.length === 2 && value.every(Number.isFinite); }
 function requireFinitePair(value: NumericPair, label: string): void { if (!isFinitePair(value)) throw new InvalidBindingError(`${label} must be a finite numeric pair`); }
 function validateMesh(mesh: MeshTopology): void {
-  if (!mesh || !Array.isArray(mesh.vertices) || !Array.isArray(mesh.uvs) || !Array.isArray(mesh.indices)) throw new InvalidAuthoringRequestError('Part mesh must contain vertices, uvs, and indices arrays');
-  if (mesh.vertices.length < 3 || mesh.vertices.length !== mesh.uvs.length) throw new InvalidAuthoringRequestError('Part mesh vertices and UVs must have equal cardinality with at least three vertices');
-  if (!mesh.vertices.every(isFinitePair) || !mesh.uvs.every(isFinitePair)) throw new InvalidAuthoringRequestError('Part mesh vertices and UVs must be finite numeric pairs');
-  if (mesh.indices.length === 0 || mesh.indices.length % 3 !== 0) throw new InvalidAuthoringRequestError('Part mesh indices must describe triangles');
-  if (mesh.indices.some((index) => !Number.isInteger(index) || index < 0 || index >= mesh.vertices.length)) throw new InvalidAuthoringRequestError('Part mesh index is outside the vertex range');
+  if (!mesh || !Array.isArray(mesh.vertices) || !Array.isArray(mesh.uvs) || !Array.isArray(mesh.indices)) throw new InvalidAuthoringRequestError('Mesh must contain vertices, uvs, and indices arrays');
+  if (mesh.vertices.length < 3 || mesh.vertices.length !== mesh.uvs.length) throw new InvalidAuthoringRequestError('Mesh vertices and UVs must have equal cardinality with at least three vertices');
+  if (!mesh.vertices.every(isFinitePair) || !mesh.uvs.every(isFinitePair)) throw new InvalidAuthoringRequestError('Mesh vertices and UVs must be finite numeric pairs');
+  if (mesh.indices.length === 0 || mesh.indices.length % 3 !== 0) throw new InvalidAuthoringRequestError('Mesh indices must describe triangles');
+  if (mesh.indices.some((index) => !Number.isInteger(index) || index < 0 || index >= mesh.vertices.length)) throw new InvalidAuthoringRequestError('Mesh index is outside the vertex range');
 }
 function validateParameterCreate(operation: ParameterCreateOperation): void { requireBindingText(operation.name,'Parameter name'); if(operation.dimensions!==1&&operation.dimensions!==2) throw new InvalidBindingError('Parameter dimensions must be 1 or 2'); requireFinitePair(operation.min,'Parameter minimum'); requireFinitePair(operation.max,'Parameter maximum'); requireFinitePair(operation.defaultValue,'Parameter default'); if(operation.min[0]>=operation.max[0]) throw new InvalidBindingError('Parameter X minimum must be less than maximum'); if(operation.defaultValue[0]<operation.min[0]||operation.defaultValue[0]>operation.max[0]) throw new InvalidBindingError('Parameter X default must be inside its range'); if(operation.dimensions===1){if(operation.min[1]!==0||operation.max[1]!==0||operation.defaultValue[1]!==0) throw new InvalidBindingError('1D parameter Y range/default must be zero'); return;} if(operation.min[1]>=operation.max[1]) throw new InvalidBindingError('Parameter Y minimum must be less than maximum'); if(operation.defaultValue[1]<operation.min[1]||operation.defaultValue[1]>operation.max[1]) throw new InvalidBindingError('Parameter Y default must be inside its range'); }
 function validateBindingProperty(property: ParameterBindingProperty): void { if(!BINDING_PROPERTIES.has(property)) throw new InvalidBindingError(`Unsupported binding property: ${String(property)}`); }
@@ -73,6 +77,8 @@ function validateOperation(operation: PuppetEditOperation): void {
     case 'part.create': requireSemanticText(operation.parentPath,'Parent path'); requireSemanticText(operation.name,'Part name'); requireSemanticText(operation.textureKey,'Texture key'); return;
     case 'part.setTexture': requireSemanticText(operation.path,'Part path'); requireSemanticText(operation.textureKey,'Texture key'); return;
     case 'part.setMesh': requireSemanticText(operation.path,'Part path'); validateMesh(operation.mesh); return;
+    case 'deformer.create': if(operation.kind!=='mesh') throw new InvalidAuthoringRequestError(`Unsupported deformer kind: ${String(operation.kind)}`); requireSemanticText(operation.parentPath,'Deformer parent path'); requireSemanticText(operation.name,'Deformer name'); validateMesh(operation.mesh); return;
+    case 'deformer.setMesh': requireSemanticText(operation.path,'Deformer path'); validateMesh(operation.mesh); return;
     case 'node.reparent': requireSemanticText(operation.path,'Node path'); requireSemanticText(operation.newParentPath,'New parent path'); return;
     case 'node.remove': requireSemanticText(operation.path,'Node path'); return;
     case 'parameter.create': validateParameterCreate(operation); return;

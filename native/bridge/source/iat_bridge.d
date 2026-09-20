@@ -6,6 +6,7 @@ import inmath : vec2, vec2u;
 import inochi2d.core.format.inp : inLoadPuppet, inWriteINPPuppet;
 import inochi2d.core.mesh : Mesh, MeshData, toMeshData;
 import inochi2d.core.nodes : Node;
+import inochi2d.core.nodes.deformer.meshdeformer : MeshDeformer;
 import inochi2d.core.nodes.drawable.part : Part;
 import inochi2d.core.param : Parameter, ValueParameterBinding;
 import inochi2d.core.puppet : Puppet;
@@ -105,11 +106,11 @@ private string semanticNodePath(Node node) {
     return "";
 }
 
-private bool tryMeshSnapshot(Part part, out JSONValue result) {
+private bool tryMeshSnapshot(Mesh source, out JSONValue result) {
     result = JSONValue.emptyObject;
-    if (part.mesh is null) return false;
+    if (source is null) return false;
 
-    auto mesh = part.mesh.toMeshData();
+    auto mesh = source.toMeshData();
     if (mesh.vertices.length < 3 ||
         mesh.vertices.length != mesh.uvs.length ||
         mesh.indices.length < 3 ||
@@ -134,7 +135,7 @@ private void appendNodeSnapshot(Node node, string path, ref JSONValue nodes, ref
     JSONValue item = JSONValue.emptyObject;
     item["path"] = path;
     item["name"] = node.name.value;
-    item["kind"] = cast(Part) node ? "part" : "node";
+    item["kind"] = cast(Part) node ? "part" : (cast(MeshDeformer) node ? "mesh-deformer" : "node");
     item["childCount"] = cast(ulong) node.children.length;
     JSONValue textureBindings = JSONValue.emptyArray;
     if (auto part = cast(Part) node) {
@@ -148,7 +149,10 @@ private void appendNodeSnapshot(Node node, string path, ref JSONValue nodes, ref
             textureBindings.array ~= binding;
         }
         JSONValue mesh;
-        if (tryMeshSnapshot(part, mesh)) item["mesh"] = mesh;
+        if (tryMeshSnapshot(part.mesh, mesh)) item["mesh"] = mesh;
+    } else if (auto deformer = cast(MeshDeformer) node) {
+        JSONValue mesh;
+        if (tryMeshSnapshot(deformer.mesh, mesh)) item["mesh"] = mesh;
     }
     item["textures"] = textureBindings;
     nodes.array ~= item;
@@ -521,6 +525,31 @@ export extern(C) int iat_edit_visual_puppet_json(const(char)* inputPath, const(c
                 auto meshData = requireJsonMesh(operation);
                 auto replacement = Mesh.fromMeshData(meshData);
                 part.mesh = replacement;
+                replacement.release();
+                continue;
+            }
+            if (type == "deformer.create") {
+                auto kind = requireJsonString(operation, "kind");
+                auto parentPath = requireJsonString(operation, "parentPath");
+                auto name = requireJsonString(operation, "name");
+                if (kind != "mesh") return fail(outError, 2, "unsupported deformer kind");
+                auto parent = resolveNodePath(puppet, parentPath);
+                if (parent is null || name.strip.length == 0 || hasSiblingNamed(parent, name)) return fail(outError, 7, "invalid or ambiguous deformer hierarchy target");
+                auto meshData = requireJsonMesh(operation);
+                auto deformer = new MeshDeformer(parent);
+                deformer.name = name;
+                auto replacement = Mesh.fromMeshData(meshData);
+                deformer.mesh = replacement;
+                replacement.release();
+                continue;
+            }
+            if (type == "deformer.setMesh") {
+                auto path = requireJsonString(operation, "path");
+                auto deformer = cast(MeshDeformer) resolveNodePath(puppet, path);
+                if (deformer is null) return fail(outError, 7, "mesh target is not a MeshDeformer");
+                auto meshData = requireJsonMesh(operation);
+                auto replacement = Mesh.fromMeshData(meshData);
+                deformer.mesh = replacement;
                 replacement.release();
                 continue;
             }

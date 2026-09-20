@@ -105,21 +105,28 @@ private string semanticNodePath(Node node) {
     return "";
 }
 
-private JSONValue meshSnapshot(Part part) {
-    JSONValue result = JSONValue.emptyObject;
+private bool tryMeshSnapshot(Part part, out JSONValue result) {
+    result = JSONValue.emptyObject;
+    if (part.mesh is null) return false;
+
+    auto mesh = part.mesh.toMeshData();
+    if (mesh.vertices.length < 3 ||
+        mesh.vertices.length != mesh.uvs.length ||
+        mesh.indices.length < 3 ||
+        mesh.indices.length % 3 != 0) return false;
+    foreach (index; mesh.indices) if (index >= mesh.vertices.length) return false;
+
     JSONValue vertices = JSONValue.emptyArray;
     JSONValue uvs = JSONValue.emptyArray;
     JSONValue indices = JSONValue.emptyArray;
-    if (part.mesh !is null) {
-        auto mesh = part.mesh.toMeshData();
-        foreach (vertex; mesh.vertices) vertices.array ~= JSONValue([vertex.x, vertex.y]);
-        foreach (uv; mesh.uvs) uvs.array ~= JSONValue([uv.x, uv.y]);
-        foreach (index; mesh.indices) indices.array ~= JSONValue(cast(ulong) index);
-    }
+    foreach (vertex; mesh.vertices) vertices.array ~= JSONValue([vertex.x, vertex.y]);
+    foreach (uv; mesh.uvs) uvs.array ~= JSONValue([uv.x, uv.y]);
+    foreach (index; mesh.indices) indices.array ~= JSONValue(cast(ulong) index);
+
     result["vertices"] = vertices;
     result["uvs"] = uvs;
     result["indices"] = indices;
-    return result;
+    return true;
 }
 
 private void appendNodeSnapshot(Node node, string path, ref JSONValue nodes, ref size_t nodeCount, ref size_t partCount) {
@@ -140,7 +147,8 @@ private void appendNodeSnapshot(Node node, string path, ref JSONValue nodes, ref
             binding["ref"] = textureFingerprint(texture);
             textureBindings.array ~= binding;
         }
-        item["mesh"] = meshSnapshot(part);
+        JSONValue mesh;
+        if (tryMeshSnapshot(part, mesh)) item["mesh"] = mesh;
     }
     item["textures"] = textureBindings;
     nodes.array ~= item;

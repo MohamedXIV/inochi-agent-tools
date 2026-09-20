@@ -2,12 +2,8 @@
   "name": "inochi-agent-tools",
   "private": true,
   "type": "module",
-  "engines": {
-    "node": ">=22"
-  },
-  "workspaces": [
-    "packages/*"
-  ],
+  "engines": { "node": ">=22" },
+  "workspaces": ["packages/*"],
   "scripts": {
     "typecheck": "tsc -p packages/core/tsconfig.json --noEmit",
     "core:build": "tsc -p packages/core/tsconfig.json",

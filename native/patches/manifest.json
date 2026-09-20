@@ -89,6 +89,11 @@
       "file": "0018-serialize-legacy-binding-interpolate-mode.patch",
       "reason": "Official Inochi Creator v0.8.6 opens the same real puppet through unbound parameters but fails only once ValueParameterBinding records are present. Its binding schema deserializes interpolate_mode through legacy enum strings, while pinned v0.8.7 stores InterpolateMode as an explicit uint and emits that numeric value. Emit the legacy interpolation key without exposing any compatibility detail through the public semantic API.",
       "removalCondition": "Remove when the supported official Creator version consumes numeric v0.8.7 binding interpolation modes directly, or when pinned upstream emits a backward-compatible InterpolateMode representation itself."
+    },
+    {
+      "file": "0019-initialize-meshdeformer-runtime-state.patch",
+      "reason": "Pinned Inochi2D v0.8.7 allocates MeshDeformer base/deformed runtime meshes only during deserialization, so a freshly authored MeshDeformer created through the public constructor crashes when assigning its first mesh. Lazily initialize those runtime buffers in the mesh setter so standard semantic authoring can create a real mesh deformer without a private side rig.",
+      "removalCondition": "Remove when the pinned upstream revision can construct a fresh MeshDeformer and assign MeshDeformer.mesh safely without this initialization patch."
     }
   ]
 }

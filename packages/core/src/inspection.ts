@@ -1,4 +1,4 @@
-export type NodeKind = 'node' | 'part' | 'other';
+export type NodeKind = 'node' | 'part' | 'mesh-deformer' | 'other';
 export type NumericPair = [number, number];
 export type PuppetTextureFormat = 'rgba8' | 'r8' | 'unknown';
 export type PuppetTextureUsage = 'albedo' | 'emissive' | 'bumpmap';
@@ -18,12 +18,19 @@ export interface PuppetInspectionNodeTexture {
   ref: string;
 }
 
+export interface PuppetInspectionMesh {
+  vertices: NumericPair[];
+  uvs: NumericPair[];
+  indices: number[];
+}
+
 export interface PuppetInspectionNode {
   path: string;
   name: string;
   kind: NodeKind;
   childCount: number;
   textures: PuppetInspectionNodeTexture[];
+  mesh?: PuppetInspectionMesh;
 }
 
 export interface PuppetInspectionTexture {
@@ -143,8 +150,11 @@ function indexPair(value: unknown, path: string): [number, number] {
 }
 
 function nodeKind(value: unknown, path: string): NodeKind {
-  if (value !== 'node' && value !== 'part' && value !== 'other') {
-    fail(path, 'expected node, part, or other');
+  if (value !== 'node' &&
+      value !== 'part' &&
+      value !== 'mesh-deformer' &&
+      value !== 'other') {
+    fail(path, 'expected node, part, mesh-deformer, or other');
   }
   return value;
 }
@@ -180,6 +190,33 @@ function parameterBindingProperty(value: unknown, path: string): ParameterBindin
   }
 }
 
+function parseMesh(value: unknown, path: string): PuppetInspectionMesh {
+  const input = record(value, path);
+  if (!Array.isArray(input.vertices)) fail(`${path}.vertices`, 'expected array');
+  if (!Array.isArray(input.uvs)) fail(`${path}.uvs`, 'expected array');
+  if (!Array.isArray(input.indices)) fail(`${path}.indices`, 'expected array');
+
+  if (input.vertices.length < 3 || input.vertices.length !== input.uvs.length) {
+    fail(path, 'vertices and uvs must have equal cardinality with at least three vertices');
+  }
+
+  const vertices = input.vertices.map((vertex, index) =>
+    numericPair(vertex, `${path}.vertices[${index}]`));
+  const uvs = input.uvs.map((uv, index) =>
+    numericPair(uv, `${path}.uvs[${index}]`));
+
+  if (input.indices.length < 3 || input.indices.length % 3 !== 0) {
+    fail(`${path}.indices`, 'expected triangle index list');
+  }
+  const indices = input.indices.map((value, index) =>
+    nonNegativeInteger(value, `${path}.indices[${index}]`));
+  if (indices.some((index) => index >= vertices.length)) {
+    fail(`${path}.indices`, 'index exceeds vertex range');
+  }
+
+  return { vertices, uvs, indices };
+}
+
 function parseNodeTexture(value: unknown, nodeIndex: number, index: number): PuppetInspectionNodeTexture {
   const path = `nodes[${nodeIndex}].textures[${index}]`;
   const input = record(value, path);
@@ -194,13 +231,24 @@ function parseNode(value: unknown, index: number): PuppetInspectionNode {
   const input = record(value, path);
   const textures = input.textures === undefined ? [] : input.textures;
   if (!Array.isArray(textures)) fail(`${path}.textures`, 'expected array');
-  return {
+
+  const kind = nodeKind(input.kind, `${path}.kind`);
+  const node: PuppetInspectionNode = {
     path: stringValue(input.path, `${path}.path`),
     name: stringValue(input.name, `${path}.name`),
-    kind: nodeKind(input.kind, `${path}.kind`),
+    kind,
     childCount: nonNegativeInteger(input.childCount, `${path}.childCount`),
     textures: textures.map((texture, textureIndex) => parseNodeTexture(texture, index, textureIndex)),
   };
+
+  if (input.mesh !== undefined) {
+    if (kind !== 'part' && kind !== 'mesh-deformer') {
+      fail(`${path}.mesh`, 'mesh is only valid for Part or mesh-deformer nodes');
+    }
+    node.mesh = parseMesh(input.mesh, `${path}.mesh`);
+  }
+
+  return node;
 }
 
 function parseTexture(value: unknown, index: number): PuppetInspectionTexture {

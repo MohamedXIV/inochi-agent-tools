@@ -12,6 +12,7 @@ import {
   NativeBridgeError,
   PuppetAlreadyExistsError,
   RoundTripMismatchError,
+  UnsupportedAuthoringCapabilityError,
 } from './errors.js';
 import {
   parsePuppetInspection,
@@ -22,6 +23,26 @@ import {
 
 const execFileAsync = promisify(execFile);
 const MAX_CAPTURE_BYTES = 16 * 1024 * 1024;
+
+export interface MeshTopology {
+  vertices: NumericPair[];
+  uvs: NumericPair[];
+  indices: number[];
+}
+
+export interface DeformerCreateOperation {
+  type: 'deformer.create';
+  kind: 'mesh';
+  parentPath: string;
+  name: string;
+  mesh: MeshTopology;
+}
+
+export interface DeformerSetMeshOperation {
+  type: 'deformer.setMesh';
+  path: string;
+  mesh: MeshTopology;
+}
 
 export interface ParameterCreateOperation {
   type: 'parameter.create';
@@ -52,6 +73,9 @@ export type PuppetEditOperation =
   | { type: 'node.create'; parentPath: string; name: string }
   | { type: 'part.create'; parentPath: string; name: string; textureKey: string }
   | { type: 'part.setTexture'; path: string; textureKey: string }
+  | { type: 'part.setMesh'; path: string; mesh: MeshTopology }
+  | DeformerCreateOperation
+  | DeformerSetMeshOperation
   | { type: 'node.reparent'; path: string; newParentPath: string }
   | { type: 'node.remove'; path: string }
   | ParameterCreateOperation
@@ -117,9 +141,37 @@ function requireBindingText(value: string, label: string): void {
   if (value.includes('\0')) throw new InvalidBindingError(`${label} must not contain NUL`);
 }
 
+function isFinitePair(value: unknown): value is NumericPair {
+  return Array.isArray(value) && value.length === 2 && value.every(Number.isFinite);
+}
+
 function requireFinitePair(value: NumericPair, label: string): void {
-  if (!Array.isArray(value) || value.length !== 2 || value.some((item) => !Number.isFinite(item))) {
+  if (!isFinitePair(value)) {
     throw new InvalidBindingError(`${label} must be a finite numeric pair`);
+  }
+}
+
+function validateMesh(mesh: MeshTopology): void {
+  if (!mesh ||
+      !Array.isArray(mesh.vertices) ||
+      !Array.isArray(mesh.uvs) ||
+      !Array.isArray(mesh.indices)) {
+    throw new InvalidAuthoringRequestError('Mesh must contain vertices, uvs, and indices arrays');
+  }
+  if (mesh.vertices.length < 3 || mesh.vertices.length !== mesh.uvs.length) {
+    throw new InvalidAuthoringRequestError(
+      'Mesh vertices and UVs must have equal cardinality with at least three vertices',
+    );
+  }
+  if (!mesh.vertices.every(isFinitePair) || !mesh.uvs.every(isFinitePair)) {
+    throw new InvalidAuthoringRequestError('Mesh vertices and UVs must be finite numeric pairs');
+  }
+  if (mesh.indices.length === 0 || mesh.indices.length % 3 !== 0) {
+    throw new InvalidAuthoringRequestError('Mesh indices must describe triangles');
+  }
+  if (mesh.indices.some((index) =>
+    !Number.isInteger(index) || index < 0 || index >= mesh.vertices.length)) {
+    throw new InvalidAuthoringRequestError('Mesh index is outside the vertex range');
   }
 }
 
@@ -182,6 +234,14 @@ function validateParameterUnbind(operation: ParameterUnbindOperation): void {
 }
 
 function validateOperation(operation: PuppetEditOperation): void {
+  const operationType = (operation as { type?: unknown }).type;
+  if (operationType === 'bone.create' || operationType === 'bone.setWeights') {
+    throw new UnsupportedAuthoringCapabilityError(
+      'Bone and weight authoring are unavailable in pinned Inochi2D v0.8.7 ' +
+      '(fdb241da048dbe330152f7b0015e2129dc392844)',
+    );
+  }
+
   switch (operation.type) {
     case 'texture.import':
       requireSemanticText(operation.key, 'Texture key');
@@ -199,6 +259,24 @@ function validateOperation(operation: PuppetEditOperation): void {
     case 'part.setTexture':
       requireSemanticText(operation.path, 'Part path');
       requireSemanticText(operation.textureKey, 'Texture key');
+      return;
+    case 'part.setMesh':
+      requireSemanticText(operation.path, 'Part path');
+      validateMesh(operation.mesh);
+      return;
+    case 'deformer.create':
+      if (operation.kind !== 'mesh') {
+        throw new InvalidAuthoringRequestError(
+          `Unsupported deformer kind: ${String(operation.kind)}`,
+        );
+      }
+      requireSemanticText(operation.parentPath, 'Deformer parent path');
+      requireSemanticText(operation.name, 'Deformer name');
+      validateMesh(operation.mesh);
+      return;
+    case 'deformer.setMesh':
+      requireSemanticText(operation.path, 'Deformer path');
+      validateMesh(operation.mesh);
       return;
     case 'node.reparent':
       requireSemanticText(operation.path, 'Node path');
@@ -299,6 +377,7 @@ export async function editPuppet(
       error instanceof InvalidTextureAssetError ||
       error instanceof PuppetAlreadyExistsError ||
       error instanceof RoundTripMismatchError ||
+      error instanceof UnsupportedAuthoringCapabilityError ||
       error instanceof NativeBridgeError
     ) {
       throw error;

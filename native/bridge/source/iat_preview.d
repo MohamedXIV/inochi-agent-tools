@@ -133,7 +133,7 @@ export extern(C) int iat_render_preview_png_json(
         float scale = min((width-16.0f)/spanX, (height-16.0f)/spanY);
         float ox = (width-spanX*scale)*0.5f-minX*scale;
         float oy = (height-spanY*scale)*0.5f+maxY*scale;
-        ubyte[] pixels = new ubyte[](cast(size_t)width*height*4);
+        ubyte[] pixels = new ubyte[cast(size_t)width*height*4];
         ulong triangles, coveredPixels;
 
         foreach (ref cmd; dl.commands) {

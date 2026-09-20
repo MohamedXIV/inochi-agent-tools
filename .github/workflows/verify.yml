@@ -58,3 +58,5 @@ jobs:
         run: npm run v1.1:bundle
       - name: Smoke packaged bundle
         run: node scripts/package/smoke-bundle.mjs
+      - name: v1.2 rig primitives acceptance
+        run: npm run v1.2:rig-primitives:ci

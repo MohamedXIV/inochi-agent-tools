@@ -12,6 +12,8 @@ const runNative = process.env.IAT_M2_VISUAL_TESTS === '1';
 const input = 'tests/fixtures/generated/core-v1.2-deformer-input.inp';
 const output = 'tests/fixtures/generated/core-v1.2-deformer-output.inp';
 const invalidOutput = 'tests/fixtures/generated/core-v1.2-deformer-invalid-output.inp';
+const reparentOutput = 'tests/fixtures/generated/core-v1.2-deformer-reparent-output.inp';
+const removeOutput = 'tests/fixtures/generated/core-v1.2-deformer-remove-output.inp';
 const imagePath = 'tests/fixtures/generated/m2-checker.png';
 
 const initialTopology = {
@@ -75,6 +77,69 @@ describe.skipIf(!runNative)('real semantic mesh deformer authoring', () => {
     });
     expect(reopened.nodes.find((node) => node.path === '/Root/Face Warp/Face')?.kind).toBe('part');
     expect(reopened).toEqual(edited.inspection);
+  });
+
+  it('reparents a mesh deformer through normal semantic hierarchy operations and preserves the new path', async () => {
+    await rm(input, { force: true });
+    await rm(reparentOutput, { force: true });
+
+    await createPuppet({ outputPath: input, name: 'Core v1.2 Deformer Reparent' });
+    const edited = await editPuppet({
+      inputPath: input,
+      outputPath: reparentOutput,
+      operations: [
+        { type: 'node.create', parentPath: '/Root', name: 'Rig' },
+        {
+          type: 'deformer.create',
+          kind: 'mesh',
+          parentPath: '/Root',
+          name: 'Warp',
+          mesh: initialTopology,
+        },
+        {
+          type: 'node.reparent',
+          path: '/Root/Warp',
+          newParentPath: '/Root/Rig',
+        },
+      ],
+    } as never);
+
+    expect(edited.inspection.nodes.find((node) => node.path === '/Root/Rig/Warp')).toMatchObject({
+      kind: 'mesh-deformer',
+      mesh: initialTopology,
+    });
+    expect(edited.inspection.nodes.some((node) => node.path === '/Root/Warp')).toBe(false);
+
+    const reopened = await inspectPuppet(reparentOutput);
+    expect(reopened.nodes.find((node) => node.path === '/Root/Rig/Warp')).toMatchObject({
+      kind: 'mesh-deformer',
+      mesh: initialTopology,
+    });
+  });
+
+  it('removes a mesh deformer from the authored hierarchy without serializing a detached node', async () => {
+    await rm(input, { force: true });
+    await rm(removeOutput, { force: true });
+
+    await createPuppet({ outputPath: input, name: 'Core v1.2 Deformer Remove' });
+    const edited = await editPuppet({
+      inputPath: input,
+      outputPath: removeOutput,
+      operations: [
+        {
+          type: 'deformer.create',
+          kind: 'mesh',
+          parentPath: '/Root',
+          name: 'Warp',
+          mesh: initialTopology,
+        },
+        { type: 'node.remove', path: '/Root/Warp' },
+      ],
+    } as never);
+
+    expect(edited.inspection.nodes.some((node) => node.name === 'Warp')).toBe(false);
+    const reopened = await inspectPuppet(removeOutput);
+    expect(reopened.nodes.some((node) => node.name === 'Warp')).toBe(false);
   });
 
   it('rejects reparenting a mesh deformer beneath its own descendant', async () => {

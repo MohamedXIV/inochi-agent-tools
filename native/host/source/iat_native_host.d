@@ -21,6 +21,11 @@ extern(C) int iat_evaluate_parameters_json(
     char** outJson,
     char** outError,
 );
+extern(C) int iat_capture_preview_frame_json(
+    const(char)* inputPath,
+    char** outJson,
+    char** outError,
+);
 extern(C) int iat_save_puppet(
     const(char)* inputPath,
     const(char)* outputPath,
@@ -106,6 +111,17 @@ private int runEvaluateParameters(string inputPath, string valuesJson) {
     return emitResult(result, json, error, "native parameter evaluation failed");
 }
 
+private int runCapturePreviewFrame(string inputPath) {
+    char* json;
+    char* error;
+    auto result = iat_capture_preview_frame_json(
+        toStringz(inputPath),
+        &json,
+        &error,
+    );
+    return emitResult(result, json, error, "native preview frame capture failed");
+}
+
 private int runSaveAs(string inputPath, string outputPath) {
     char* error;
     auto result = iat_save_puppet(
@@ -147,12 +163,17 @@ int main(string[] args) {
         return runEvaluateParameters(args[2], args[3]);
     }
 
+    if (args.length == 3 && args[1] == "capture-preview-frame") {
+        return runCapturePreviewFrame(args[2]);
+    }
+
     stderr.writeln(
         "usage: iat_native_host inspect <puppet-path> | " ~
         "create-minimal <output.inp> <name> | " ~
         "save-as <input.inp> <output.inp> | " ~
         "edit-visual <input.inp> <output.inp> <operations-json> | " ~
-        "evaluate-parameters <input.inp> <values-json>",
+        "evaluate-parameters <input.inp> <values-json> | " ~
+        "capture-preview-frame <input.inp>",
     );
     return 2;
 }

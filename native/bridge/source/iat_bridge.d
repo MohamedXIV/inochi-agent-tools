@@ -4,7 +4,7 @@ import core.stdc.stdlib : free, malloc;
 import core.stdc.string : memcpy;
 import inmath : vec2, vec2u;
 import inochi2d.core.format.inp : inLoadPuppet, inWriteINPPuppet;
-import inochi2d.core.mesh : Mesh, MeshData;
+import inochi2d.core.mesh : Mesh, MeshData, toMeshData;
 import inochi2d.core.nodes : Node;
 import inochi2d.core.nodes.drawable.part : Part;
 import inochi2d.core.param : Parameter, ValueParameterBinding;

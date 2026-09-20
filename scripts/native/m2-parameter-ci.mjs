@@ -12,6 +12,8 @@ const parameterArtifacts = [
   path.join(generated, 'm2-parameter-evaluation.inp'),
   path.join(generated, 'core-m2-parameter-input.inp'),
   path.join(generated, 'core-m2-parameter-output.inp'),
+  path.join(generated, 'core-v1.3-opacity-input.inp'),
+  path.join(generated, 'core-v1.3-opacity-output.inp'),
 ];
 
 function parameterEnv() {
@@ -49,4 +51,8 @@ cleanParameterArtifacts();
 run('m2:parameter-evaluation-probe');
 run('typecheck');
 cleanParameterArtifacts();
-run('test', ['--', 'packages/core/test/parameter-real-puppet.test.ts'], parameterEnv());
+run('test', [
+  '--',
+  'packages/core/test/parameter-real-puppet.test.ts',
+  'packages/core/test/parameter-opacity-real-puppet.test.ts',
+], parameterEnv());

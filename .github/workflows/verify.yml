@@ -60,3 +60,5 @@ jobs:
         run: node scripts/package/smoke-bundle.mjs
       - name: v1.2 rig primitives acceptance
         run: npm run v1.2:rig-primitives:ci
+      - name: v1.3 visual controls acceptance
+        run: npm run v1.3:visual-controls:ci

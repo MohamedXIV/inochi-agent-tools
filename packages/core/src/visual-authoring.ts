@@ -102,6 +102,7 @@ interface ExecFailure extends Error {
 
 const BINDING_PROPERTIES = new Set<ParameterBindingProperty>([
   'zSort',
+  'opacity',
   'transform.t.x',
   'transform.t.y',
   'transform.t.z',
@@ -223,6 +224,11 @@ function validateParameterBind(operation: ParameterBindOperation): void {
     requireFinitePair(keypoint.at, `Binding keypoint ${index} parameter value`);
     if (!Number.isFinite(keypoint.value)) {
       throw new InvalidBindingError(`Binding keypoint ${index} value must be finite`);
+    }
+    if (operation.property === 'opacity' && (keypoint.value < 0 || keypoint.value > 1)) {
+      throw new InvalidBindingError(
+        `Binding keypoint ${index} opacity must be between 0 and 1`,
+      );
     }
   }
 }

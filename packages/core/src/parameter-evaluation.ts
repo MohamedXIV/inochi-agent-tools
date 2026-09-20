@@ -37,6 +37,7 @@ type UnknownRecord = Record<string, unknown>;
 
 const BINDING_PROPERTIES = new Set<ParameterBindingProperty>([
   'zSort',
+  'opacity',
   'transform.t.x',
   'transform.t.y',
   'transform.t.z',

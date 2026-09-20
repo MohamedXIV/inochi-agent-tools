@@ -4,6 +4,7 @@ export type PuppetTextureFormat = 'rgba8' | 'r8' | 'unknown';
 export type PuppetTextureUsage = 'albedo' | 'emissive' | 'bumpmap';
 export type ParameterBindingProperty =
   | 'zSort'
+  | 'opacity'
   | 'transform.t.x'
   | 'transform.t.y'
   | 'transform.t.z'
@@ -176,6 +177,7 @@ function textureFormat(value: unknown, path: string): PuppetTextureFormat {
 function parameterBindingProperty(value: unknown, path: string): ParameterBindingProperty {
   switch (value) {
     case 'zSort':
+    case 'opacity':
     case 'transform.t.x':
     case 'transform.t.y':
     case 'transform.t.z':

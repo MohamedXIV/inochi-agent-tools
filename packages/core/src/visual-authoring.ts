@@ -225,6 +225,11 @@ function validateParameterBind(operation: ParameterBindOperation): void {
     if (!Number.isFinite(keypoint.value)) {
       throw new InvalidBindingError(`Binding keypoint ${index} value must be finite`);
     }
+    if (operation.property === 'opacity' && (keypoint.value < 0 || keypoint.value > 1)) {
+      throw new InvalidBindingError(
+        `Binding keypoint ${index} opacity must be between 0 and 1`,
+      );
+    }
   }
 }
 

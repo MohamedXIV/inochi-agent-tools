@@ -12,6 +12,7 @@ import {
   NativeBridgeError,
   PuppetAlreadyExistsError,
   RoundTripMismatchError,
+  UnsupportedAuthoringCapabilityError,
 } from './errors.js';
 import {
   parsePuppetInspection,
@@ -71,6 +72,12 @@ function validateBindingProperty(property: ParameterBindingProperty): void { if(
 function validateParameterBind(operation: ParameterBindOperation): void { requireBindingText(operation.parameterName,'Parameter name'); requireBindingText(operation.targetPath,'Binding target path'); validateBindingProperty(operation.property); if(!Array.isArray(operation.keypoints)||operation.keypoints.length===0) throw new InvalidBindingError('Parameter binding requires at least one keypoint'); for(const [index,keypoint] of operation.keypoints.entries()){requireFinitePair(keypoint.at,`Binding keypoint ${index} parameter value`); if(!Number.isFinite(keypoint.value)) throw new InvalidBindingError(`Binding keypoint ${index} value must be finite`);} }
 function validateParameterUnbind(operation: ParameterUnbindOperation): void { requireBindingText(operation.parameterName,'Parameter name'); requireBindingText(operation.targetPath,'Binding target path'); validateBindingProperty(operation.property); }
 function validateOperation(operation: PuppetEditOperation): void {
+  const operationType = (operation as { type?: unknown }).type;
+  if (operationType === 'bone.create' || operationType === 'bone.setWeights') {
+    throw new UnsupportedAuthoringCapabilityError(
+      'Bone and weight authoring are unavailable in pinned Inochi2D v0.8.7 (fdb241da048dbe330152f7b0015e2129dc392844)',
+    );
+  }
   switch(operation.type){
     case 'texture.import': requireSemanticText(operation.key,'Texture key'); requireSemanticText(operation.imagePath,'Texture image path'); return;
     case 'node.create': requireSemanticText(operation.parentPath,'Parent path'); requireSemanticText(operation.name,'Node name'); return;
@@ -90,5 +97,5 @@ function validateEditPuppetRequest(request: EditPuppetRequest): void { if(path.e
 export async function editPuppet(request: EditPuppetRequest, options: NativeHostOptions = {}): Promise<EditPuppetResult> {
   validateEditPuppetRequest(request); const inputPath=path.resolve(process.cwd(),request.inputPath); const outputPath=path.resolve(process.cwd(),request.outputPath); const hostPath=options.hostPath??defaultNativeHostPath();
   try { const {stdout}=await execFileAsync(hostPath,['edit-visual',inputPath,outputPath,JSON.stringify(request.operations)],{cwd:process.cwd(),env:nativeHostEnv(),encoding:'utf8',maxBuffer:MAX_CAPTURE_BYTES,windowsHide:true}); let decoded:unknown; try{decoded=JSON.parse(stdout);}catch(error){throw new NativeBridgeError(`Native host emitted invalid authoring JSON: ${error instanceof Error?error.message:String(error)}`);} let inspection:PuppetInspection; try{inspection=parsePuppetInspection(decoded);}catch(error){throw new NativeBridgeError(`Native host emitted an invalid authoring snapshot: ${error instanceof Error?error.message:String(error)}`);} return {path:outputPath,inspection};
-  } catch(error) { if(error instanceof InvalidAuthoringRequestError||error instanceof InvalidBindingError||error instanceof InvalidHierarchyError||error instanceof MissingTextureError||error instanceof InvalidTextureAssetError||error instanceof PuppetAlreadyExistsError||error instanceof RoundTripMismatchError||error instanceof NativeBridgeError) throw error; const failure=error as ExecFailure; const diagnostic=failureDiagnostic(failure); if(failure.code===5) throw new PuppetAlreadyExistsError(diagnostic); if(failure.code===6) throw new RoundTripMismatchError(diagnostic); if(failure.code===7) throw new InvalidHierarchyError(diagnostic); if(failure.code===8) throw new MissingTextureError(diagnostic); if(failure.code===9) throw new InvalidTextureAssetError(diagnostic); if(failure.code===10) throw new InvalidBindingError(diagnostic); throw new NativeBridgeError(diagnostic); }
+  } catch(error) { if(error instanceof InvalidAuthoringRequestError||error instanceof InvalidBindingError||error instanceof InvalidHierarchyError||error instanceof MissingTextureError||error instanceof InvalidTextureAssetError||error instanceof PuppetAlreadyExistsError||error instanceof RoundTripMismatchError||error instanceof UnsupportedAuthoringCapabilityError||error instanceof NativeBridgeError) throw error; const failure=error as ExecFailure; const diagnostic=failureDiagnostic(failure); if(failure.code===5) throw new PuppetAlreadyExistsError(diagnostic); if(failure.code===6) throw new RoundTripMismatchError(diagnostic); if(failure.code===7) throw new InvalidHierarchyError(diagnostic); if(failure.code===8) throw new MissingTextureError(diagnostic); if(failure.code===9) throw new InvalidTextureAssetError(diagnostic); if(failure.code===10) throw new InvalidBindingError(diagnostic); throw new NativeBridgeError(diagnostic); }
 }

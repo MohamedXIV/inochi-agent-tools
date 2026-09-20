@@ -8,6 +8,7 @@ import {
   NativeBridgeError,
   PuppetAlreadyExistsError,
   RoundTripMismatchError,
+  UnsupportedAuthoringCapabilityError,
 } from '@inochi-agent-tools/core';
 
 export interface CliErrorDescriptor {
@@ -25,6 +26,7 @@ const SEMANTIC_ERROR_MAP = [
   [InvalidTextureAssetError, 15, 'INVALID_TEXTURE_ASSET'],
   [InvalidBindingError, 16, 'INVALID_BINDING'],
   [RoundTripMismatchError, 17, 'ROUND_TRIP_MISMATCH'],
+  [UnsupportedAuthoringCapabilityError, 19, 'UNSUPPORTED_AUTHORING_CAPABILITY'],
   [NativeBridgeError, 20, 'NATIVE_BRIDGE_FAILURE'],
 ] as const;
 

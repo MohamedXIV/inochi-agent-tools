@@ -16,6 +16,15 @@ export class NativeBridgeError extends Error {
   }
 }
 
+export class UnsupportedAuthoringCapabilityError extends Error {
+  readonly code = 'UNSUPPORTED_AUTHORING_CAPABILITY' as const;
+
+  constructor(message = 'Authoring capability is not supported by the pinned Inochi2D runtime') {
+    super(message);
+    this.name = 'UnsupportedAuthoringCapabilityError';
+  }
+}
+
 export class InvalidAuthoringRequestError extends Error {
   readonly code = 'INVALID_AUTHORING_REQUEST' as const;
 

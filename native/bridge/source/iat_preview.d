@@ -34,9 +34,9 @@ private Parameter resolveParameterName(Puppet puppet, string name) {
     return matches == 1 ? found : null;
 }
 
-private bool decodePair(ref JSONValue value, out vec2 pair) {
+private bool decodePair(JSONValue value, out vec2 pair) {
     if (value.type != JSONType.array || value.array.length != 2) return false;
-    float number(ref JSONValue item, out bool ok) {
+    float number(JSONValue item, out bool ok) {
         ok = true;
         switch (item.type) {
             case JSONType.float_: return cast(float)item.floating;
@@ -64,8 +64,7 @@ private bool applyPreviewParameters(Puppet puppet, const(char)* valuesJson, ref 
     if (valuesJson is null) return true;
     auto values = parseJSON(fromStringz(valuesJson).idup);
     if (values.type != JSONType.object) { error = "preview parameter values must be an object"; return false; }
-    auto objectValues = values.object;
-    foreach (name, ref rawValue; objectValues) {
+    foreach (name, rawValue; values.object) {
         auto parameter = resolveParameterName(puppet, name);
         vec2 requested;
         if (parameter is null || !decodePair(rawValue, requested) || !inRange(parameter, requested)) {

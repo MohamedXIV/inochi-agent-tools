@@ -62,3 +62,5 @@ jobs:
         run: npm run v1.2:rig-primitives:ci
       - name: v1.3 visual controls acceptance
         run: npm run v1.3:visual-controls:ci
+      - name: v1.4 headless preview acceptance
+        run: npm run v1.4:preview:ci

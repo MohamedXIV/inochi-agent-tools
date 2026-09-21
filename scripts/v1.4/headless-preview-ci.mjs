@@ -26,10 +26,11 @@ for(const [metadata,file] of [[first,firstPng],[second,secondPng],[low,lowPng],[
  const bytes=readFileSync(file);if(bytes.length<=8||!bytes.subarray(0,8).equals(Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]))){console.error('preview output is not a PNG artifact');process.exit(1);}
 }
 if(low.appliedParameters?.Visibility?.[0]!==-1||high.appliedParameters?.Visibility?.[0]!==1){console.error('preview did not report the requested semantic parameter states');process.exit(1);}
-const digest=file=>createHash('sha256').update(readFileSync(file)).digest('hex'); const firstDigest=digest(firstPng),secondDigest=digest(secondPng);
+const digest=file=>createHash('sha256').update(readFileSync(file)).digest('hex'); const firstDigest=digest(firstPng),secondDigest=digest(secondPng),lowDigest=digest(lowPng),highDigest=digest(highPng);
 if(firstDigest!==secondDigest){console.error(`headless preview is not deterministic: ${firstDigest} != ${secondDigest}`);process.exit(1);}
+if(lowDigest===highDigest){console.error(`semantic preview states did not change rendered pixels: ${lowDigest}`);process.exit(1);}
 const invalidState=run(hostPath,['render-preview',inputPath,path.join(root,'tests','fixtures','generated','v1.4-invalid-state.png'),'256','256',JSON.stringify({Visibility:[2,0]})]);
 if(invalidState.status===0||invalidState.stderr.trim().length===0){console.error('out-of-range preview parameter state was not rejected');process.exit(1);}
 const broken=run(hostPath,['render-preview',invalidFixture,path.join(root,'tests','fixtures','generated','v1.4-invalid.png'),'256','256']);
 if(broken.status===0||broken.stdout!==''||broken.stderr.trim().length===0){console.error('broken preview input was not rejected');process.exit(1);}
-console.log(JSON.stringify({ok:true,input:path.relative(root,inputPath),sha256:firstDigest,coveredPixelSamples:first.coveredPixelSamples,triangleCount:first.triangleCount,parameterStates:['Visibility=-1','Visibility=1']}));
+console.log(JSON.stringify({ok:true,input:path.relative(root,inputPath),sha256:firstDigest,lowSha256:lowDigest,highSha256:highDigest,coveredPixelSamples:first.coveredPixelSamples,triangleCount:first.triangleCount,parameterStates:['Visibility=-1','Visibility=1']}));

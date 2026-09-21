@@ -71,8 +71,10 @@ private bool applyPreviewParameters(Puppet puppet, const(char)* valuesJson, ref 
             error = "unknown parameter or out-of-range preview parameter value"; return false;
         }
         parameter.value = requested;
-        JSONValue[] encodedPair = [JSONValue(requested.x), JSONValue(requested.y)];
-        applied[name] = JSONValue(encodedPair);
+        JSONValue[] encodedPair;
+        encodedPair ~= cast(double)requested.x;
+        encodedPair ~= cast(double)requested.y;
+        applied[name] = encodedPair;
     }
     return true;
 }

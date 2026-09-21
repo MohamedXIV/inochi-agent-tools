@@ -91,8 +91,7 @@ private JSONValue frameMetadata(Puppet puppet) {
         final switch (command.state) with (DrawState) {
             case normal: normalCommands++; break;
             case defineMask: maskDefinitionCommands++; break;
-            case pushMask:
-            case popMask: maskedCommands++; break;
+            case maskedDraw: maskedCommands++; break;
             case compositeBegin:
             case compositeEnd:
             case compositeBlit: compositeCommands++; break;

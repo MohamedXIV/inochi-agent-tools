@@ -3,6 +3,7 @@ import {
   editPuppet,
   evaluateParameterValues,
   inspectPuppet,
+  renderPreview,
   savePuppet,
   validatePuppet,
   type CreatePuppetRequest,
@@ -12,6 +13,8 @@ import {
   type EvaluateParameterValuesOptions,
   type ParameterEvaluationResult,
   type PuppetInspection,
+  type RenderPreviewRequest,
+  type PreviewFrameMetadata,
   type SavePuppetRequest,
   type SavePuppetResult,
 } from '@inochi-agent-tools/core';
@@ -27,6 +30,7 @@ export interface AuthoringClient {
   savePuppet(request: SavePuppetRequest): Promise<SavePuppetResult>;
   editPuppet(request: EditPuppetRequest): Promise<EditPuppetResult>;
   evaluateParameters(request: EvaluateParameterValuesOptions): Promise<ParameterEvaluationResult>;
+  renderPreview(request: RenderPreviewRequest): Promise<PreviewFrameMetadata>;
 }
 
 export function createAuthoringClient(): AuthoringClient {
@@ -37,5 +41,6 @@ export function createAuthoringClient(): AuthoringClient {
     savePuppet,
     editPuppet,
     evaluateParameters: evaluateParameterValues,
+    renderPreview,
   };
 }

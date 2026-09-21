@@ -146,7 +146,7 @@ export async function runCli(argv: string[], io: CliIo): Promise<number> {
           if (typeof decoded !== 'object' || decoded === null || Array.isArray(decoded)) throw new CliUsageError('preview parameter values JSON must be an object');
           parameterValues = decoded as Record<string, NumericPair>;
         }
-        result = await renderPreview({ inputPath: parsed.inputPath, outputPath: parsed.outputPath, width: parsed.width, height: parsed.height, parameterValues });
+        result = await renderPreview({ inputPath: parsed.inputPath, outputPath: parsed.outputPath, width: parsed.width, height: parsed.height, parameters: parameterValues });
         break;
       }
     }

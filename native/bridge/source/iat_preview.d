@@ -5,6 +5,7 @@ import core.stdc.string : memcpy;
 import imagefmt : write_image;
 import inmath : vec2;
 import inochi2d.core.format.inp : inLoadPuppet;
+import inochi2d.core.nodes.drawable.part : PartVars;
 import inochi2d.core.param : Parameter;
 import inochi2d.core.puppet : Puppet;
 import inochi2d.core.render.drawlist : DrawState;
@@ -143,13 +144,15 @@ export extern(C) int iat_render_preview_png_json(const(char)* inputPath,const(ch
         ubyte[] pixels=new ubyte[cast(size_t)width*height*4]; ulong triangles,coveredPixels;
         foreach(ref cmd;dl.commands){
             if(cmd.elemCount==0)continue; if(cmd.state!=DrawState.normal)return fail(outError,5,"preview renderer does not yet support masking/composite draw states");
+            if(cmd.typeId!=0x0101)return fail(outError,5,"preview renderer does not yet support non-Part draw variables");
+            auto partVars=*cast(PartVars*)cmd.variables.ptr; float commandOpacity=min(1.0f,max(0.0f,partVars.opacity));
             auto tex=cmd.sources[0]; if(tex is null||tex.format!=TextureFormat.rgba8Unorm||tex.width==0||tex.height==0)return fail(outError,5,"preview renderer requires RGBA8 source textures"); auto src=cast(ubyte[])tex.pixels;
             foreach(i;0..cmd.elemCount/3){
                 size_t io=cast(size_t)cmd.idxOffset+i*3; if(io+2>=dl.indices.length)return fail(outError,1,"draw-list index range is invalid");
                 size_t ia=cast(size_t)cmd.vtxOffset+dl.indices[io],ib=cast(size_t)cmd.vtxOffset+dl.indices[io+1],ic=cast(size_t)cmd.vtxOffset+dl.indices[io+2]; if(ia>=dl.vertices.length||ib>=dl.vertices.length||ic>=dl.vertices.length)return fail(outError,1,"draw-list vertex range is invalid");
                 auto a=dl.vertices[ia],b=dl.vertices[ib],c=dl.vertices[ic]; float ax=ox+a.vtx.x*scale,ay=oy-a.vtx.y*scale,bx=ox+b.vtx.x*scale,by=oy-b.vtx.y*scale,cx=ox+c.vtx.x*scale,cy=oy-c.vtx.y*scale; float area=edge(ax,ay,bx,by,cx,cy); if(area==0)continue;
                 int x0=max(0,cast(int)floor(min(ax,min(bx,cx)))),x1=min(cast(int)width-1,cast(int)ceil(max(ax,max(bx,cx)))),y0=max(0,cast(int)floor(min(ay,min(by,cy)))),y1=min(cast(int)height-1,cast(int)ceil(max(ay,max(by,cy))));
-                foreach(y;y0..y1+1)foreach(x;x0..x1+1){ float px=x+0.5f,py=y+0.5f,wa=edge(bx,by,cx,cy,px,py)/area,wb=edge(cx,cy,ax,ay,px,py)/area,wc=1-wa-wb; if(wa<0||wb<0||wc<0)continue; float u=wa*a.uv.x+wb*b.uv.x+wc*c.uv.x,v=wa*a.uv.y+wb*b.uv.y+wc*c.uv.y; uint tx=min(tex.width-1,cast(uint)max(0,cast(int)(u*(tex.width-1)+0.5f))),ty=min(tex.height-1,cast(uint)max(0,cast(int)(v*(tex.height-1)+0.5f))); size_t so=(cast(size_t)ty*tex.width+tx)*4,d=(cast(size_t)y*width+x)*4; uint sa=src[so+3],inv=255-sa; pixels[d]=cast(ubyte)((cast(uint)src[so]*sa+cast(uint)pixels[d]*inv)/255); pixels[d+1]=cast(ubyte)((cast(uint)src[so+1]*sa+cast(uint)pixels[d+1]*inv)/255); pixels[d+2]=cast(ubyte)((cast(uint)src[so+2]*sa+cast(uint)pixels[d+2]*inv)/255); pixels[d+3]=cast(ubyte)min(255u,sa+(cast(uint)pixels[d+3]*inv)/255); if(sa>0)coveredPixels++; }
+                foreach(y;y0..y1+1)foreach(x;x0..x1+1){ float px=x+0.5f,py=y+0.5f,wa=edge(bx,by,cx,cy,px,py)/area,wb=edge(cx,cy,ax,ay,px,py)/area,wc=1-wa-wb; if(wa<0||wb<0||wc<0)continue; float u=wa*a.uv.x+wb*b.uv.x+wc*c.uv.x,v=wa*a.uv.y+wb*b.uv.y+wc*c.uv.y; uint tx=min(tex.width-1,cast(uint)max(0,cast(int)(u*(tex.width-1)+0.5f))),ty=min(tex.height-1,cast(uint)max(0,cast(int)(v*(tex.height-1)+0.5f))); size_t so=(cast(size_t)ty*tex.width+tx)*4,d=(cast(size_t)y*width+x)*4; uint sa=cast(uint)(src[so+3]*commandOpacity+0.5f),inv=255-sa; pixels[d]=cast(ubyte)((cast(uint)src[so]*sa+cast(uint)pixels[d]*inv)/255); pixels[d+1]=cast(ubyte)((cast(uint)src[so+1]*sa+cast(uint)pixels[d+1]*inv)/255); pixels[d+2]=cast(ubyte)((cast(uint)src[so+2]*sa+cast(uint)pixels[d+2]*inv)/255); pixels[d+3]=cast(ubyte)min(255u,sa+(cast(uint)pixels[d+3]*inv)/255); if(sa>0)coveredPixels++; }
                 triangles++;
             }
         }

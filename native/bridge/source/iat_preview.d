@@ -97,7 +97,8 @@ export extern(C) int iat_capture_preview_frame_json(const(char)* inputPath, char
         if (puppet is null) return fail(outError, 3, "failed loading puppet for preview capture");
         scope(exit) destroy(puppet);
         puppet.update(0.0f); puppet.draw(0.0f);
-        *outJson = copyCString(frameMetadata(puppet).toJSON());
+        auto metadata = frameMetadata(puppet);
+        *outJson = copyCString(toJSON(metadata));
         return *outJson is null ? fail(outError, 1, "failed allocating preview frame JSON") : 0;
     } catch (Throwable error) return fail(outError, 1, "preview frame capture failed: " ~ error.msg);
 }
@@ -177,7 +178,7 @@ export extern(C) int iat_render_preview_png_json(
         meta["width"] = width; meta["height"] = height;
         meta["triangleCount"] = triangles; meta["coveredPixelSamples"] = coveredPixels;
         meta["output"] = fromStringz(outputPath).idup;
-        *outJson = copyCString(meta.toJSON());
+        *outJson = copyCString(toJSON(meta));
         return *outJson is null ? fail(outError,1,"failed allocating preview render JSON") : 0;
     } catch (Throwable error) return fail(outError,1,"preview render failed: " ~ error.msg);
 }

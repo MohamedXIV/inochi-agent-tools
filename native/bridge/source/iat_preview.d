@@ -45,8 +45,9 @@ private bool decodePair(ref JSONValue value, out vec2 pair) {
             default: ok = false; return 0;
         }
     }
+    auto items = value.array;
     bool xOk, yOk;
-    auto x = number(value.array[0], xOk), y = number(value.array[1], yOk);
+    auto x = number(items[0], xOk), y = number(items[1], yOk);
     if (!xOk || !yOk || !isFinite(x) || !isFinite(y)) return false;
     pair = vec2(x, y);
     return true;
@@ -72,8 +73,8 @@ private bool applyPreviewParameters(Puppet puppet, const(char)* valuesJson, ref 
         }
         parameter.value = requested;
         JSONValue[] encodedPair;
-        encodedPair ~= cast(double)requested.x;
-        encodedPair ~= cast(double)requested.y;
+        encodedPair ~= JSONValue(cast(double)requested.x);
+        encodedPair ~= JSONValue(cast(double)requested.y);
         applied[name] = encodedPair;
     }
     return true;

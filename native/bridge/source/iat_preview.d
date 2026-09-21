@@ -63,14 +63,16 @@ private bool applyPreviewParameters(Puppet puppet, const(char)* valuesJson, ref 
     if (valuesJson is null) return true;
     auto values = parseJSON(fromStringz(valuesJson).idup);
     if (values.type != JSONType.object) { error = "preview parameter values must be an object"; return false; }
-    foreach (name, ref rawValue; values.object) {
+    auto objectValues = values.object;
+    foreach (name, ref rawValue; objectValues) {
         auto parameter = resolveParameterName(puppet, name);
         vec2 requested;
         if (parameter is null || !decodePair(rawValue, requested) || !inRange(parameter, requested)) {
             error = "unknown parameter or out-of-range preview parameter value"; return false;
         }
         parameter.value = requested;
-        applied[name] = JSONValue([requested.x, requested.y]);
+        JSONValue[] encodedPair = [JSONValue(requested.x), JSONValue(requested.y)];
+        applied[name] = JSONValue(encodedPair);
     }
     return true;
 }

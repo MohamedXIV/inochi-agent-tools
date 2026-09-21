@@ -162,9 +162,9 @@ export extern(C) int iat_render_preview_png_json(
                     uint ty=min(tex.height-1,cast(uint)max(0,cast(int)(v*(tex.height-1)+0.5f)));
                     size_t so=(cast(size_t)ty*tex.width+tx)*4, d=(cast(size_t)y*width+x)*4;
                     uint sa=src[so+3], inv=255-sa;
-                    pixels[d]=(cast(uint)src[so]*sa+cast(uint)pixels[d]*inv)/255;
-                    pixels[d+1]=(cast(uint)src[so+1]*sa+cast(uint)pixels[d+1]*inv)/255;
-                    pixels[d+2]=(cast(uint)src[so+2]*sa+cast(uint)pixels[d+2]*inv)/255;
+                    pixels[d]=cast(ubyte)((cast(uint)src[so]*sa+cast(uint)pixels[d]*inv)/255);
+                    pixels[d+1]=cast(ubyte)((cast(uint)src[so+1]*sa+cast(uint)pixels[d+1]*inv)/255);
+                    pixels[d+2]=cast(ubyte)((cast(uint)src[so+2]*sa+cast(uint)pixels[d+2]*inv)/255);
                     pixels[d+3]=cast(ubyte)min(255u,sa+(cast(uint)pixels[d+3]*inv)/255);
                     if (sa > 0) coveredPixels++;
                 }

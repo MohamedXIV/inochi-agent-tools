@@ -11,6 +11,7 @@ import {
   validatePuppet,
   type NumericPair,
   type PuppetEditOperation,
+  type RenderPreviewRequest,
 } from '@inochi-agent-tools/core';
 
 import { classifyCliError } from './errors.js';
@@ -105,7 +106,17 @@ function parseKnownCommand(args: string[]): ParsedCommand {
     }
     if (group === 'preview' && action === 'render') {
       const { values } = parseArgs({ args: rest, options: { input: { type: 'string' }, output: { type: 'string' }, width: { type: 'string' }, height: { type: 'string' }, values: { type: 'string' } }, strict: true, allowPositionals: false });
-      return { command: 'preview render', inputPath: requireStringOption(values, 'input'), outputPath: requireStringOption(values, 'output'), width: optionalPositiveInteger(values, 'width'), height: optionalPositiveInteger(values, 'height'), valuesSource: typeof values.values === 'string' ? values.values : undefined };
+      const width = optionalPositiveInteger(values, 'width');
+      const height = optionalPositiveInteger(values, 'height');
+      const valuesSource = typeof values.values === 'string' ? values.values : undefined;
+      return {
+        command: 'preview render',
+        inputPath: requireStringOption(values, 'input'),
+        outputPath: requireStringOption(values, 'output'),
+        ...(width === undefined ? {} : { width }),
+        ...(height === undefined ? {} : { height }),
+        ...(valuesSource === undefined ? {} : { valuesSource }),
+      };
     }
   } catch (error) {
     if (error instanceof CliUsageError) throw error;
@@ -146,7 +157,14 @@ export async function runCli(argv: string[], io: CliIo): Promise<number> {
           if (typeof decoded !== 'object' || decoded === null || Array.isArray(decoded)) throw new CliUsageError('preview parameter values JSON must be an object');
           parameterValues = decoded as Record<string, NumericPair>;
         }
-        result = await renderPreview({ inputPath: parsed.inputPath, outputPath: parsed.outputPath, width: parsed.width, height: parsed.height, parameters: parameterValues });
+        const request: RenderPreviewRequest = {
+          inputPath: parsed.inputPath,
+          outputPath: parsed.outputPath,
+          ...(parsed.width === undefined ? {} : { width: parsed.width }),
+          ...(parsed.height === undefined ? {} : { height: parsed.height }),
+          ...(parameterValues === undefined ? {} : { parameters: parameterValues }),
+        };
+        result = await renderPreview(request);
         break;
       }
     }

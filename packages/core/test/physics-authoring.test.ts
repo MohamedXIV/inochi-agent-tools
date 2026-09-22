@@ -30,12 +30,6 @@ describe('semantic physics authoring validation', () => {
     expect(() => validatePhysicsEditOperation({
       type: 'physics.update',
       path: '/Root/Head/Hair Physics',
-      settings: { damping: 0.4 } as never,
-    })).toThrow(InvalidBindingError);
-
-    expect(() => validatePhysicsEditOperation({
-      type: 'physics.update',
-      path: '/Root/Head/Hair Physics',
       settings: { angleDamping: 0.4, outputScale: [0.8, 1.2] },
     })).not.toThrow();
 

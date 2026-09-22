@@ -20,7 +20,19 @@ function fakeClient() {
     validatePuppet: vi.fn(async (request: unknown) => ({ metadata: { name: 'Contract' }, request })),
     savePuppet: vi.fn(async (request: unknown) => ({ path: '/tmp/saved.inp', request })),
     editPuppet: vi.fn(async (request: unknown) => ({ path: '/tmp/edited.inp', request })),
-    renderPreview: vi.fn(async (request: unknown) => ({ path: '/tmp/preview.png', request })),
+    renderPreview: vi.fn(async (_request: unknown) => ({
+      schemaVersion: 1,
+      kind: 'render-preview',
+      commandCount: 1,
+      drawableCommandCount: 1,
+      texturedCommandCount: 1,
+      vertexCount: 4,
+      indexCount: 6,
+      hasRenderableContent: true,
+      bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
+      states: {},
+      output: '/tmp/preview.png',
+    })),
     evaluateParameters: vi.fn(async (request: unknown) => ({ appliedParameters: [], targets: [], restoredParameters: [], request })),
   };
 }
@@ -69,7 +81,7 @@ describe('MCP semantic tool contract', () => {
       parameters: { Visibility: [-1, 0] },
     });
 
-    expect(result).toMatchObject({ ok: true, result: { path: '/tmp/preview.png' } });
+    expect(result).toMatchObject({ ok: true, result: { output: '/tmp/preview.png' } });
     expect(client.renderPreview).toHaveBeenCalledWith({
       inputPath: 'fixture.inp',
       outputPath: 'preview.png',

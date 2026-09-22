@@ -7,8 +7,10 @@ export type {
   EditPuppetResult,
   EvaluateParameterValuesOptions,
   ParameterEvaluationResult,
+  PreviewFrameMetadata,
   PuppetEditOperation,
   PuppetInspection,
+  RenderPreviewRequest,
   SavePuppetRequest,
   SavePuppetResult,
 } from '@inochi-agent-tools/core';

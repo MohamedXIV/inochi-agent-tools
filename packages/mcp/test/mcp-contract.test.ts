@@ -4,6 +4,7 @@ import { createMcpToolRegistry } from '../src/tools.js';
 
 const EXPECTED_TOOLS = [
   'parameter.evaluate',
+  'preview.render',
   'puppet.create',
   'puppet.edit',
   'puppet.inspect',
@@ -19,12 +20,13 @@ function fakeClient() {
     validatePuppet: vi.fn(async (request: unknown) => ({ metadata: { name: 'Contract' }, request })),
     savePuppet: vi.fn(async (request: unknown) => ({ path: '/tmp/saved.inp', request })),
     editPuppet: vi.fn(async (request: unknown) => ({ path: '/tmp/edited.inp', request })),
+    renderPreview: vi.fn(async (request: unknown) => ({ path: '/tmp/preview.png', request })),
     evaluateParameters: vi.fn(async (request: unknown) => ({ appliedParameters: [], targets: [], restoredParameters: [], request })),
   };
 }
 
 describe('MCP semantic tool contract', () => {
-  it('publishes only the stable v1 semantic tools', () => {
+  it('publishes only the stable semantic tools', () => {
     const registry = createMcpToolRegistry(fakeClient());
     expect(registry.map((tool) => tool.name).sort()).toEqual(EXPECTED_TOOLS);
     expect(registry.map((tool) => tool.name).join(' ')).not.toMatch(/in_|pointer|allocator|offset|nativeHandle/i);

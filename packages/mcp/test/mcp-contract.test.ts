@@ -56,4 +56,26 @@ describe('MCP semantic tool contract', () => {
       result: { metadata: { name: 'Contract' } },
     });
   });
+
+  it('dispatches preview rendering through the semantic SDK contract', async () => {
+    const client = fakeClient();
+    const registry = createMcpToolRegistry(client);
+    const preview = registry.find((tool) => tool.name === 'preview.render')!;
+    const result = await preview.call({
+      inputPath: 'fixture.inp',
+      outputPath: 'preview.png',
+      width: 320,
+      height: 240,
+      parameters: { Visibility: [-1, 0] },
+    });
+
+    expect(result).toMatchObject({ ok: true, result: { path: '/tmp/preview.png' } });
+    expect(client.renderPreview).toHaveBeenCalledWith({
+      inputPath: 'fixture.inp',
+      outputPath: 'preview.png',
+      width: 320,
+      height: 240,
+      parameters: { Visibility: [-1, 0] },
+    });
+  });
 });

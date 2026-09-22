@@ -8,6 +8,7 @@ export type {
   EvaluateParameterValuesOptions,
   ParameterEvaluationResult,
   PreviewFrameMetadata,
+  PreviewParameterValues,
   PuppetEditOperation,
   PuppetInspection,
   RenderPreviewRequest,

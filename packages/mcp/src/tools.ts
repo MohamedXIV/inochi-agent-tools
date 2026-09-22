@@ -62,7 +62,16 @@ export function createMcpToolRegistry(client: AuthoringClient): McpSemanticTool[
       if (!Array.isArray(input.operations) || input.operations.length === 0) return 'puppet.edit requires at least one operation';
       return null;
     }),
-    tool('preview.render', 'Render a deterministic headless PNG preview at an optional semantic parameter state.', objectSchema({ inputPath: stringFieldSchema('Source .inp path'), outputPath: stringFieldSchema('Destination PNG path'), width: { type: 'integer', minimum: 16, maximum: 4096 }, height: { type: 'integer', minimum: 16, maximum: 4096 }, parameters: { type: 'object', additionalProperties: { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number' } } } }, ['inputPath', 'outputPath']), (input) => client.renderPreview({ inputPath: input.inputPath as string, outputPath: input.outputPath as string, ...(input.width === undefined ? {} : { width: input.width as number }), ...(input.height === undefined ? {} : { height: input.height as number }), ...(input.parameters === undefined ? {} : { parameters: input.parameters as Parameters<AuthoringClient['renderPreview']>[0]['parameters'] }) }), (input) => {
+    tool('preview.render', 'Render a deterministic headless PNG preview at an optional semantic parameter state.', objectSchema({ inputPath: stringFieldSchema('Source .inp path'), outputPath: stringFieldSchema('Destination PNG path'), width: { type: 'integer', minimum: 16, maximum: 4096 }, height: { type: 'integer', minimum: 16, maximum: 4096 }, parameters: { type: 'object', additionalProperties: { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number' } } } }, ['inputPath', 'outputPath']), (input) => {
+      const request: Parameters<AuthoringClient['renderPreview']>[0] = {
+        inputPath: input.inputPath as string,
+        outputPath: input.outputPath as string,
+      };
+      if (input.width !== undefined) request.width = input.width as number;
+      if (input.height !== undefined) request.height = input.height as number;
+      if (input.parameters !== undefined) request.parameters = input.parameters as NonNullable<Parameters<AuthoringClient['renderPreview']>[0]['parameters']>;
+      return client.renderPreview(request);
+    }, (input) => {
       if (!requiredString(input, 'inputPath')) return 'preview.render requires inputPath';
       if (!requiredString(input, 'outputPath')) return 'preview.render requires outputPath';
       for (const key of ['width', 'height'] as const) { const value = input[key]; if (value !== undefined && (!Number.isInteger(value as number) || (value as number) < 16 || (value as number) > 4096)) return `preview.render ${key} must be an integer between 16 and 4096`; }

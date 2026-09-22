@@ -27,7 +27,7 @@ function structuredResult(result: Awaited<ReturnType<Client['callTool']>>): unkn
 }
 
 describeProtocol('stdio MCP parity', () => {
-  it('lists the v1 tools and matches SDK inspection on a real created .inp', async () => {
+  it('lists the semantic tools and matches SDK inspection on a real created .inp', async () => {
     const directory = await mkdtemp(path.join(tmpdir(), 'iat-mcp-protocol-'));
     temporaryDirectories.push(directory);
     const puppetPath = path.join(directory, 'protocol.inp');
@@ -46,6 +46,7 @@ describeProtocol('stdio MCP parity', () => {
       const listed = await client.listTools();
       expect(listed.tools.map((tool) => tool.name).sort()).toEqual([
         'parameter.evaluate',
+        'preview.render',
         'puppet.create',
         'puppet.edit',
         'puppet.inspect',

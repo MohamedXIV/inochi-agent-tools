@@ -14,6 +14,7 @@ describe('public semantic SDK contract', () => {
       'editPuppet',
       'evaluateParameters',
       'inspectPuppet',
+      'renderPreview',
       'savePuppet',
       'validatePuppet',
     ]);

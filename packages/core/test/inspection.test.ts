@@ -46,6 +46,40 @@ describe('parsePuppetInspection', () => {
     });
   });
 
+  it('parses semantic SimplePhysics relationships and settings', () => {
+    const input = structuredClone(validInspection);
+    input.nodes.push({
+      path: '/Root/HairPhysics',
+      name: 'HairPhysics',
+      kind: 'simple-physics',
+      childCount: 0,
+      physics: {
+        model: 'spring-pendulum',
+        mapMode: 'angle-length',
+        parameterName: 'Head X',
+        gravity: 1,
+        length: 80,
+        frequency: 2,
+        angleDamping: 0.5,
+        lengthDamping: 0.6,
+        outputScale: [1, 0.75],
+        localOnly: false,
+      },
+    } as never);
+    input.summary.nodeCount += 1;
+    const parsed = parsePuppetInspection(input);
+    expect(parsed.nodes.at(-1)).toMatchObject({
+      kind: 'simple-physics',
+      physics: {
+        model: 'spring-pendulum',
+        mapMode: 'angle-length',
+        parameterName: 'Head X',
+        length: 80,
+        outputScale: [1, 0.75],
+      },
+    });
+  });
+
   it.each([
     [{ ...validInspection, schemaVersion: 2 }, 'schemaVersion'],
     [{ ...validInspection, metadata: undefined }, 'metadata'],

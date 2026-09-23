@@ -4,6 +4,11 @@ import { promisify } from 'node:util';
 
 import type { NativeHostOptions } from './authoring.js';
 import {
+  toNativePhysicsEditOperation,
+  validatePhysicsEditOperation,
+  type PhysicsEditOperation,
+} from './physics-authoring.js';
+import {
   InvalidAuthoringRequestError,
   InvalidBindingError,
   InvalidHierarchyError,
@@ -80,7 +85,8 @@ export type PuppetEditOperation =
   | { type: 'node.remove'; path: string }
   | ParameterCreateOperation
   | ParameterBindOperation
-  | ParameterUnbindOperation;
+  | ParameterUnbindOperation
+  | PhysicsEditOperation;
 
 export type VisualEditOperation = PuppetEditOperation;
 
@@ -300,6 +306,11 @@ function validateOperation(operation: PuppetEditOperation): void {
     case 'parameter.unbind':
       validateParameterUnbind(operation);
       return;
+    case 'physics.create':
+    case 'physics.update':
+    case 'physics.remove':
+      validatePhysicsEditOperation(operation);
+      return;
   }
 }
 
@@ -345,7 +356,16 @@ export async function editPuppet(
   try {
     const { stdout } = await execFileAsync(
       hostPath,
-      ['edit-visual', inputPath, outputPath, JSON.stringify(request.operations)],
+      [
+        'edit-visual',
+        inputPath,
+        outputPath,
+        JSON.stringify(request.operations.map((operation) =>
+          operation.type.startsWith('physics.')
+            ? toNativePhysicsEditOperation(operation as PhysicsEditOperation)
+            : operation,
+        )),
+      ],
       {
         cwd: process.cwd(),
         env: nativeHostEnv(),

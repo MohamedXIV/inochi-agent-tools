@@ -453,6 +453,44 @@ export extern(C) nothrow @nogc uint iat_bridge_abi_version() { return 1; }
 export extern(C) nothrow @nogc const(char)* iat_bridge_upstream_version() { return upstreamVersion.ptr; }
 export extern(C) void iat_string_free(char* value) nothrow { if (value !is null) free(value); }
 
+export extern(C) int iat_evaluate_physics_json(const(char)* inputPath, const(char)* physicsPath, float delta, uint steps, float anchorDeltaX, char** outJson, char** outError) nothrow {
+    if (outJson is null || outError is null) return 2;
+    *outJson = null; *outError = null;
+    if (inputPath is null || physicsPath is null) return fail(outError, 2, "input path and physics path are required");
+    if (!isFinite(delta) || delta <= 0 || delta > 0.1f || steps == 0 || steps > 600 || !isFinite(anchorDeltaX) || anchorDeltaX == 0) {
+        return fail(outError, 10, "invalid bounded physics evaluation request");
+    }
+    try {
+        auto puppet = inLoadPuppet!Puppet(fromStringz(inputPath).idup);
+        scope(exit) destroy(puppet);
+        auto physics = cast(SimplePhysics) resolveNodePath(puppet, fromStringz(physicsPath).idup);
+        if (physics is null || physics.param is null) return fail(outError, 10, "physics evaluation target is invalid or unbound");
+        puppet.update(0);
+        auto before = physics.param.value;
+        physics.localTransform.translation.x += anchorDeltaX;
+        physics.transformChanged();
+        foreach (_; 0 .. steps) puppet.update(delta);
+        auto after = physics.param.value;
+        JSONValue result = JSONValue.emptyObject;
+        result["schemaVersion"] = 1;
+        result["kind"] = "inochi2d-simple-physics-evaluation";
+        result["physicsPath"] = fromStringz(physicsPath).idup;
+        result["parameterName"] = physics.param.name.value;
+        result["before"] = JSONValue([before.x, before.y]);
+        result["after"] = JSONValue([after.x, after.y]);
+        result["delta"] = delta;
+        result["steps"] = steps;
+        result["anchorDeltaX"] = anchorDeltaX;
+        result["consumed"] = abs(after.x - before.x) > 0.000001f || abs(after.y - before.y) > 0.000001f;
+        auto json = result.toJSON();
+        *outJson = copyCString(json);
+        if (*outJson is null) return fail(outError, 1, "failed allocating physics evaluation result");
+        return 0;
+    } catch (Throwable error) {
+        return fail(outError, 1, error.msg.idup);
+    }
+}
+
 export extern(C) int iat_inspect_puppet_json(const(char)* path, char** outJson, char** outError) nothrow {
     if (outJson is null || outError is null) return 2;
     *outJson = null; *outError = null;

@@ -8,6 +8,7 @@ import inochi2d.core.mesh : Mesh, MeshData, toMeshData;
 import inochi2d.core.nodes : Node;
 import inochi2d.core.nodes.deformer.meshdeformer : MeshDeformer;
 import inochi2d.core.nodes.drawable.part : Part;
+import inochi2d.core.nodes.drivers.simplephysics : SimplePhysics, PhysicsModel, ParamMapMode;
 import inochi2d.core.param : Parameter, ValueParameterBinding;
 import inochi2d.core.puppet : Puppet;
 import inochi2d.core.render.texture : Texture, TextureData, TextureFormat;
@@ -297,6 +298,43 @@ private string requireJsonString(ref JSONValue object, string key) {
     return object[key].str;
 }
 
+private bool requireJsonBool(ref JSONValue object, string key) {
+    if (object.type != JSONType.object || key !in object.object) throw new Exception("missing boolean field: " ~ key);
+    auto value = object[key];
+    if (value.type == JSONType.true_) return true;
+    if (value.type == JSONType.false_) return false;
+    throw new Exception("invalid boolean field: " ~ key);
+}
+
+private PhysicsModel requirePhysicsModel(ref JSONValue object, string key) {
+    auto value = requireJsonString(object, key);
+    if (value == "pendulum") return PhysicsModel.Pendulum;
+    if (value == "spring_pendulum") return PhysicsModel.SpringPendulum;
+    throw new Exception("unsupported physics model");
+}
+
+private ParamMapMode requirePhysicsMapMode(ref JSONValue object, string key) {
+    auto value = requireJsonString(object, key);
+    if (value == "angle_length") return ParamMapMode.AngleLength;
+    if (value == "xy") return ParamMapMode.XY;
+    if (value == "length_angle") return ParamMapMode.LengthAngle;
+    if (value == "yx") return ParamMapMode.YX;
+    throw new Exception("unsupported physics map mode");
+}
+
+private void applyPhysicsSettings(SimplePhysics physics, ref JSONValue settings, bool requireAll) {
+    if (requireAll || "model" in settings.object) physics.modelType = requirePhysicsModel(settings, "model");
+    if (requireAll || "mapMode" in settings.object) physics.mapMode = requirePhysicsMapMode(settings, "mapMode");
+    if (requireAll || "gravity" in settings.object) physics.gravity = requireJsonNumber(settings["gravity"]);
+    if (requireAll || "length" in settings.object) physics.length = requireJsonNumber(settings["length"]);
+    if (requireAll || "frequency" in settings.object) physics.frequency = requireJsonNumber(settings["frequency"]);
+    if (requireAll || "angleDamping" in settings.object) physics.angleDamping = requireJsonNumber(settings["angleDamping"]);
+    if (requireAll || "lengthDamping" in settings.object) physics.lengthDamping = requireJsonNumber(settings["lengthDamping"]);
+    if (requireAll || "outputScale" in settings.object) physics.outputScale = requireJsonPair(settings, "outputScale");
+    if (requireAll || "localOnly" in settings.object) physics.localOnly = requireJsonBool(settings, "localOnly");
+    physics.reset();
+}
+
 private float requireJsonNumber(ref JSONValue value) {
     switch (value.type) {
         case JSONType.float_: return cast(float) value.floating;
@@ -551,6 +589,40 @@ export extern(C) int iat_edit_visual_puppet_json(const(char)* inputPath, const(c
                 auto replacement = Mesh.fromMeshData(meshData);
                 deformer.mesh = replacement;
                 replacement.release();
+                continue;
+            }
+            if (type == "physics.create") {
+                auto parentPath = requireJsonString(operation, "parentPath");
+                auto name = requireJsonString(operation, "name");
+                auto parameterName = requireJsonString(operation, "parameterName");
+                auto parent = resolveNodePath(puppet, parentPath);
+                auto parameter = resolveParameterName(puppet, parameterName);
+                if (parent is null || parameter is null || name.strip.length == 0 || hasSiblingNamed(parent, name)) return fail(outError, 10, "invalid physics parent, name, or target parameter");
+                auto physics = new SimplePhysics(parent);
+                physics.name = name;
+                physics.param = parameter;
+                applyPhysicsSettings(physics, operation, true);
+                continue;
+            }
+            if (type == "physics.update") {
+                auto path = requireJsonString(operation, "path");
+                auto physics = cast(SimplePhysics) resolveNodePath(puppet, path);
+                if (physics is null) return fail(outError, 10, "physics update target is not SimplePhysics");
+                if ("parameterName" in operation.object) {
+                    auto parameter = resolveParameterName(puppet, requireJsonString(operation, "parameterName"));
+                    if (parameter is null) return fail(outError, 10, "physics target parameter does not exist");
+                    physics.param = parameter;
+                }
+                if ("settings" !in operation.object || operation["settings"].type != JSONType.object) return fail(outError, 10, "physics update settings must be an object");
+                auto settings = operation["settings"];
+                applyPhysicsSettings(physics, settings, false);
+                continue;
+            }
+            if (type == "physics.remove") {
+                auto path = requireJsonString(operation, "path");
+                auto physics = cast(SimplePhysics) resolveNodePath(puppet, path);
+                if (physics is null || physics.parent is null) return fail(outError, 10, "physics remove target is not SimplePhysics");
+                physics.parent = null;
                 continue;
             }
             if (type == "parameter.create") {

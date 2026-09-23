@@ -1,4 +1,4 @@
-export type NodeKind = 'node' | 'part' | 'mesh-deformer' | 'other';
+export type NodeKind = 'node' | 'part' | 'mesh-deformer' | 'simple-physics' | 'other';
 export type NumericPair = [number, number];
 export type PuppetTextureFormat = 'rgba8' | 'r8' | 'unknown';
 export type PuppetTextureUsage = 'albedo' | 'emissive' | 'bumpmap';
@@ -25,6 +25,19 @@ export interface PuppetInspectionMesh {
   indices: number[];
 }
 
+export interface PuppetInspectionPhysics {
+  model: 'pendulum' | 'spring-pendulum';
+  mapMode: 'angle-length' | 'xy' | 'length-angle' | 'yx';
+  parameterName: string;
+  gravity: number;
+  length: number;
+  frequency: number;
+  angleDamping: number;
+  lengthDamping: number;
+  outputScale: NumericPair;
+  localOnly: boolean;
+}
+
 export interface PuppetInspectionNode {
   path: string;
   name: string;
@@ -32,6 +45,7 @@ export interface PuppetInspectionNode {
   childCount: number;
   textures: PuppetInspectionNodeTexture[];
   mesh?: PuppetInspectionMesh;
+  physics?: PuppetInspectionPhysics;
 }
 
 export interface PuppetInspectionTexture {
@@ -154,8 +168,9 @@ function nodeKind(value: unknown, path: string): NodeKind {
   if (value !== 'node' &&
       value !== 'part' &&
       value !== 'mesh-deformer' &&
+      value !== 'simple-physics' &&
       value !== 'other') {
-    fail(path, 'expected node, part, mesh-deformer, or other');
+    fail(path, 'expected node, part, mesh-deformer, simple-physics, or other');
   }
   return value;
 }
@@ -228,6 +243,35 @@ function parseNodeTexture(value: unknown, nodeIndex: number, index: number): Pup
   };
 }
 
+function physicsModel(value: unknown, path: string): PuppetInspectionPhysics['model'] {
+  if (value !== 'pendulum' && value !== 'spring-pendulum') fail(path, 'expected supported physics model');
+  return value;
+}
+
+function physicsMapMode(value: unknown, path: string): PuppetInspectionPhysics['mapMode'] {
+  if (value !== 'angle-length' && value !== 'xy' && value !== 'length-angle' && value !== 'yx') {
+    fail(path, 'expected supported physics map mode');
+  }
+  return value;
+}
+
+function parsePhysics(value: unknown, path: string): PuppetInspectionPhysics {
+  const input = record(value, path);
+  if (typeof input.localOnly !== 'boolean') fail(`${path}.localOnly`, 'expected boolean');
+  return {
+    model: physicsModel(input.model, `${path}.model`),
+    mapMode: physicsMapMode(input.mapMode, `${path}.mapMode`),
+    parameterName: stringValue(input.parameterName, `${path}.parameterName`),
+    gravity: finiteNumber(input.gravity, `${path}.gravity`),
+    length: finiteNumber(input.length, `${path}.length`),
+    frequency: finiteNumber(input.frequency, `${path}.frequency`),
+    angleDamping: finiteNumber(input.angleDamping, `${path}.angleDamping`),
+    lengthDamping: finiteNumber(input.lengthDamping, `${path}.lengthDamping`),
+    outputScale: numericPair(input.outputScale, `${path}.outputScale`),
+    localOnly: input.localOnly,
+  };
+}
+
 function parseNode(value: unknown, index: number): PuppetInspectionNode {
   const path = `nodes[${index}]`;
   const input = record(value, path);
@@ -242,6 +286,13 @@ function parseNode(value: unknown, index: number): PuppetInspectionNode {
     childCount: nonNegativeInteger(input.childCount, `${path}.childCount`),
     textures: textures.map((texture, textureIndex) => parseNodeTexture(texture, index, textureIndex)),
   };
+
+  if (input.physics !== undefined) {
+    if (kind !== 'simple-physics') fail(`${path}.physics`, 'physics metadata is only valid for simple-physics nodes');
+    node.physics = parsePhysics(input.physics, `${path}.physics`);
+  } else if (kind === 'simple-physics') {
+    fail(`${path}.physics`, 'simple-physics node requires physics metadata');
+  }
 
   if (input.mesh !== undefined) {
     if (kind !== 'part' && kind !== 'mesh-deformer') {

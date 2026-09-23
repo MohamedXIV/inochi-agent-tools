@@ -136,9 +136,31 @@ private void appendNodeSnapshot(Node node, string path, ref JSONValue nodes, ref
     JSONValue item = JSONValue.emptyObject;
     item["path"] = path;
     item["name"] = node.name.value;
-    item["kind"] = cast(Part) node ? "part" : (cast(MeshDeformer) node ? "mesh-deformer" : "node");
+    item["kind"] = cast(Part) node ? "part" : (cast(MeshDeformer) node ? "mesh-deformer" : (cast(SimplePhysics) node ? "simple-physics" : "node"));
     item["childCount"] = cast(ulong) node.children.length;
     JSONValue textureBindings = JSONValue.emptyArray;
+    if (auto physics = cast(SimplePhysics) node) {
+        JSONValue physicsInfo = JSONValue.emptyObject;
+        final switch (physics.modelType) {
+            case PhysicsModel.Pendulum: physicsInfo["model"] = "pendulum"; break;
+            case PhysicsModel.SpringPendulum: physicsInfo["model"] = "spring-pendulum"; break;
+        }
+        final switch (physics.mapMode) {
+            case ParamMapMode.AngleLength: physicsInfo["mapMode"] = "angle-length"; break;
+            case ParamMapMode.XY: physicsInfo["mapMode"] = "xy"; break;
+            case ParamMapMode.LengthAngle: physicsInfo["mapMode"] = "length-angle"; break;
+            case ParamMapMode.YX: physicsInfo["mapMode"] = "yx"; break;
+        }
+        physicsInfo["parameterName"] = physics.param is null ? "" : physics.param.name.value;
+        physicsInfo["gravity"] = physics.gravity;
+        physicsInfo["length"] = physics.length;
+        physicsInfo["frequency"] = physics.frequency;
+        physicsInfo["angleDamping"] = physics.angleDamping;
+        physicsInfo["lengthDamping"] = physics.lengthDamping;
+        physicsInfo["outputScale"] = JSONValue([physics.outputScale.x, physics.outputScale.y]);
+        physicsInfo["localOnly"] = physics.localOnly;
+        item["physics"] = physicsInfo;
+    }
     if (auto part = cast(Part) node) {
         static immutable usageNames = ["albedo", "emissive", "bumpmap"];
         foreach (i, usageName; usageNames) {

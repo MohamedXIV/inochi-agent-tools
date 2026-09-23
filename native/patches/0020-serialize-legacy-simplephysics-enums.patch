@@ -1,7 +1,7 @@
 diff --git a/source/inochi2d/core/nodes/drivers/simplephysics.d b/source/inochi2d/core/nodes/drivers/simplephysics.d
 --- a/source/inochi2d/core/nodes/drivers/simplephysics.d
 +++ b/source/inochi2d/core/nodes/drivers/simplephysics.d
-@@ -164,8 +164,24 @@ class SimplePhysics : Driver {
+@@ -164,8 +164,21 @@ class SimplePhysics : Driver {
  
          auto target = paramRef.toString();
          object["target"] = target.dup;

@@ -1,27 +1,27 @@
 diff --git a/source/inochi2d/core/nodes/drivers/simplephysics.d b/source/inochi2d/core/nodes/drivers/simplephysics.d
 --- a/source/inochi2d/core/nodes/drivers/simplephysics.d
 +++ b/source/inochi2d/core/nodes/drivers/simplephysics.d
-@@ -164,8 +164,21 @@ class SimplePhysics : Driver {
+@@ -24,8 +24,8 @@ enum PhysicsModel {
+     /**
+         Rigid pendulum
+     */
+-    Pendulum = "pendulum",
++    Pendulum = "Pendulum",
  
-         auto target = paramRef.toString();
-         object["target"] = target.dup;
--        object["model_type"] = modelType_;
--        object["map_mode"] = mapMode;
-+        string legacyModelType;
-+        final switch (modelType_) with (PhysicsModel) {
-+            case Pendulum:       legacyModelType = "Pendulum"; break;
-+            case SpringPendulum: legacyModelType = "SpringPendulum"; break;
-+        }
-+        object["model_type"] = legacyModelType;
-+
-+        string legacyMapMode;
-+        final switch (mapMode) with (ParamMapMode) {
-+            case AngleLength: legacyMapMode = "AngleLength"; break;
-+            case XY:          legacyMapMode = "XY"; break;
-+            case LengthAngle: legacyMapMode = "LengthAngle"; break;
-+            case YX:          legacyMapMode = "YX"; break;
-+        }
-+        object["map_mode"] = legacyMapMode;
-         object["gravity"] = gravity;
-         object["length"] = length;
-         object["frequency"] = frequency;
+     /**
+         Springy pendulum
+     */
+-    SpringPendulum = "spring_pendulum",
++    SpringPendulum = "SpringPendulum",
+ }
+ 
+ enum ParamMapMode {
+-    AngleLength = "angle_length",
+-    XY = "xy",
+-    LengthAngle = "length_angle",
+-    YX = "yx",
++    AngleLength = "AngleLength",
++    XY = "XY",
++    LengthAngle = "LengthAngle",
++    YX = "YX",
+ }

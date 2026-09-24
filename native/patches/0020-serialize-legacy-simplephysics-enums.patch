@@ -18,7 +18,7 @@ diff --git a/source/inochi2d/core/nodes/drivers/simplephysics.d b/source/inochi2
 +            mapMode == ParamMapMode.LengthAngle ? "LengthAngle" : "YX"
 +        );
          serializer.putKey("gravity");
-@@ -226,10 +232,28 @@ class SimplePhysics : Driver {
+@@ -226,10 +232,22 @@ class SimplePhysics : Driver {
          super.deserializeFromFghj(data);
  
          if (!data["param"].isEmpty)

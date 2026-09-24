@@ -8,6 +8,7 @@ import inochi2d.core.mesh : Mesh, MeshData, toMeshData;
 import inochi2d.core.nodes : Node;
 import inochi2d.core.nodes.deformer.meshdeformer : MeshDeformer;
 import inochi2d.core.nodes.drawable.part : Part;
+import inochi2d.core.nodes.drivers.simplephysics : SimplePhysics, PhysicsModel, ParamMapMode;
 import inochi2d.core.param : Parameter, ValueParameterBinding;
 import inochi2d.core.puppet : Puppet;
 import inochi2d.core.render.texture : Texture, TextureData, TextureFormat;
@@ -135,9 +136,31 @@ private void appendNodeSnapshot(Node node, string path, ref JSONValue nodes, ref
     JSONValue item = JSONValue.emptyObject;
     item["path"] = path;
     item["name"] = node.name.value;
-    item["kind"] = cast(Part) node ? "part" : (cast(MeshDeformer) node ? "mesh-deformer" : "node");
+    item["kind"] = cast(Part) node ? "part" : (cast(MeshDeformer) node ? "mesh-deformer" : (cast(SimplePhysics) node ? "simple-physics" : "node"));
     item["childCount"] = cast(ulong) node.children.length;
     JSONValue textureBindings = JSONValue.emptyArray;
+    if (auto physics = cast(SimplePhysics) node) {
+        JSONValue physicsInfo = JSONValue.emptyObject;
+        final switch (physics.modelType) {
+            case PhysicsModel.Pendulum: physicsInfo["model"] = "pendulum"; break;
+            case PhysicsModel.SpringPendulum: physicsInfo["model"] = "spring-pendulum"; break;
+        }
+        final switch (physics.mapMode) {
+            case ParamMapMode.AngleLength: physicsInfo["mapMode"] = "angle-length"; break;
+            case ParamMapMode.XY: physicsInfo["mapMode"] = "xy"; break;
+            case ParamMapMode.LengthAngle: physicsInfo["mapMode"] = "length-angle"; break;
+            case ParamMapMode.YX: physicsInfo["mapMode"] = "yx"; break;
+        }
+        physicsInfo["parameterName"] = physics.param is null ? "" : physics.param.name.value;
+        physicsInfo["gravity"] = physics.gravity;
+        physicsInfo["length"] = physics.length;
+        physicsInfo["frequency"] = physics.frequency;
+        physicsInfo["angleDamping"] = physics.angleDamping;
+        physicsInfo["lengthDamping"] = physics.lengthDamping;
+        physicsInfo["outputScale"] = JSONValue([physics.outputScale.x, physics.outputScale.y]);
+        physicsInfo["localOnly"] = physics.localOnly;
+        item["physics"] = physicsInfo;
+    }
     if (auto part = cast(Part) node) {
         static immutable usageNames = ["albedo", "emissive", "bumpmap"];
         foreach (i, usageName; usageNames) {
@@ -297,6 +320,43 @@ private string requireJsonString(ref JSONValue object, string key) {
     return object[key].str;
 }
 
+private bool requireJsonBool(ref JSONValue object, string key) {
+    if (object.type != JSONType.object || key !in object.object) throw new Exception("missing boolean field: " ~ key);
+    auto value = object[key];
+    if (value.type == JSONType.true_) return true;
+    if (value.type == JSONType.false_) return false;
+    throw new Exception("invalid boolean field: " ~ key);
+}
+
+private PhysicsModel requirePhysicsModel(ref JSONValue object, string key) {
+    auto value = requireJsonString(object, key);
+    if (value == "pendulum") return PhysicsModel.Pendulum;
+    if (value == "spring_pendulum") return PhysicsModel.SpringPendulum;
+    throw new Exception("unsupported physics model");
+}
+
+private ParamMapMode requirePhysicsMapMode(ref JSONValue object, string key) {
+    auto value = requireJsonString(object, key);
+    if (value == "angle_length") return ParamMapMode.AngleLength;
+    if (value == "xy") return ParamMapMode.XY;
+    if (value == "length_angle") return ParamMapMode.LengthAngle;
+    if (value == "yx") return ParamMapMode.YX;
+    throw new Exception("unsupported physics map mode");
+}
+
+private void applyPhysicsSettings(SimplePhysics physics, ref JSONValue settings, bool requireAll) {
+    if (requireAll || "model" in settings.object) physics.modelType = requirePhysicsModel(settings, "model");
+    if (requireAll || "mapMode" in settings.object) physics.mapMode = requirePhysicsMapMode(settings, "mapMode");
+    if (requireAll || "gravity" in settings.object) physics.gravity = requireJsonNumber(settings["gravity"]);
+    if (requireAll || "length" in settings.object) physics.length = requireJsonNumber(settings["length"]);
+    if (requireAll || "frequency" in settings.object) physics.frequency = requireJsonNumber(settings["frequency"]);
+    if (requireAll || "angleDamping" in settings.object) physics.angleDamping = requireJsonNumber(settings["angleDamping"]);
+    if (requireAll || "lengthDamping" in settings.object) physics.lengthDamping = requireJsonNumber(settings["lengthDamping"]);
+    if (requireAll || "outputScale" in settings.object) physics.outputScale = requireJsonPair(settings, "outputScale");
+    if (requireAll || "localOnly" in settings.object) physics.localOnly = requireJsonBool(settings, "localOnly");
+    physics.reset();
+}
+
 private float requireJsonNumber(ref JSONValue value) {
     switch (value.type) {
         case JSONType.float_: return cast(float) value.floating;
@@ -392,6 +452,44 @@ private bool findExactKeypoint(Parameter parameter, vec2 requested, out vec2u in
 export extern(C) nothrow @nogc uint iat_bridge_abi_version() { return 1; }
 export extern(C) nothrow @nogc const(char)* iat_bridge_upstream_version() { return upstreamVersion.ptr; }
 export extern(C) void iat_string_free(char* value) nothrow { if (value !is null) free(value); }
+
+export extern(C) int iat_evaluate_physics_json(const(char)* inputPath, const(char)* physicsPath, float delta, uint steps, float anchorDeltaX, char** outJson, char** outError) nothrow {
+    if (outJson is null || outError is null) return 2;
+    *outJson = null; *outError = null;
+    if (inputPath is null || physicsPath is null) return fail(outError, 2, "input path and physics path are required");
+    if (!isFinite(delta) || delta <= 0 || delta > 0.1f || steps == 0 || steps > 600 || !isFinite(anchorDeltaX) || anchorDeltaX == 0) {
+        return fail(outError, 10, "invalid bounded physics evaluation request");
+    }
+    try {
+        auto puppet = inLoadPuppet!Puppet(fromStringz(inputPath).idup);
+        scope(exit) destroy(puppet);
+        auto physics = cast(SimplePhysics) resolveNodePath(puppet, fromStringz(physicsPath).idup);
+        if (physics is null || physics.param is null) return fail(outError, 10, "physics evaluation target is invalid or unbound");
+        puppet.update(0);
+        auto before = physics.param.value;
+        physics.localTransform.translation.x += anchorDeltaX;
+        physics.transformChanged();
+        foreach (_; 0 .. steps) puppet.update(delta);
+        auto after = physics.param.value;
+        JSONValue result = JSONValue.emptyObject;
+        result["schemaVersion"] = 1;
+        result["kind"] = "inochi2d-simple-physics-evaluation";
+        result["physicsPath"] = fromStringz(physicsPath).idup;
+        result["parameterName"] = physics.param.name.value;
+        result["before"] = JSONValue([before.x, before.y]);
+        result["after"] = JSONValue([after.x, after.y]);
+        result["delta"] = delta;
+        result["steps"] = steps;
+        result["anchorDeltaX"] = anchorDeltaX;
+        result["consumed"] = abs(after.x - before.x) > 0.000001f || abs(after.y - before.y) > 0.000001f;
+        auto json = result.toJSON();
+        *outJson = copyCString(json);
+        if (*outJson is null) return fail(outError, 1, "failed allocating physics evaluation result");
+        return 0;
+    } catch (Throwable error) {
+        return fail(outError, 1, error.msg.idup);
+    }
+}
 
 export extern(C) int iat_inspect_puppet_json(const(char)* path, char** outJson, char** outError) nothrow {
     if (outJson is null || outError is null) return 2;
@@ -551,6 +649,40 @@ export extern(C) int iat_edit_visual_puppet_json(const(char)* inputPath, const(c
                 auto replacement = Mesh.fromMeshData(meshData);
                 deformer.mesh = replacement;
                 replacement.release();
+                continue;
+            }
+            if (type == "physics.create") {
+                auto parentPath = requireJsonString(operation, "parentPath");
+                auto name = requireJsonString(operation, "name");
+                auto parameterName = requireJsonString(operation, "parameterName");
+                auto parent = resolveNodePath(puppet, parentPath);
+                auto parameter = resolveParameterName(puppet, parameterName);
+                if (parent is null || parameter is null || name.strip.length == 0 || hasSiblingNamed(parent, name)) return fail(outError, 10, "invalid physics parent, name, or target parameter");
+                auto physics = new SimplePhysics(parent);
+                physics.name = name;
+                physics.param = parameter;
+                applyPhysicsSettings(physics, operation, true);
+                continue;
+            }
+            if (type == "physics.update") {
+                auto path = requireJsonString(operation, "path");
+                auto physics = cast(SimplePhysics) resolveNodePath(puppet, path);
+                if (physics is null) return fail(outError, 10, "physics update target is not SimplePhysics");
+                if ("parameterName" in operation.object) {
+                    auto parameter = resolveParameterName(puppet, requireJsonString(operation, "parameterName"));
+                    if (parameter is null) return fail(outError, 10, "physics target parameter does not exist");
+                    physics.param = parameter;
+                }
+                if ("settings" !in operation.object || operation["settings"].type != JSONType.object) return fail(outError, 10, "physics update settings must be an object");
+                auto settings = operation["settings"];
+                applyPhysicsSettings(physics, settings, false);
+                continue;
+            }
+            if (type == "physics.remove") {
+                auto path = requireJsonString(operation, "path");
+                auto physics = cast(SimplePhysics) resolveNodePath(puppet, path);
+                if (physics is null || physics.parent is null) return fail(outError, 10, "physics remove target is not SimplePhysics");
+                physics.parent = null;
                 continue;
             }
             if (type == "parameter.create") {

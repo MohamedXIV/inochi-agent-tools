@@ -1,0 +1,44 @@
+diff --git a/source/inochi2d/core/nodes/drivers/simplephysics.d b/source/inochi2d/core/nodes/drivers/simplephysics.d
+--- a/source/inochi2d/core/nodes/drivers/simplephysics.d
++++ b/source/inochi2d/core/nodes/drivers/simplephysics.d
+@@ -198,6 +198,10 @@ class SimplePhysics : Driver {
+         auto target = paramRef.toString();
+         object["target"] = target.dup;
+-        object["model_type"] = modelType_;
+-        object["map_mode"] = mapMode;
++        object["model_type"] =
++            modelType_ == PhysicsModel.Pendulum ? "Pendulum" : "SpringPendulum";
++        object["map_mode"] =
++            mapMode == ParamMapMode.AngleLength ? "AngleLength" :
++            mapMode == ParamMapMode.XY ? "XY" :
++            mapMode == ParamMapMode.LengthAngle ? "LengthAngle" : "YX";
+         object["gravity"] = gravity;
+         object["length"] = length;
+@@ -213,6 +217,25 @@ class SimplePhysics : Driver {
+         super.onDeserialize(object);
+ 
+         this.paramRef = object.tryGetGUID("param", "target");
+-        object.tryGetRef(modelType_, "model_type", PhysicsModel.Pendulum);
+-        object.tryGetRef(mapMode, "map_mode", ParamMapMode.AngleLength);
++        auto modelTypeValue = object["model_type"].str;
++        switch (modelTypeValue) {
++            case "Pendulum":
++            case "pendulum": modelType_ = PhysicsModel.Pendulum; break;
++            case "SpringPendulum":
++            case "spring_pendulum": modelType_ = PhysicsModel.SpringPendulum; break;
++            default: modelType_ = PhysicsModel.Pendulum; break;
++        }
++
++        auto mapModeValue = object["map_mode"].str;
++        switch (mapModeValue) {
++            case "AngleLength":
++            case "angle_length": mapMode = ParamMapMode.AngleLength; break;
++            case "XY":
++            case "xy": mapMode = ParamMapMode.XY; break;
++            case "LengthAngle":
++            case "length_angle": mapMode = ParamMapMode.LengthAngle; break;
++            case "YX":
++            case "yx": mapMode = ParamMapMode.YX; break;
++            default: mapMode = ParamMapMode.AngleLength; break;
++        }
+         object.tryGetRef(gravity, "gravity", 1.0);

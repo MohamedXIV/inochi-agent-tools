@@ -61,7 +61,8 @@
     "m3:cli:ci": "node scripts/cli/m3-cli-ci.mjs",
     "v1.2:rig-primitives:ci": "node scripts/v1.2/rig-primitives-ci.mjs",
     "v1.3:visual-controls:ci": "node scripts/v1.3/visual-controls-ci.mjs",
-    "v1.4:preview:ci": "node scripts/v1.4/headless-preview-ci.mjs"
+    "v1.4:preview:ci": "node scripts/v1.4/headless-preview-ci.mjs",
+    "v1.5:physics:ci": "node scripts/v1.5/physics-authoring-ci.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -26,6 +26,7 @@ describe('build fingerprint', () => {
       '0017-serialize-legacy-parameter-merge-mode.patch',
       '0018-serialize-legacy-binding-interpolate-mode.patch',
       '0019-initialize-meshdeformer-runtime-state.patch',
+      '0020-serialize-legacy-simplephysics-enums.patch',
     ]);
   });
 });

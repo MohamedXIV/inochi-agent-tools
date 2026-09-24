@@ -1,47 +1,36 @@
 diff --git a/source/inochi2d/core/nodes/drivers/simplephysics.d b/source/inochi2d/core/nodes/drivers/simplephysics.d
 --- a/source/inochi2d/core/nodes/drivers/simplephysics.d
 +++ b/source/inochi2d/core/nodes/drivers/simplephysics.d
-@@ -197,8 +197,14 @@ class SimplePhysics : Driver {
-         super.serializeSelfImpl(serializer, recursive);
-         serializer.putKey("param");
-         serializer.serializeValue(paramRef);
-         serializer.putKey("model_type");
--        serializer.serializeValue(modelType_);
-+        serializer.serializeValue(
-+            modelType_ == PhysicsModel.Pendulum ? "Pendulum" : "SpringPendulum"
-+        );
-         serializer.putKey("map_mode");
--        serializer.serializeValue(mapMode);
-+        serializer.serializeValue(
+@@ -184,2 +184,8 @@ class SimplePhysics : Driver {
+-        object["model_type"] = modelType_;
+-        object["map_mode"] = mapMode;
++        object["model_type"] =
++            modelType_ == PhysicsModel.Pendulum ? "Pendulum" : "SpringPendulum";
++        object["map_mode"] =
 +            mapMode == ParamMapMode.AngleLength ? "AngleLength" :
 +            mapMode == ParamMapMode.XY ? "XY" :
-+            mapMode == ParamMapMode.LengthAngle ? "LengthAngle" : "YX"
-+        );
-         serializer.putKey("gravity");
-@@ -226,10 +232,22 @@ class SimplePhysics : Driver {
-         super.deserializeFromFghj(data);
- 
-         if (!data["param"].isEmpty)
-             if (auto exc = data["param"].deserializeValue(this.paramRef)) return exc;
--        if (!data["model_type"].isEmpty)
--            if (auto exc = data["model_type"].deserializeValue(this.modelType_)) return exc;
--        if (!data["map_mode"].isEmpty)
--            if (auto exc = data["map_mode"].deserializeValue(this.mapMode)) return exc;
-+        if (!data["model_type"].isEmpty) {
-+            string value;
-+            if (auto exc = data["model_type"].deserializeValue(value)) return exc;
-+            if (value == "Pendulum") this.modelType_ = PhysicsModel.Pendulum;
-+            else if (value == "SpringPendulum") this.modelType_ = PhysicsModel.SpringPendulum;
-+            else if (auto exc = data["model_type"].deserializeValue(this.modelType_)) return exc;
++            mapMode == ParamMapMode.LengthAngle ? "LengthAngle" : "YX";
+@@ -204,2 +210,24 @@ class SimplePhysics : Driver {
+-        object.tryGetRef(modelType_, "model_type", PhysicsModel.Pendulum);
+-        object.tryGetRef(mapMode, "map_mode", ParamMapMode.AngleLength);
++        auto modelTypeValue = object["model_type"].str;
++        switch (modelTypeValue) {
++            case "Pendulum":
++            case "pendulum": modelType_ = PhysicsModel.Pendulum; break;
++            case "SpringPendulum":
++            case "spring_pendulum": modelType_ = PhysicsModel.SpringPendulum; break;
++            default: modelType_ = PhysicsModel.Pendulum; break;
 +        }
-+        if (!data["map_mode"].isEmpty) {
-+            string value;
-+            if (auto exc = data["map_mode"].deserializeValue(value)) return exc;
-+            if (value == "AngleLength") this.mapMode = ParamMapMode.AngleLength;
-+            else if (value == "XY") this.mapMode = ParamMapMode.XY;
-+            else if (value == "LengthAngle") this.mapMode = ParamMapMode.LengthAngle;
-+            else if (value == "YX") this.mapMode = ParamMapMode.YX;
-+            else if (auto exc = data["map_mode"].deserializeValue(this.mapMode)) return exc;
++
++        auto mapModeValue = object["map_mode"].str;
++        switch (mapModeValue) {
++            case "AngleLength":
++            case "angle_length": mapMode = ParamMapMode.AngleLength; break;
++            case "XY":
++            case "xy": mapMode = ParamMapMode.XY; break;
++            case "LengthAngle":
++            case "length_angle": mapMode = ParamMapMode.LengthAngle; break;
++            case "YX":
++            case "yx": mapMode = ParamMapMode.YX; break;
++            default: mapMode = ParamMapMode.AngleLength; break;
 +        }
-         if (!data["gravity"].isEmpty)
-             if (auto exc = data["gravity"].deserializeValue(this.gravity)) return exc;

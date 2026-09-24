@@ -10,7 +10,7 @@ diff --git a/source/inochi2d/core/nodes/drivers/simplephysics.d b/source/inochi2
 +            mapMode == ParamMapMode.AngleLength ? "AngleLength" :
 +            mapMode == ParamMapMode.XY ? "XY" :
 +            mapMode == ParamMapMode.LengthAngle ? "LengthAngle" : "YX";
-@@ -204,2 +210,24 @@ class SimplePhysics : Driver {
+@@ -204,2 +210,22 @@ class SimplePhysics : Driver {
 -        object.tryGetRef(modelType_, "model_type", PhysicsModel.Pendulum);
 -        object.tryGetRef(mapMode, "map_mode", ParamMapMode.AngleLength);
 +        auto modelTypeValue = object["model_type"].str;

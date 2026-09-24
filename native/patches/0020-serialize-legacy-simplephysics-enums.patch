@@ -1,7 +1,7 @@
 diff --git a/source/inochi2d/core/nodes/drivers/simplephysics.d b/source/inochi2d/core/nodes/drivers/simplephysics.d
 --- a/source/inochi2d/core/nodes/drivers/simplephysics.d
 +++ b/source/inochi2d/core/nodes/drivers/simplephysics.d
-@@ -184,2 +184,7 @@ class SimplePhysics : Driver {
+@@ -184,2 +184,6 @@ class SimplePhysics : Driver {
 -        object["model_type"] = modelType_;
 -        object["map_mode"] = mapMode;
 +        object["model_type"] =

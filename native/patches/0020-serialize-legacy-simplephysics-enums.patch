@@ -1,7 +1,9 @@
 diff --git a/source/inochi2d/core/nodes/drivers/simplephysics.d b/source/inochi2d/core/nodes/drivers/simplephysics.d
 --- a/source/inochi2d/core/nodes/drivers/simplephysics.d
 +++ b/source/inochi2d/core/nodes/drivers/simplephysics.d
-@@ -200,2 +200,6 @@ class SimplePhysics : Driver {
+@@ -198,6 +198,10 @@ class SimplePhysics : Driver {
+         auto target = paramRef.toString();
+         object["target"] = target.dup;
 -        object["model_type"] = modelType_;
 -        object["map_mode"] = mapMode;
 +        object["model_type"] =
@@ -10,7 +12,12 @@ diff --git a/source/inochi2d/core/nodes/drivers/simplephysics.d b/source/inochi2
 +            mapMode == ParamMapMode.AngleLength ? "AngleLength" :
 +            mapMode == ParamMapMode.XY ? "XY" :
 +            mapMode == ParamMapMode.LengthAngle ? "LengthAngle" : "YX";
-@@ -216,2 +220,21 @@ class SimplePhysics : Driver {
+         object["gravity"] = gravity;
+         object["length"] = length;
+@@ -213,6 +217,25 @@ class SimplePhysics : Driver {
+         super.onDeserialize(object);
+ 
+         this.paramRef = object.tryGetGUID("param", "target");
 -        object.tryGetRef(modelType_, "model_type", PhysicsModel.Pendulum);
 -        object.tryGetRef(mapMode, "map_mode", ParamMapMode.AngleLength);
 +        auto modelTypeValue = object["model_type"].str;
@@ -34,3 +41,4 @@ diff --git a/source/inochi2d/core/nodes/drivers/simplephysics.d b/source/inochi2
 +            case "yx": mapMode = ParamMapMode.YX; break;
 +            default: mapMode = ParamMapMode.AngleLength; break;
 +        }
+         object.tryGetRef(gravity, "gravity", 1.0);

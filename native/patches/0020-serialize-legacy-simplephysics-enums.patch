@@ -1,27 +1,47 @@
 diff --git a/source/inochi2d/core/nodes/drivers/simplephysics.d b/source/inochi2d/core/nodes/drivers/simplephysics.d
 --- a/source/inochi2d/core/nodes/drivers/simplephysics.d
 +++ b/source/inochi2d/core/nodes/drivers/simplephysics.d
-@@ -24,8 +24,8 @@ enum PhysicsModel {
-     /**
-         Rigid pendulum
-     */
--    Pendulum = "pendulum",
-+    Pendulum = "Pendulum",
+@@ -197,8 +197,14 @@ class SimplePhysics : Driver {
+         super.serializeSelfImpl(serializer, recursive);
+         serializer.putKey("param");
+         serializer.serializeValue(paramRef);
+         serializer.putKey("model_type");
+-        serializer.serializeValue(modelType_);
++        serializer.serializeValue(
++            modelType_ == PhysicsModel.Pendulum ? "Pendulum" : "SpringPendulum"
++        );
+         serializer.putKey("map_mode");
+-        serializer.serializeValue(mapMode);
++        serializer.serializeValue(
++            mapMode == ParamMapMode.AngleLength ? "AngleLength" :
++            mapMode == ParamMapMode.XY ? "XY" :
++            mapMode == ParamMapMode.LengthAngle ? "LengthAngle" : "YX"
++        );
+         serializer.putKey("gravity");
+@@ -226,10 +232,28 @@ class SimplePhysics : Driver {
+         super.deserializeFromFghj(data);
  
-     /**
-         Springy pendulum
-     */
--    SpringPendulum = "spring_pendulum",
-+    SpringPendulum = "SpringPendulum",
- }
- 
- enum ParamMapMode {
--    AngleLength = "angle_length",
--    XY = "xy",
--    LengthAngle = "length_angle",
--    YX = "yx",
-+    AngleLength = "AngleLength",
-+    XY = "XY",
-+    LengthAngle = "LengthAngle",
-+    YX = "YX",
- }
+         if (!data["param"].isEmpty)
+             if (auto exc = data["param"].deserializeValue(this.paramRef)) return exc;
+-        if (!data["model_type"].isEmpty)
+-            if (auto exc = data["model_type"].deserializeValue(this.modelType_)) return exc;
+-        if (!data["map_mode"].isEmpty)
+-            if (auto exc = data["map_mode"].deserializeValue(this.mapMode)) return exc;
++        if (!data["model_type"].isEmpty) {
++            string value;
++            if (auto exc = data["model_type"].deserializeValue(value)) return exc;
++            if (value == "Pendulum") this.modelType_ = PhysicsModel.Pendulum;
++            else if (value == "SpringPendulum") this.modelType_ = PhysicsModel.SpringPendulum;
++            else if (auto exc = data["model_type"].deserializeValue(this.modelType_)) return exc;
++        }
++        if (!data["map_mode"].isEmpty) {
++            string value;
++            if (auto exc = data["map_mode"].deserializeValue(value)) return exc;
++            if (value == "AngleLength") this.mapMode = ParamMapMode.AngleLength;
++            else if (value == "XY") this.mapMode = ParamMapMode.XY;
++            else if (value == "LengthAngle") this.mapMode = ParamMapMode.LengthAngle;
++            else if (value == "YX") this.mapMode = ParamMapMode.YX;
++            else if (auto exc = data["map_mode"].deserializeValue(this.mapMode)) return exc;
++        }
+         if (!data["gravity"].isEmpty)
+             if (auto exc = data["gravity"].deserializeValue(this.gravity)) return exc;

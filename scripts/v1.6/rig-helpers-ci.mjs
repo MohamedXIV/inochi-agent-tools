@@ -18,9 +18,9 @@ const prior=run(npmCommand,['run','v1.4:preview:ci'],{stdio:'inherit',encoding:u
 const hostBuild=run('dub',['build','--root=native/host','--compiler=ldc2','--build=debug'],{stdio:'inherit',encoding:undefined});if(hostBuild.status!==0)process.exit(hostBuild.status??1);
 const coreBuild=run(npmCommand,['run','core:build'],{stdio:'inherit',encoding:undefined});if(coreBuild.status!==0)process.exit(coreBuild.status??1);
 const {compileTwoAxisTranslationRig}=await import('../../packages/core/dist/index.js');
-const recipe={parameterNames:{x:'Head X',y:'Head Y'},targets:[{path:'/Root/Face',x:8,y:5}]};
+const recipe={parameterNames:{x:'Head X',y:'Head Y'},targets:[{path:'/Root/Face',x:8,y:5},{path:'/Root/Face/Hair',x:11,y:7}]};
 const operations=compileTwoAxisTranslationRig(recipe);
-if(operations.length!==4){console.error(`expected recipe to compile to 4 ordinary semantic operations, got ${operations.length}`);process.exit(1);}
+if(operations.length!==6){console.error(`expected one multi-Part recipe to compile to 6 ordinary semantic operations, got ${operations.length}`);process.exit(1);}
 if(JSON.stringify(operations)!==JSON.stringify(compileTwoAxisTranslationRig(recipe))){console.error('rig recipe compilation is not deterministic');process.exit(1);}
 rmSync(outputPath,{force:true});rmSync(lowPng,{force:true});rmSync(highPng,{force:true});
 const authored=jsonSuccess(run(hostPath,['edit-visual',inputPath,outputPath,JSON.stringify(operations)]),'rig helper authoring');

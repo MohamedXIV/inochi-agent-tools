@@ -90,7 +90,6 @@ export function compileTwoAxisTranslationRig(
         property: 'transform.t.x',
         keypoints: [
           { at: [-1, 0], value: -target.x },
-          { at: [0, 0], value: 0 },
           { at: [1, 0], value: target.x },
         ],
       });

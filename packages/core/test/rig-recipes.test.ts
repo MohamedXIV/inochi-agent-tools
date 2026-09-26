@@ -43,7 +43,6 @@ describe('compileTwoAxisTranslationRig', () => {
       property: 'transform.t.x',
       keypoints: [
         { at: [-1, 0], value: -12 },
-        { at: [0, 0], value: 0 },
         { at: [1, 0], value: 12 },
       ],
     });
@@ -54,7 +53,6 @@ describe('compileTwoAxisTranslationRig', () => {
       property: 'transform.t.y',
       keypoints: [
         { at: [-1, 0], value: -6 },
-        { at: [0, 0], value: 0 },
         { at: [1, 0], value: 6 },
       ],
     });

@@ -102,7 +102,6 @@ export function compileTwoAxisTranslationRig(
         property: 'transform.t.y',
         keypoints: [
           { at: [-1, 0], value: -target.y },
-          { at: [0, 0], value: 0 },
           { at: [1, 0], value: target.y },
         ],
       });

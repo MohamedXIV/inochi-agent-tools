@@ -8,6 +8,7 @@ const outDir=path.join(root,'.build','native');
 const hostPath=path.join(outDir,process.platform==='win32'?'iat_native_host.exe':'iat_native_host');
 const inputPath=path.join(root,'tests','fixtures','generated','core-v1.3-opacity-output.inp');
 const outputPath=path.join(root,'tests','fixtures','generated','v1.6-rig-helper-output.inp');
+const hairImagePath=path.join(root,'tests','fixtures','generated','m2-checker.png');
 const lowPng=path.join(root,'tests','fixtures','generated','v1.6-rig-helper-low.png');
 const highPng=path.join(root,'tests','fixtures','generated','v1.6-rig-helper-high.png');
 const npmCommand=process.platform==='win32'?'npm.cmd':'npm';
@@ -18,17 +19,26 @@ const prior=run(npmCommand,['run','v1.4:preview:ci'],{stdio:'inherit',encoding:u
 const hostBuild=run('dub',['build','--root=native/host','--compiler=ldc2','--build=debug'],{stdio:'inherit',encoding:undefined});if(hostBuild.status!==0)process.exit(hostBuild.status??1);
 const coreBuild=run(npmCommand,['run','core:build'],{stdio:'inherit',encoding:undefined});if(coreBuild.status!==0)process.exit(coreBuild.status??1);
 const {compileTwoAxisTranslationRig}=await import('../../packages/core/dist/index.js');
-const recipe={parameterNames:{x:'Head X',y:'Head Y'},targets:[{path:'/Root/Face',x:8,y:5},{path:'/Root/Face/Hair',x:11,y:7}]};
+const recipe={parameterNames:{x:'Head X',y:'Head Y'},targets:[{path:'/Root/Face',x:8,y:5},{path:'/Root/HairFront',x:11,y:7}]};
 const operations=compileTwoAxisTranslationRig(recipe);
 if(operations.length!==6){console.error(`expected one multi-Part recipe to compile to 6 ordinary semantic operations, got ${operations.length}`);process.exit(1);}
 if(JSON.stringify(operations)!==JSON.stringify(compileTwoAxisTranslationRig(recipe))){console.error('rig recipe compilation is not deterministic');process.exit(1);}
+const editOperations=[
+ {type:'texture.import',key:'hair-front',imagePath:hairImagePath},
+ {type:'part.create',parentPath:'/Root',name:'HairFront',textureKey:'hair-front'},
+ ...operations,
+];
 rmSync(outputPath,{force:true});rmSync(lowPng,{force:true});rmSync(highPng,{force:true});
-const authored=jsonSuccess(run(hostPath,['edit-visual',inputPath,outputPath,JSON.stringify(operations)]),'rig helper authoring');
+const authored=jsonSuccess(run(hostPath,['edit-visual',inputPath,outputPath,JSON.stringify(editOperations)]),'rig helper authoring');
 for(const name of ['Head X','Head Y']){const p=authored.parameters?.find(x=>x.name===name);if(!p||p.dimensions!==1){console.error(`missing authored parameter ${name}`);process.exit(1);}}
 const reopened=jsonSuccess(run(hostPath,['inspect',outputPath]),'rig helper reopen inspection');
+const reopenedPaths=new Set(reopened.nodes?.map(node=>node.path));
+for(const targetPath of ['/Root/Face','/Root/HairFront']){if(!reopenedPaths.has(targetPath)){console.error(`missing reopened multi-Part target ${targetPath}`);process.exit(1);}}
 for(const [name,property] of [['Head X','transform.t.x'],['Head Y','transform.t.y']]){
  const p=reopened.parameters?.find(x=>x.name===name);
- if(!p||!p.bindings?.some(b=>b.targetPath==='/Root/Face'&&b.property===property)){console.error(`reopened semantic binding mismatch for ${name}`);process.exit(1);}
+ for(const targetPath of ['/Root/Face','/Root/HairFront']){
+  if(!p||!p.bindings?.some(b=>b.targetPath===targetPath&&b.property===property)){console.error(`reopened semantic binding mismatch for ${name} -> ${targetPath}`);process.exit(1);}
+ }
 }
 const render=(file,values)=>jsonSuccess(run(hostPath,['render-preview',outputPath,file,'256','256',JSON.stringify(values)]),'rig helper preview');
 const low=render(lowPng,{'Head X':[-1,0],'Head Y':[-1,0]});

@@ -66,3 +66,5 @@ jobs:
         run: npm run v1.4:preview:ci
       - name: v1.5 physics authoring acceptance
         run: npm run v1.5:physics:ci
+      - name: v1.6 semantic rig helpers acceptance
+        run: npm run v1.6:rig-helpers:ci

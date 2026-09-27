@@ -85,7 +85,7 @@ replaceExact(
 `,
 );
 
-for (const [before, after] of [
+for (const [before, after, expectedCount = 1] of [
   [
     `            DataNode result;
             toSerialize.serialize(result);
@@ -101,6 +101,7 @@ for (const [before, after] of [
     `            DataNode result = DataNode.createObject();
             toSerialize.onSerialize(result);
 `,
+    2,
   ],
   [
     `            DataNode obj;
@@ -113,7 +114,7 @@ for (const [before, after] of [
 `,
   ],
 ]) {
-  replaceExact('serde-object-initialization', 'source/inochi2d/core/serde.d', before, after);
+  replaceExact('serde-object-initialization', 'source/inochi2d/core/serde.d', before, after, expectedCount);
 }
 
 replaceExact(

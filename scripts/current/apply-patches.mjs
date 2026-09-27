@@ -69,9 +69,6 @@ replaceExact(
                 }
             }
             return null;
-
-    }
-}
 `,
   `                    nu_freea(key);
                 }
@@ -79,9 +76,6 @@ replaceExact(
             if (reader.readU32LE() != INP2_TAG_OBJECT_END)
                 return "Malformed object terminator";
             return null;
-
-    }
-}
 `,
 );
 

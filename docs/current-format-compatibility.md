@@ -6,7 +6,7 @@ Issue #35 adds an **isolated compatibility lane**. It does not replace the accep
 
 - Stable production authoring remains pinned to **Inochi2D v0.8.7** at `fdb241da048dbe330152f7b0015e2129dc392844` via `upstream/inochi2d.json`.
 - The experimental conversion lane is pinned independently to **Inochi2D v0.9.0** at `ba2b1413c68d9f7bf575fef790ba0c35715558db` via `upstream/inochi2d-current.json`.
-- GitHub Verify uses Node 22 and LDC 1.40.0. The current lane is materialized into `.deps/inochi2d-current`, so it cannot silently replace the stable `.deps/inochi2d` authoring source.
+- GitHub Verify keeps the stable production lane on Node 22 and LDC 1.40.0, then switches only the isolated current-format acceptance to LDC 1.43.0. The current lane requires LDC >=1.41.0 because its current dependency graph no longer builds on 1.40.x. It is materialized into `.deps/inochi2d-current`, so it cannot silently replace the stable `.deps/inochi2d` authoring source.
 - Exact compatibility patches, reasons, target files, and removal conditions live in `native/current-patches/manifest.json`.
 
 The conversion path uses upstream semantic APIs: detect/read the authored INP, load it as a Puppet, serialize the Puppet model, and write with the upstream current-format writer. The acceptance gate checks the resulting format signature; it does not patch magic bytes or hand-author binary records.

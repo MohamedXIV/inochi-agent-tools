@@ -76,8 +76,9 @@ bool assertFixture(string path) {
                 " min=", parameter.min, " max=", parameter.max, " default=", parameter.defaults);
             return false;
         }
-        if (parameter.elementCounts.length != 1 || parameter.elementCounts[0] != 2) {
-            stderr.writeln("current-format-probe: 1D axis points were not preserved for ", name);
+        if (parameter.elementCounts.length != 1 || parameter.elementCounts[0] != 2 ||
+            parameter.points.length != 2 || parameter.points[0] != -1 || parameter.points[1] != 1) {
+            stderr.writeln("current-format-probe: 1D axis points were not upgraded into parameter-value space for ", name);
             return false;
         }
         float original = parameter.value;

@@ -170,7 +170,11 @@ replaceExact(
                 else object.tryGetRef(state, defaults, "defaults");
             }
             if (auto legacyAxes = "axis_points" in object) {
-                if ((*legacyAxes).isArray) (*legacyAxes).tryGetRef(state, points, 0);
+                if ((*legacyAxes).isArray) {
+                    (*legacyAxes).tryGetRef(state, points, 0);
+                    foreach (ref point; points)
+                        point = min + (max - min) * point;
+                }
             }
             return;
         }

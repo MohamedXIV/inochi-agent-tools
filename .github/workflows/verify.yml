@@ -70,9 +70,13 @@ jobs:
         run: npm run v1.6:rig-helpers:ci
       - name: Semantic tint binding acceptance
         run: npm run tint:ci
+      - name: Away character downstream integration spike
+        run: npm run away-character:ci
       - name: Switch to LDC 1.43 for isolated current-format lane
         uses: dlang-community/setup-dlang@v2
         with:
           compiler: ldc-1.43.0
       - name: v1.7 current-format INP2 compatibility acceptance
         run: npm run v1.7:current-format:ci
+      - name: Away character current-format acceptance
+        run: npm run away-character:current:ci

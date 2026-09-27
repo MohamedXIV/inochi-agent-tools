@@ -8,6 +8,6 @@
     "inochi2d": { "path": "../../.deps/inochi2d-current" }
   },
   "toolchainRequirements": {
-    "ldc": ">=1.40.0"
+    "ldc": ">=1.41.0"
   }
 }

@@ -28,9 +28,17 @@
     {
       "id": "parameter-explicit-type",
       "target": "source/inochi2d/param/parameters/param1d.d",
-      "additionalTargets": ["source/inochi2d/param/parameters/param2d.d"],
+      "additionalTargets": [
+        "source/inochi2d/param/parameters/param2d.d"
+      ],
       "reason": "Parameter registry dispatch requires the serialized type field, but Parameter1D/Parameter2D omit it, so a current-format save cannot reload those parameters reliably.",
       "removalCondition": "Remove when pinned current upstream serializes explicit 1d/2d parameter type identifiers itself."
+    },
+    {
+      "id": "legacy-parameter1d-axis-upgrade",
+      "target": "source/inochi2d/param/parameters/param1d.d",
+      "reason": "Inochi2D 0.8 serializes even 1D parameter min/max/defaults as vec2 arrays and axis_points as a two-axis array. Current Parameter1D reads scalars/a flat points list before its 0.8 upgrade branch, which loses non-zero bounds and the authored X axis.",
+      "removalCondition": "Remove when pinned current upstream's 0.8->0.9 Parameter1D upgrade explicitly maps vec2 bounds/defaults to their X component and axis_points[0] to the 1D points list."
     }
   ]
 }

@@ -76,6 +76,10 @@ bool assertFixture(string path) {
                 " min=", parameter.min, " max=", parameter.max, " default=", parameter.defaults);
             return false;
         }
+        if (parameter.elementCounts.length != 1 || parameter.elementCounts[0] != 2) {
+            stderr.writeln("current-format-probe: 1D axis points were not preserved for ", name);
+            return false;
+        }
         float original = parameter.value;
         parameter.pushValue(0.5f);
         if (parameter.currentValue.length != 1 || parameter.currentValue[0] != 0.5f) {

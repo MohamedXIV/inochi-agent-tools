@@ -136,6 +136,53 @@ replaceExact(
 );
 
 replaceExact(
+  'legacy-parameter1d-axis-upgrade',
+  'source/inochi2d/param/parameters/param1d.d',
+  `        super.onDeserialize(object, state);
+        object.tryGetRef(state, min, "min");
+        object.tryGetRef(state, max, "max");
+        object.tryGetRef(state, defaults, "defaults");
+
+        // 0.8->0.9 upgrades
+        if (state.doUpgrade08) {
+            state.info("0.8->0.9: Upgrading 1D axis mapping...");
+            object.tryGetRef(state, points, "axis_points");
+            return;
+        }
+
+        object.tryGetRef(state, points, "points");
+`,
+  `        super.onDeserialize(object, state);
+
+        // 0.8 stores 1D scalar bounds/defaults as vec2 and axis_points as [x, y].
+        if (state.doUpgrade08) {
+            state.info("0.8->0.9: Upgrading 1D bounds and axis mapping...");
+            if (auto legacyMin = "min" in object) {
+                if ((*legacyMin).isArray) (*legacyMin).tryGetRef(state, min, 0);
+                else object.tryGetRef(state, min, "min");
+            }
+            if (auto legacyMax = "max" in object) {
+                if ((*legacyMax).isArray) (*legacyMax).tryGetRef(state, max, 0);
+                else object.tryGetRef(state, max, "max");
+            }
+            if (auto legacyDefaults = "defaults" in object) {
+                if ((*legacyDefaults).isArray) (*legacyDefaults).tryGetRef(state, defaults, 0);
+                else object.tryGetRef(state, defaults, "defaults");
+            }
+            if (auto legacyAxes = "axis_points" in object) {
+                if ((*legacyAxes).isArray) (*legacyAxes).tryGetRef(state, points, 0);
+            }
+            return;
+        }
+
+        object.tryGetRef(state, min, "min");
+        object.tryGetRef(state, max, "max");
+        object.tryGetRef(state, defaults, "defaults");
+        object.tryGetRef(state, points, "points");
+`,
+);
+
+replaceExact(
   'parameter-explicit-type',
   'source/inochi2d/param/parameters/param1d.d',
   `        super.onSerialize(object);

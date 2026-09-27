@@ -5,6 +5,9 @@ export type PuppetTextureUsage = 'albedo' | 'emissive' | 'bumpmap';
 export type ParameterBindingProperty =
   | 'zSort'
   | 'opacity'
+  | 'tint.r'
+  | 'tint.g'
+  | 'tint.b'
   | 'transform.t.x'
   | 'transform.t.y'
   | 'transform.t.z'
@@ -193,6 +196,9 @@ function parameterBindingProperty(value: unknown, path: string): ParameterBindin
   switch (value) {
     case 'zSort':
     case 'opacity':
+    case 'tint.r':
+    case 'tint.g':
+    case 'tint.b':
     case 'transform.t.x':
     case 'transform.t.y':
     case 'transform.t.z':

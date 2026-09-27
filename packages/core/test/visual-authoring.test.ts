@@ -73,6 +73,26 @@ describe('editPuppet semantic request validation', () => {
     )).rejects.toBeInstanceOf(InvalidBindingError);
   });
 
+
+  it('rejects out-of-range tint keypoints before native work', async () => {
+    await expect(editPuppet(
+      {
+        inputPath: 'input.inp',
+        outputPath: 'output.inp',
+        operations: [
+          {
+            type: 'parameter.bind',
+            parameterName: 'Face Tint R',
+            targetPath: '/Root/Face',
+            property: 'tint.r',
+            keypoints: [{ at: [1, 0], value: 1.01 }],
+          },
+        ],
+      },
+      { hostPath: '/definitely/missing/iat_native_host' },
+    )).rejects.toBeInstanceOf(InvalidBindingError);
+  });
+
   it('keeps a valid request dependent on the native host boundary', async () => {
     await expect(editPuppet(
       validRequest,

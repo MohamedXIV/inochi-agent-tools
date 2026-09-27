@@ -19,9 +19,17 @@ describe('parameter binding capability discovery', () => {
     expect(JSON.stringify(capabilities)).not.toMatch(/guid|pointer|allocator|in_/i);
   });
 
-  it('does not advertise unsupported tint or masking properties', () => {
-    const properties = parameterBindingCapabilities().map((capability) => capability.property);
+  it('advertises scalar Part tint channels without exposing unsupported compound/screen/mask controls', () => {
+    const capabilities = parameterBindingCapabilities();
+    const properties = capabilities.map((capability) => capability.property);
 
+    for (const property of ['tint.r', 'tint.g', 'tint.b'] as const) {
+      expect(capabilities).toContainEqual({
+        property,
+        targetKinds: ['part'],
+        value: { min: 0, max: 1 },
+      });
+    }
     expect(properties).not.toContain('tint');
     expect(properties).not.toContain('screenTint');
     expect(properties).not.toContain('mask');

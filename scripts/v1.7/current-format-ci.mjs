@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFileSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 
@@ -35,7 +35,9 @@ function assertInp2(file) {
 
 for (const file of [outA, rtA, outB, rtB]) rmSync(file, { force: true });
 
-run(npmCommand, ['run', 'v1.6:rig-helpers:ci'], { stdio: 'inherit', encoding: undefined });
+if (!existsSync(input)) {
+  run(npmCommand, ['run', 'v1.6:rig-helpers:ci'], { stdio: 'inherit', encoding: undefined });
+}
 run(npmCommand, ['run', 'current:materialize'], { stdio: 'inherit', encoding: undefined });
 run('dub', ['build', '--root=native/current-format', '--compiler=ldc2', '--build=debug'], { stdio: 'inherit', encoding: undefined });
 

@@ -67,7 +67,10 @@
     "v1.3:visual-controls:ci": "node scripts/v1.3/visual-controls-ci.mjs",
     "v1.4:preview:ci": "node scripts/v1.4/headless-preview-ci.mjs",
     "v1.5:physics:ci": "node scripts/v1.5/physics-authoring-ci.mjs",
-    "v1.6:rig-helpers:ci": "node scripts/v1.6/rig-helpers-ci.mjs"
+    "v1.6:rig-helpers:ci": "node scripts/v1.6/rig-helpers-ci.mjs",
+    "current:materialize": "node scripts/current/materialize.mjs",
+    "current:verify": "node scripts/current/verify.mjs",
+    "v1.7:current-format:ci": "node scripts/v1.7/current-format-ci.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

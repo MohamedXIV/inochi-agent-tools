@@ -1,0 +1,13 @@
+{
+  "name": "inochi-agent-tools-current-format",
+  "targetType": "executable",
+  "targetName": "iat_current_format_probe",
+  "targetPath": "../../.build/current-format",
+  "sourcePaths": ["source"],
+  "dependencies": {
+    "inochi2d": { "path": "../../.deps/inochi2d-current" }
+  },
+  "toolchainRequirements": {
+    "ldc": ">=1.41.0"
+  }
+}

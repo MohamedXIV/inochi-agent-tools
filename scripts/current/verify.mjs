@@ -27,6 +27,9 @@ const versionSource = readFileSync(resolve(sourceDir, 'source/inochi2d/ver.d'), 
 if (!versionSource.split(/\r?\n/).includes(`enum IN_VERSION = "${manifest.declaredVersion}";`)) {
   fail(`source/inochi2d/ver.d does not declare ${manifest.declaredVersion}`);
 }
+if (patchManifest.upstreamCommit !== manifest.commit) {
+  fail(`current patch manifest targets ${patchManifest.upstreamCommit ?? '<missing>'}, expected ${manifest.commit}`);
+}
 if (!Array.isArray(patchManifest.patches) || patchManifest.patches.length === 0) fail('current patch manifest is empty');
 for (const [index, patch] of patchManifest.patches.entries()) {
   for (const field of ['id', 'target', 'reason', 'removalCondition']) {

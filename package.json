@@ -71,7 +71,9 @@
     "current:materialize": "node scripts/current/materialize.mjs",
     "current:verify": "node scripts/current/verify.mjs",
     "v1.7:current-format:ci": "node scripts/v1.7/current-format-ci.mjs",
-    "tint:ci": "node scripts/tint/tint-bindings-ci.mjs"
+    "tint:ci": "node scripts/tint/tint-bindings-ci.mjs",
+    "away-character:ci": "node scripts/v1.8/away-character-ci.mjs",
+    "away-character:current:ci": "node scripts/v1.8/away-character-current-ci.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

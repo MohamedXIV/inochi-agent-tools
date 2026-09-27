@@ -1,0 +1,36 @@
+{
+  "upstreamCommit": "ba2b1413c68d9f7bf575fef790ba0c35715558db",
+  "patches": [
+    {
+      "id": "inp2-bool-decode",
+      "target": "modules/inp/source/inp/format/inp2/reader.d",
+      "reason": "Current INP2 writer emits INP2_TAG_BOOL but the reader has no BOOL case, so authored boolean fields are silently lost on reload.",
+      "removalCondition": "Remove when pinned current upstream decodes INP2_TAG_BOOL into a boolean DataNode."
+    },
+    {
+      "id": "inp2-container-terminators",
+      "target": "modules/inp/source/inp/format/inp2/reader.d",
+      "reason": "Current INP2 reader peeks ARRAY_END/OBJECT_END but never consumes the terminator, leaving the stream misaligned for following values.",
+      "removalCondition": "Remove when pinned current upstream consumes and validates ARRAY_END/OBJECT_END after each container."
+    },
+    {
+      "id": "serde-object-initialization",
+      "target": "source/inochi2d/core/serde.d",
+      "reason": "Serializable aggregates are given DataNode.init instead of an object node, so field writes do not have a valid object backing store.",
+      "removalCondition": "Remove when pinned current upstream initializes custom-serialized aggregate destinations with DataNode.createObject()."
+    },
+    {
+      "id": "serde-fixed-vector-deserialization",
+      "target": "source/inochi2d/core/serde.d",
+      "reason": "Fixed-dimension numath vectors such as vec2 are aggregate structs but are serialized as arrays; generic deserialization does not restore their data lanes from DataNode arrays.",
+      "removalCondition": "Remove when pinned current upstream deserializes numath fixed vectors from DataNode arrays without compatibility code."
+    },
+    {
+      "id": "parameter-explicit-type",
+      "target": "source/inochi2d/param/parameters/param1d.d",
+      "additionalTargets": ["source/inochi2d/param/parameters/param2d.d"],
+      "reason": "Parameter registry dispatch requires the serialized type field, but Parameter1D/Parameter2D omit it, so a current-format save cannot reload those parameters reliably.",
+      "removalCondition": "Remove when pinned current upstream serializes explicit 1d/2d parameter type identifiers itself."
+    }
+  ]
+}

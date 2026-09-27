@@ -1,0 +1,7 @@
+{
+  "repository": "https://github.com/Inochi2D/inochi2d.git",
+  "branch": "main",
+  "commit": "ba2b1413c68d9f7bf575fef790ba0c35715558db",
+  "declaredVersion": "v0.9.0",
+  "purpose": "Isolated current-format compatibility lane only; production authoring remains pinned to upstream/inochi2d.json."
+}

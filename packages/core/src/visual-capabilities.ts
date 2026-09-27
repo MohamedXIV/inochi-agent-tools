@@ -12,6 +12,9 @@ export interface ParameterBindingCapability {
 const CAPABILITIES: readonly ParameterBindingCapability[] = [
   { property: 'zSort', targetKinds: ['node', 'part', 'mesh-deformer', 'other'] },
   { property: 'opacity', targetKinds: ['part'], value: { min: 0, max: 1 } },
+  { property: 'tint.r', targetKinds: ['part'], value: { min: 0, max: 1 } },
+  { property: 'tint.g', targetKinds: ['part'], value: { min: 0, max: 1 } },
+  { property: 'tint.b', targetKinds: ['part'], value: { min: 0, max: 1 } },
   { property: 'transform.t.x', targetKinds: ['node', 'part', 'mesh-deformer', 'other'] },
   { property: 'transform.t.y', targetKinds: ['node', 'part', 'mesh-deformer', 'other'] },
   { property: 'transform.t.z', targetKinds: ['node', 'part', 'mesh-deformer', 'other'] },

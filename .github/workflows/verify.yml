@@ -68,9 +68,9 @@ jobs:
         run: npm run v1.5:physics:ci
       - name: v1.6 semantic rig helpers acceptance
         run: npm run v1.6:rig-helpers:ci
-      - name: Switch to LDC 1.41 for isolated current-format lane
+      - name: Switch to LDC 1.43 for isolated current-format lane
         uses: dlang-community/setup-dlang@v2
         with:
-          compiler: ldc-1.41.0
+          compiler: ldc-1.43.0
       - name: v1.7 current-format INP2 compatibility acceptance
         run: npm run v1.7:current-format:ci

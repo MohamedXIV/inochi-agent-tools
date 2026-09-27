@@ -2,8 +2,12 @@
   "name": "inochi-agent-tools",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
-  "workspaces": ["packages/*"],
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "typecheck": "tsc -p packages/core/tsconfig.json --noEmit",
     "core:build": "tsc -p packages/core/tsconfig.json",
@@ -62,7 +66,8 @@
     "v1.2:rig-primitives:ci": "node scripts/v1.2/rig-primitives-ci.mjs",
     "v1.3:visual-controls:ci": "node scripts/v1.3/visual-controls-ci.mjs",
     "v1.4:preview:ci": "node scripts/v1.4/headless-preview-ci.mjs",
-    "v1.5:physics:ci": "node scripts/v1.5/physics-authoring-ci.mjs"
+    "v1.5:physics:ci": "node scripts/v1.5/physics-authoring-ci.mjs",
+    "v1.6:rig-helpers:ci": "node scripts/v1.6/rig-helpers-ci.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

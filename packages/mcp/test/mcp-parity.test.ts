@@ -47,13 +47,13 @@ describeProtocol('stdio MCP parity', () => {
       expect(listed.tools.map((tool) => tool.name).sort()).toEqual([
         'parameter.evaluate',
         'preview.render',
-        'rig.project.normalize',
         'puppet.create',
         'puppet.edit',
         'puppet.inspect',
         'puppet.open',
         'puppet.save',
         'puppet.validate',
+        'rig.project.normalize',
       ]);
 
       const created = structuredResult(await client.callTool({

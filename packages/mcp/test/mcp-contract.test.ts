@@ -5,13 +5,13 @@ import { createMcpToolRegistry } from '../src/tools.js';
 const EXPECTED_TOOLS = [
   'parameter.evaluate',
   'preview.render',
-  'rig.project.normalize',
   'puppet.create',
   'puppet.edit',
   'puppet.inspect',
   'puppet.open',
   'puppet.save',
   'puppet.validate',
+  'rig.project.normalize',
 ];
 
 function fakeClient() {

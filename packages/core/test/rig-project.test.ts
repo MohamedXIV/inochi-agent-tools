@@ -74,7 +74,8 @@ describe('rig project manifest contract', () => {
       ...representativeProject(),
       layers: [
         ...representativeProject().layers,
-        { id: 'head', source: '../outside.png', role: 'duplicate' },
+        { id: 'head', source: 'art/head-copy.png', role: 'duplicate' },
+        { id: 'unsafe', source: '../outside.png', role: 'invalid-path' },
       ],
       motions: [
         { id: 'bad', kind: 'physics', axis: 'x', min: 1, max: -1, default: 9, targets: ['missing.layer'] },

@@ -341,8 +341,8 @@ export function generateGridMesh(
   for (const y of yCuts) {
     for (const x of xCuts) {
       const project = pixelPointToProject({ x, y }, raster.width, raster.height, manifest);
-      vertices.push([project.x, project.y]);
-      uvs.push([x / raster.width, y / raster.height]);
+      vertices.push([Math.fround(project.x), Math.fround(project.y)]);
+      uvs.push([Math.fround(x / raster.width), Math.fround(y / raster.height)]);
     }
   }
 

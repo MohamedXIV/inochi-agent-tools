@@ -95,6 +95,7 @@ describe('deterministic automatic mesh generation', () => {
         { width: 32, height: 32, alpha: new Uint8Array(32 * 32).fill(255) },
         { minX: 8, minY: 8, maxX: 24, maxY: 24 },
         manifest,
+        manifest.layers[0]!,
         { paddingPx: 0 },
       );
     } catch (error) {

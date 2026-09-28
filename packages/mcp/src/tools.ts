@@ -43,6 +43,7 @@ export function createMcpToolRegistry(client: AuthoringClient): McpSemanticTool[
   const inspectLike = (name: 'puppet.open' | 'puppet.inspect', description: string) => tool(name, description, inputOnlySchema, (input) => client.inspectPuppet({ inputPath: input.inputPath as string }), (input) => requiredString(input, 'inputPath') ? null : `${name} requires inputPath`);
 
   return [
+    tool('rig.project.normalize', 'Validate, normalize, and fingerprint a v2 rig-project manifest through the canonical semantic core.', objectSchema({ manifest: { type: 'object', description: 'Versioned rig-project manifest object' } }, ['manifest']), (input) => client.normalizeRigProject({ manifest: input.manifest }), (input) => record(input.manifest) ? null : 'rig.project.normalize requires manifest object'),
     tool('puppet.create', 'Create a minimal real Inochi puppet.', objectSchema({ outputPath: stringFieldSchema('Destination .inp path'), name: stringFieldSchema('Puppet display name') }, ['outputPath', 'name']), (input) => client.createPuppet({ outputPath: input.outputPath as string, name: input.name as string }), (input) => {
       if (!requiredString(input, 'outputPath')) return 'puppet.create requires outputPath';
       if (!requiredString(input, 'name')) return 'puppet.create requires name';

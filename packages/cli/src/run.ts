@@ -6,6 +6,7 @@ import {
   editPuppet,
   evaluateParameterValues,
   inspectPuppet,
+  inspectRigProjectManifest,
   renderPreview,
   savePuppet,
   validatePuppet,
@@ -76,6 +77,7 @@ type ParsedCommand =
   | { command: 'puppet validate'; inputPath: string }
   | { command: 'puppet save'; inputPath: string; outputPath: string }
   | { command: 'puppet edit'; inputPath: string; outputPath: string; operationsSource: string }
+  | { command: 'rig-project normalize'; manifestSource: string }
   | { command: 'parameter evaluate'; inputPath: string; valuesSource: string }
   | { command: 'preview render'; inputPath: string; outputPath: string; width?: number; height?: number; valuesSource?: string };
 
@@ -99,6 +101,10 @@ function parseKnownCommand(args: string[]): ParsedCommand {
     if (group === 'puppet' && action === 'edit') {
       const { values } = parseArgs({ args: rest, options: { input: { type: 'string' }, output: { type: 'string' }, operations: { type: 'string' } }, strict: true, allowPositionals: false });
       return { command: 'puppet edit', inputPath: requireStringOption(values, 'input'), outputPath: requireStringOption(values, 'output'), operationsSource: requireStringOption(values, 'operations') };
+    }
+    if (group === 'rig-project' && action === 'normalize') {
+      const { values } = parseArgs({ args: rest, options: { input: { type: 'string' } }, strict: true, allowPositionals: false });
+      return { command: 'rig-project normalize', manifestSource: requireStringOption(values, 'input') };
     }
     if (group === 'parameter' && action === 'evaluate') {
       const { values } = parseArgs({ args: rest, options: { input: { type: 'string' }, values: { type: 'string' } }, strict: true, allowPositionals: false });
@@ -142,6 +148,11 @@ export async function runCli(argv: string[], io: CliIo): Promise<number> {
         const decoded = await readJsonSource(parsed.operationsSource, io);
         if (!Array.isArray(decoded)) throw new CliUsageError('puppet edit operations JSON must be an array');
         result = await editPuppet({ inputPath: parsed.inputPath, outputPath: parsed.outputPath, operations: decoded as PuppetEditOperation[] });
+        break;
+      }
+      case 'rig-project normalize': {
+        const decoded = await readJsonSource(parsed.manifestSource, io);
+        result = inspectRigProjectManifest(decoded);
         break;
       }
       case 'parameter evaluate': {

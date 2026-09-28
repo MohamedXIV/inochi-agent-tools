@@ -14,6 +14,7 @@ describe('public semantic SDK contract', () => {
       'editPuppet',
       'evaluateParameters',
       'inspectPuppet',
+      'normalizeRigProject',
       'renderPreview',
       'savePuppet',
       'validatePuppet',
@@ -21,6 +22,19 @@ describe('public semantic SDK contract', () => {
 
     const forbiddenPublicNames = Object.keys(sdk).filter((name) => FORBIDDEN_PUBLIC_NAME.test(name));
     expect(forbiddenPublicNames).toEqual([]);
+  });
+
+  it('normalizes and fingerprints rig-project manifests through the core contract', async () => {
+    const client = createAuthoringClient();
+    const result = await client.normalizeRigProject({ manifest: {
+      schemaVersion: 'inochi-agent-tools/rig-project/v1',
+      name: 'SDK Rig',
+      layers: [{ id: 'body', source: 'layers/body.png', role: 'body' }],
+    } });
+
+    expect(result.schemaVersion).toBe(1);
+    expect(result.manifest.coordinates).toEqual({ unit: 'px', origin: 'center', yAxis: 'down' });
+    expect(result.fingerprint).toMatch(/^[a-f0-9]{64}$/);
   });
 
   it('preserves semantic validation failures from the core', async () => {

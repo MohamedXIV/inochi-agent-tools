@@ -11,6 +11,7 @@ const EXPECTED_TOOLS = [
   'puppet.open',
   'puppet.save',
   'puppet.validate',
+  'rig.project.normalize',
 ];
 
 function fakeClient() {
@@ -34,6 +35,7 @@ function fakeClient() {
       output: '/tmp/preview.png',
     })),
     evaluateParameters: vi.fn(async (request: unknown) => ({ appliedParameters: [], targets: [], restoredParameters: [], request })),
+    normalizeRigProject: vi.fn(async (request: unknown) => ({ schemaVersion: 1, fingerprint: 'a'.repeat(64), request })),
   };
 }
 
@@ -67,6 +69,18 @@ describe('MCP semantic tool contract', () => {
       ok: true,
       result: { metadata: { name: 'Contract' } },
     });
+  });
+
+  it('dispatches rig-project normalization through the semantic SDK contract', async () => {
+    const client = fakeClient();
+    const registry = createMcpToolRegistry(client);
+    const normalize = registry.find((tool) => tool.name === 'rig.project.normalize')!;
+    const manifest = { schemaVersion: 'inochi-agent-tools/rig-project/v1', name: 'MCP Rig', layers: [{ id: 'body', source: 'body.png', role: 'body' }] };
+
+    const result = await normalize.call({ manifest });
+
+    expect(result).toMatchObject({ ok: true, result: { schemaVersion: 1 } });
+    expect(client.normalizeRigProject).toHaveBeenCalledWith({ manifest });
   });
 
   it('dispatches preview rendering through the semantic SDK contract', async () => {

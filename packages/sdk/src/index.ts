@@ -1,4 +1,4 @@
-export { createAuthoringClient, type AuthoringClient, type InspectPuppetRequest } from './client.js';
+export { createAuthoringClient, type AuthoringClient, type InspectPuppetRequest, type NormalizeRigProjectRequest } from './client.js';
 
 export type {
   CreatePuppetRequest,
@@ -9,6 +9,11 @@ export type {
   ParameterEvaluationResult,
   PreviewFrameMetadata,
   PreviewParameterValues,
+  RigProjectDiagnostic,
+  RigProjectInspection,
+  RigProjectLayer,
+  RigProjectManifest,
+  RigProjectMotionIntent,
   PuppetEditOperation,
   PuppetInspection,
   RenderPreviewRequest,

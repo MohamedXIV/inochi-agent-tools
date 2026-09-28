@@ -3,6 +3,7 @@ import {
   InvalidBindingError,
   InvalidHierarchyError,
   InvalidPuppetError,
+  InvalidRigProjectError,
   InvalidTextureAssetError,
   MissingTextureError,
   NativeBridgeError,
@@ -28,6 +29,7 @@ const SEMANTIC_ERROR_MAP = [
   [RoundTripMismatchError, 17, 'ROUND_TRIP_MISMATCH'],
   [UnsupportedAuthoringCapabilityError, 19, 'UNSUPPORTED_AUTHORING_CAPABILITY'],
   [NativeBridgeError, 20, 'NATIVE_BRIDGE_FAILURE'],
+  [InvalidRigProjectError, 21, 'INVALID_RIG_PROJECT'],
 ] as const;
 
 function messageFrom(error: unknown): string {

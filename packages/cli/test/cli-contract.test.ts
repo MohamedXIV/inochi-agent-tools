@@ -4,6 +4,7 @@ import {
   InvalidBindingError,
   InvalidHierarchyError,
   InvalidPuppetError,
+  InvalidRigProjectError,
   InvalidTextureAssetError,
   MissingTextureError,
   NativeBridgeError,
@@ -83,6 +84,7 @@ describe('stable CLI contract', () => {
     [new InvalidBindingError('binding'), 16, 'INVALID_BINDING'],
     [new RoundTripMismatchError('round trip'), 17, 'ROUND_TRIP_MISMATCH'],
     [new NativeBridgeError('native'), 20, 'NATIVE_BRIDGE_FAILURE'],
+    [new InvalidRigProjectError([{ code: 'INVALID_VALUE', path: '$.name', message: 'bad rig project' }]), 21, 'INVALID_RIG_PROJECT'],
   ])('maps semantic error %s to stable exit/code contract', (error, exitCode, code) => {
     expect(classifyCliError(error)).toEqual({
       exitCode,

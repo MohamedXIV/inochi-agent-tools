@@ -3,6 +3,7 @@ import {
   editPuppet,
   evaluateParameterValues,
   inspectPuppet,
+  inspectRigProjectManifest,
   renderPreview,
   savePuppet,
   validatePuppet,
@@ -15,6 +16,7 @@ import {
   type PuppetInspection,
   type RenderPreviewRequest,
   type PreviewFrameMetadata,
+  type RigProjectInspection,
   type SavePuppetRequest,
   type SavePuppetResult,
 } from '@inochi-agent-tools/core';
@@ -23,9 +25,14 @@ export interface InspectPuppetRequest {
   inputPath: string;
 }
 
+export interface NormalizeRigProjectRequest {
+  manifest: unknown;
+}
+
 export interface AuthoringClient {
   createPuppet(request: CreatePuppetRequest): Promise<CreatePuppetResult>;
   inspectPuppet(request: InspectPuppetRequest): Promise<PuppetInspection>;
+  normalizeRigProject(request: NormalizeRigProjectRequest): Promise<RigProjectInspection>;
   validatePuppet(request: InspectPuppetRequest): Promise<PuppetInspection>;
   savePuppet(request: SavePuppetRequest): Promise<SavePuppetResult>;
   editPuppet(request: EditPuppetRequest): Promise<EditPuppetResult>;
@@ -37,6 +44,7 @@ export function createAuthoringClient(): AuthoringClient {
   return {
     createPuppet,
     inspectPuppet: ({ inputPath }) => inspectPuppet(inputPath),
+    normalizeRigProject: async ({ manifest }) => inspectRigProjectManifest(manifest),
     validatePuppet: ({ inputPath }) => validatePuppet(inputPath),
     savePuppet,
     editPuppet,

@@ -12,6 +12,6 @@ Normalization trims semantic text, canonicalizes asset separators, fills coordin
 
 Validation fails before authoring and throws `InvalidRigProjectError` with machine-readable diagnostics containing `code`, `path`, and `message`. Duplicate IDs, unresolved references, unsafe paths, malformed points, unknown fields, unsupported axes/kinds, and invalid ranges are explicit errors; later v2 stages must not guess through them.
 
-There is one semantic authority in `@inochi-agent-tools/core`: `normalizeRigProjectManifest`, `inspectRigProjectManifest`, and `fingerprintRigProject`. SDK/CLI/MCP adapters must delegate to these functions rather than redefining validation.
+There is one semantic authority in `@inochi-agent-tools/core`: `normalizeRigProjectManifest`, `inspectRigProjectManifest`, and `fingerprintRigProject`. The SDK exposes `normalizeRigProject`, the CLI exposes `rig-project normalize --input <file|->`, and MCP exposes `rig.project.normalize`; all delegate to these functions rather than redefining validation.
 
 #43 owns mesh generation/fitting, #44 recipe compilation, #45 QA, and #46 bounded repair.

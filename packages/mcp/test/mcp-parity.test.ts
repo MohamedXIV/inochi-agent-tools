@@ -47,6 +47,7 @@ describeProtocol('stdio MCP parity', () => {
       expect(listed.tools.map((tool) => tool.name).sort()).toEqual([
         'parameter.evaluate',
         'preview.render',
+        'rig.project.normalize',
         'puppet.create',
         'puppet.edit',
         'puppet.inspect',

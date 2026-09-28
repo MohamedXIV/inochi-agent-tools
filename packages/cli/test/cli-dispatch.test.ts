@@ -9,6 +9,7 @@ const coreMocks = vi.hoisted(() => ({
   editPuppet: vi.fn(),
   evaluateParameterValues: vi.fn(),
   inspectPuppet: vi.fn(),
+  inspectRigProjectManifest: vi.fn(),
   savePuppet: vi.fn(),
   validatePuppet: vi.fn(),
 }));
@@ -19,6 +20,7 @@ vi.mock('@inochi-agent-tools/core', async (importOriginal) => ({
   editPuppet: coreMocks.editPuppet,
   evaluateParameterValues: coreMocks.evaluateParameterValues,
   inspectPuppet: coreMocks.inspectPuppet,
+  inspectRigProjectManifest: coreMocks.inspectRigProjectManifest,
   savePuppet: coreMocks.savePuppet,
   validatePuppet: coreMocks.validatePuppet,
 }));
@@ -86,6 +88,7 @@ describe('CLI semantic command dispatch', () => {
     coreMocks.editPuppet.mockReset();
     coreMocks.evaluateParameterValues.mockReset();
     coreMocks.inspectPuppet.mockReset();
+    coreMocks.inspectRigProjectManifest.mockReset();
     coreMocks.savePuppet.mockReset();
     coreMocks.validatePuppet.mockReset();
   });
@@ -230,6 +233,20 @@ describe('CLI semantic command dispatch', () => {
       command: 'puppet edit',
       result: edited,
     });
+  });
+
+  it('normalizes a rig project from stdin through the one semantic core contract', async () => {
+    const manifest = { schemaVersion: 'inochi-agent-tools/rig-project/v1', name: 'CLI Rig', layers: [{ id: 'body', source: 'body.png', role: 'body' }] };
+    const normalized = { schemaVersion: 1, manifest, fingerprint: 'a'.repeat(64) };
+    coreMocks.inspectRigProjectManifest.mockReturnValue(normalized);
+    const capture = captureIo();
+    const io = { ...capture.io, stdin: async () => JSON.stringify(manifest) } as CliIo & { stdin(): Promise<string> };
+
+    const exitCode = await runCli(['--json', 'rig-project', 'normalize', '--input', '-'], io);
+
+    expect(exitCode).toBe(0);
+    expect(coreMocks.inspectRigProjectManifest).toHaveBeenCalledWith(manifest);
+    expect(JSON.parse(capture.stdout[0])).toEqual({ ok: true, command: 'rig-project normalize', result: normalized });
   });
 
   it('reads parameter values from stdin and passes the object unchanged to the core', async () => {

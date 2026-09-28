@@ -71,6 +71,7 @@
     "current:materialize": "node scripts/current/materialize.mjs",
     "current:verify": "node scripts/current/verify.mjs",
     "v1.7:current-format:ci": "node scripts/v1.7/current-format-ci.mjs",
+    "v2:mesh-generation:ci": "node scripts/v2/mesh-generation-ci.mjs",
     "tint:ci": "node scripts/tint/tint-bindings-ci.mjs",
     "away-character:ci": "node scripts/v1.8/away-character-ci.mjs",
     "away-character:current:ci": "node scripts/v1.8/away-character-current-ci.mjs"

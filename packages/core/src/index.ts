@@ -11,6 +11,7 @@ export * from './parameter-evaluation.js';
 export * from './physics-authoring.js';
 export * from './physics-capabilities.js';
 export * from './preview.js';
+export * from './rig-project.js';
 export * from './rig-recipes.js';
 export * from './visual-authoring.js';
 export * from './visual-capabilities.js';

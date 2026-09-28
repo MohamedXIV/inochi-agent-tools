@@ -418,7 +418,7 @@ export async function fitRigProjectMeshes(
     });
   }
 
-  const payload = { schemaVersion: 1, projectFingerprint: inspected.fingerprint, options, layers };
+  const payload = { schemaVersion: 1 as const, projectFingerprint: inspected.fingerprint, options, layers };
   const fingerprint = createHash('sha256').update(canonicalPlanPayload(payload), 'utf8').digest('hex');
   return { ...payload, fingerprint };
 }

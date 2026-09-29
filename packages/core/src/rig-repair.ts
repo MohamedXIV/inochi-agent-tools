@@ -222,3 +222,140 @@ export function applyRigRepair(
     changes: proposal.changes,
   };
 }
+
+
+export type RigRepairIterationStatus = 'accepted' | 'rolled-back' | 'blocked' | 'budget-exhausted';
+
+export interface RigRepairIteration {
+  iteration: number;
+  status: RigRepairIterationStatus;
+  beforePlanFingerprint: string;
+  beforeQaFingerprint: string;
+  proposalFingerprint?: string;
+  candidatePlanFingerprint?: string;
+  afterQaFingerprint?: string;
+  changes: RigRepairChange[];
+  reason: string;
+}
+
+export interface RigRepairLoopResult {
+  schemaVersion: 1;
+  status: 'green' | 'blocked' | 'budget-exhausted' | 'rolled-back';
+  plan: StandardCharacterRigBuildPlan;
+  qa: RigQaReport;
+  iterations: RigRepairIteration[];
+}
+
+export interface RigRepairLoopOptions extends RigRepairBudget {
+  maxIterations?: number;
+}
+
+function errorCount(report: RigQaReport): number {
+  return report.diagnostics.filter((diagnostic) => diagnostic.severity === 'error').length;
+}
+
+function warningCount(report: RigQaReport): number {
+  return report.diagnostics.filter((diagnostic) => diagnostic.severity === 'warning').length;
+}
+
+function isStrictlyBetter(before: RigQaReport, after: RigQaReport): boolean {
+  const beforeErrors = errorCount(before);
+  const afterErrors = errorCount(after);
+  if (afterErrors !== beforeErrors) return afterErrors < beforeErrors;
+  return warningCount(after) < warningCount(before);
+}
+
+/**
+ * Executes a bounded repair loop. The caller owns rebuilding/rendering/QA for a
+ * candidate plan, so this semantic layer never hides native automation.
+ */
+export async function runBoundedRigRepair(
+  initialPlan: StandardCharacterRigBuildPlan,
+  initialQa: RigQaReport,
+  evaluate: (candidate: StandardCharacterRigBuildPlan) => Promise<RigQaReport>,
+  options: RigRepairLoopOptions = {},
+): Promise<RigRepairLoopResult> {
+  if (initialQa.planFingerprint !== initialPlan.fingerprint) {
+    throw new InvalidAuthoringRequestError('Initial rig QA report does not belong to the supplied rig plan');
+  }
+  const maxIterations = options.maxIterations ?? 3;
+  if (!Number.isInteger(maxIterations) || maxIterations < 1 || maxIterations > 16) {
+    throw new InvalidAuthoringRequestError('Rig repair maxIterations must be an integer from 1 through 16');
+  }
+
+  let plan = initialPlan;
+  let qa = initialQa;
+  const iterations: RigRepairIteration[] = [];
+  let remainingChanges = normalizeBudget(options).maxChanges;
+
+  if (qa.pass) return { schemaVersion: 1, status: 'green', plan, qa, iterations };
+
+  for (let iteration = 1; iteration <= maxIterations; iteration += 1) {
+    const proposal = proposeRigRepair(plan, qa, { maxChanges: remainingChanges });
+    if (proposal.status === 'blocked' || proposal.changes.length === 0) {
+      iterations.push({
+        iteration,
+        status: 'blocked',
+        beforePlanFingerprint: plan.fingerprint,
+        beforeQaFingerprint: qa.fingerprint,
+        proposalFingerprint: proposal.fingerprint,
+        changes: proposal.changes,
+        reason: proposal.blockedDiagnostics.length
+          ? 'At least one failing diagnostic has no safe deterministic repair.'
+          : 'No bounded repair is available for the remaining diagnostics.',
+      });
+      return { schemaVersion: 1, status: 'blocked', plan, qa, iterations };
+    }
+
+    const applied = applyRigRepair(plan, proposal);
+    const candidateQa = await evaluate(applied.plan);
+    if (candidateQa.planFingerprint !== applied.plan.fingerprint) {
+      throw new InvalidAuthoringRequestError('Candidate QA report does not belong to the repaired rig plan');
+    }
+
+    if (!isStrictlyBetter(qa, candidateQa)) {
+      iterations.push({
+        iteration,
+        status: 'rolled-back',
+        beforePlanFingerprint: plan.fingerprint,
+        beforeQaFingerprint: qa.fingerprint,
+        proposalFingerprint: proposal.fingerprint,
+        candidatePlanFingerprint: applied.plan.fingerprint,
+        afterQaFingerprint: candidateQa.fingerprint,
+        changes: proposal.changes,
+        reason: 'Candidate QA did not strictly improve error/warning counts; original semantic plan retained.',
+      });
+      return { schemaVersion: 1, status: 'rolled-back', plan, qa, iterations };
+    }
+
+    remainingChanges -= proposal.changes.length;
+    iterations.push({
+      iteration,
+      status: 'accepted',
+      beforePlanFingerprint: plan.fingerprint,
+      beforeQaFingerprint: qa.fingerprint,
+      proposalFingerprint: proposal.fingerprint,
+      candidatePlanFingerprint: applied.plan.fingerprint,
+      afterQaFingerprint: candidateQa.fingerprint,
+      changes: proposal.changes,
+      reason: 'Candidate QA strictly improved and the semantic repair was accepted.',
+    });
+    plan = applied.plan;
+    qa = candidateQa;
+
+    if (qa.pass) return { schemaVersion: 1, status: 'green', plan, qa, iterations };
+    if (remainingChanges <= 0) {
+      iterations.push({
+        iteration,
+        status: 'budget-exhausted',
+        beforePlanFingerprint: plan.fingerprint,
+        beforeQaFingerprint: qa.fingerprint,
+        changes: [],
+        reason: 'The total semantic change budget was exhausted before QA became green.',
+      });
+      return { schemaVersion: 1, status: 'budget-exhausted', plan, qa, iterations };
+    }
+  }
+
+  return { schemaVersion: 1, status: 'budget-exhausted', plan, qa, iterations };
+}

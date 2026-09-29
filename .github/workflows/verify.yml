@@ -72,6 +72,8 @@ jobs:
         run: npm run v2:mesh-generation:ci
       - name: v2 standard rig recipe acceptance
         run: npm run v2:rig-recipes:ci
+      - name: v2 automated rig QA acceptance
+        run: npm run v2:rig-qa:ci
       - name: Semantic tint binding acceptance
         run: npm run tint:ci
       - name: Away character downstream integration spike

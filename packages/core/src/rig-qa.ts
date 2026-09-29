@@ -539,7 +539,11 @@ export function analyzeRigQaRenderedEvidence(
     if (!min || !max) {
       throw new InvalidAuthoringRequestError('Rig QA evidence is missing min/max samples for motion ' + motion.motionId);
     }
-    if (min.sha256 === max.sha256) {
+    // Static headless preview evaluates authored parameter bindings directly, but it
+    // does not advance temporal physics simulation. Physics motions are therefore
+    // validated structurally above (parameter/binding/physics node), while image
+    // no-motion evidence is only authoritative for directly previewable motions.
+    if (motion.kind !== 'physics' && min.sha256 === max.sha256) {
       diagnostics.push(diagnostic(
         'NO_EXPECTED_MOTION', 'error', motion.motionId,
         'Parameter extremes produced identical rendered output.',

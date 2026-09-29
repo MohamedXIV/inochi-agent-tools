@@ -226,6 +226,52 @@ describe('v2 rig QA planning and diagnostics', () => {
       }));
   });
 
+  it('does not claim static-frame no-motion for temporal physics motion', () => {
+    const physicsPlan: StandardCharacterRigBuildPlan = {
+      ...basePlan,
+      motions: [{
+        ...basePlan.motions[0]!,
+        motionId: 'hairSwing',
+        kind: 'physics',
+        parameterName: 'Hair Swing',
+      }],
+      operations: [
+        {
+          type: 'parameter.create',
+          name: 'Hair Swing',
+          dimensions: 1,
+          min: [-1, 0],
+          max: [1, 0],
+          defaultValue: [0, 0],
+        },
+        {
+          type: 'parameter.bind',
+          parameterName: 'Hair Swing',
+          targetPath: '/Root/Head',
+          property: 'transform.t.x',
+          keypoints: [
+            { at: [-1, 0], value: -1 },
+            { at: [1, 0], value: 1 },
+          ],
+        },
+      ],
+    };
+    const samples = buildRigQaMatrix(physicsPlan);
+    const evidence = [
+      frame(samples[0]!, 'neutral', [255, 255, 255, 255]),
+      frame(samples[1]!, 'same', [255, 255, 255, 255]),
+      frame(samples[2]!, 'same', [255, 255, 255, 255]),
+      frame(samples[3]!, 'combined-min', [255, 255, 255, 255]),
+      frame(samples[4]!, 'combined-max', [255, 255, 255, 255]),
+    ];
+
+    const result = analyzeRigQaRenderedEvidence(physicsPlan, evidence);
+    expect(result.diagnostics).not.toContainEqual(expect.objectContaining({
+      code: 'NO_EXPECTED_MOTION',
+      semanticTarget: 'hairSwing',
+    }));
+  });
+
   it('detects no-motion and disappearing renders with reproducible image evidence', () => {
     const samples = buildRigQaMatrix(basePlan);
     const evidence = [

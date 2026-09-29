@@ -88,7 +88,7 @@ describe.skipIf(!runNative)('v2 real rig QA acceptance', () => {
       },
     });
 
-    expect(report.pass).toBe(true);
+    expect(report.pass, JSON.stringify(report.diagnostics, null, 2)).toBe(true);
     expect(report.summary.errorCount).toBe(0);
     expect(report.summary.sampleCount).toBe(13);
     expect(report.fingerprint).toMatch(/^[a-f0-9]{64}$/);
@@ -101,7 +101,7 @@ describe.skipIf(!runNative)('v2 real rig QA acceptance', () => {
       const max = report.samples.find((sample) => sample.motionId === motion.motionId && sample.kind === 'motion-max');
       expect(min?.sha256).toBeTruthy();
       expect(max?.sha256).toBeTruthy();
-      expect(min?.sha256).not.toBe(max?.sha256);
+      if (motion.kind !== 'physics') expect(min?.sha256).not.toBe(max?.sha256);
     }
 
     const persisted = JSON.parse(await readFile(path.join(evidenceDir, report.reportArtifact), 'utf8'));

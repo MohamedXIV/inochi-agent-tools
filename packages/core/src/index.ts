@@ -6,6 +6,7 @@ export * from './authoring.js';
 export * from './errors.js';
 export * from './format-capabilities.js';
 export * from './inspection.js';
+export * from './mesh-generation.js';
 export * from './native-host.js';
 export * from './parameter-evaluation.js';
 export * from './physics-authoring.js';

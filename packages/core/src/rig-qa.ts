@@ -465,7 +465,7 @@ export function analyzeRigQaRenderedEvidence(
         entry.sample.id,
       ));
     }
-    if (comparison?.coverageRatio !== null && comparison.coverageRatio < normalized.minCoverageRatio) {
+    if (comparison && comparison.coverageRatio !== null && comparison.coverageRatio < normalized.minCoverageRatio) {
       diagnostics.push(diagnostic(
         'DISAPPEARING_CONTENT', 'error', entry.sample.motionId ?? 'character',
         'Preview coverage collapsed relative to the neutral state.',
@@ -475,7 +475,8 @@ export function analyzeRigQaRenderedEvidence(
       ));
     }
     if (
-      comparison?.coverageRatio !== null &&
+      comparison &&
+      comparison.coverageRatio !== null &&
       comparison.coverageRatio > normalized.maxCoverageRatio
     ) {
       diagnostics.push(diagnostic(
@@ -487,7 +488,8 @@ export function analyzeRigQaRenderedEvidence(
       ));
     }
     if (
-      comparison?.boundsAreaRatio !== null &&
+      comparison &&
+      comparison.boundsAreaRatio !== null &&
       comparison.boundsAreaRatio > normalized.maxBoundsAreaRatio
     ) {
       diagnostics.push(diagnostic(

@@ -74,7 +74,8 @@
     "v2:mesh-generation:ci": "node scripts/v2/mesh-generation-ci.mjs",
     "tint:ci": "node scripts/tint/tint-bindings-ci.mjs",
     "away-character:ci": "node scripts/v1.8/away-character-ci.mjs",
-    "away-character:current:ci": "node scripts/v1.8/away-character-current-ci.mjs"
+    "away-character:current:ci": "node scripts/v1.8/away-character-current-ci.mjs",
+    "v2:rig-recipes:ci": "node scripts/v2/rig-recipes-ci.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

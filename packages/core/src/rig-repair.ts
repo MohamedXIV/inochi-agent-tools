@@ -193,7 +193,6 @@ export function applyRigRepair(
     const change = byMotion.get(motion.motionId);
     return change ? rebuildMotion(motion, change.after) : motion;
   });
-  const motionMap = new Map(motions.map((motion) => [motion.motionId, motion] as const));
   const operations = plan.operations.map((operation) => {
     if (operation.type !== 'parameter.bind') return operation;
     const motion = motions.find((candidate) =>

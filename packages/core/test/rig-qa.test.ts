@@ -217,6 +217,29 @@ describe('v2 rig QA planning and diagnostics', () => {
       typeof entry.evidence === 'object')).toBe(true);
   });
 
+  it('accepts bounded float32 readback noise while preserving real range mismatches', () => {
+    const decimalPlan: StandardCharacterRigBuildPlan = {
+      ...basePlan,
+      operations: basePlan.operations.map((operation) =>
+        operation.type === 'parameter.create'
+          ? { ...operation, min: [-0.12, 0], max: [0.12, 0], defaultValue: [0, 0] }
+          : operation),
+    };
+
+    const nearInspection = inspection();
+    nearInspection.parameters[0]!.min = [-0.11999999731779099, 0];
+    nearInspection.parameters[0]!.max = [0.11999999731779099, 0];
+    expect(analyzeRigQaInspection(decimalPlan, nearInspection))
+      .not.toContainEqual(expect.objectContaining({ code: 'PARAMETER_RANGE_MISMATCH' }));
+
+    const farInspection = inspection({ wrongRange: true });
+    expect(analyzeRigQaInspection(basePlan, farInspection))
+      .toContainEqual(expect.objectContaining({
+        code: 'PARAMETER_RANGE_MISMATCH',
+        semanticTarget: 'headX',
+      }));
+  });
+
   it('reports missing parameters explicitly instead of inferring native IDs', () => {
     expect(analyzeRigQaInspection(basePlan, inspection({ parameter: false })))
       .toContainEqual(expect.objectContaining({

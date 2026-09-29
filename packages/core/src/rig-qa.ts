@@ -299,6 +299,15 @@ function diagnostic(
   };
 }
 
+function nearNumber(actual: number, expected: number): boolean {
+  const scale = Math.max(1, Math.abs(actual), Math.abs(expected));
+  return Math.abs(actual - expected) <= 1e-6 * scale;
+}
+
+function nearPair(actual: readonly [number, number], expected: readonly [number, number]): boolean {
+  return nearNumber(actual[0], expected[0]) && nearNumber(actual[1], expected[1]);
+}
+
 function triangleArea(mesh: PuppetInspectionMesh, offset: number): number {
   const a = mesh.vertices[mesh.indices[offset]!]!;
   const b = mesh.vertices[mesh.indices[offset + 1]!]!;
@@ -339,14 +348,22 @@ export function analyzeRigQaInspection(
         'binding',
       ));
     } else if (contract && (
-      JSON.stringify(parameter.min) !== JSON.stringify(contract.min) ||
-      JSON.stringify(parameter.max) !== JSON.stringify(contract.max) ||
-      JSON.stringify(parameter.defaultValue) !== JSON.stringify(contract.defaultValue)
+      !nearPair(parameter.min, contract.min) ||
+      !nearPair(parameter.max, contract.max) ||
+      !nearPair(parameter.defaultValue, contract.defaultValue)
     )) {
       diagnostics.push(diagnostic(
         'PARAMETER_RANGE_MISMATCH', 'error', motion.motionId,
         'Authored parameter range/default does not match the compiled semantic contract.',
-        { parameterName: motion.parameterName },
+        {
+          parameterName: motion.parameterName,
+          expectedMin: JSON.stringify(contract.min),
+          actualMin: JSON.stringify(parameter.min),
+          expectedMax: JSON.stringify(contract.max),
+          actualMax: JSON.stringify(parameter.max),
+          expectedDefault: JSON.stringify(contract.defaultValue),
+          actualDefault: JSON.stringify(parameter.defaultValue),
+        },
         'range',
       ));
     }

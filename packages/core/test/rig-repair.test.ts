@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   applyRigRepair,
   proposeRigRepair,
+  runBoundedRigRepair,
   type RigQaReport,
   type StandardCharacterRigBuildPlan,
 } from '../src/index.js';
@@ -139,5 +140,60 @@ describe('bounded rig repair', () => {
       sampleId: 'headY-max',
     });
     expect(() => proposeRigRepair(twoMotionPlan, report, { maxChanges: 1 })).toThrow(/exceeding maxChanges=1/);
+  });
+});
+
+
+describe('iterative bounded rig repair', () => {
+  it('accepts an improving candidate and reaches green', async () => {
+    const failing = qa('EXCESSIVE_DEFORMATION', 'error');
+    const result = await runBoundedRigRepair(plan, failing, async (candidate) => ({
+      ...failing,
+      planFingerprint: candidate.fingerprint,
+      fingerprint: 'c'.repeat(64),
+      pass: true,
+      summary: { sampleCount: 1, errorCount: 0, warningCount: 0 },
+      diagnostics: [],
+    }));
+    expect(result.status).toBe('green');
+    expect(result.plan.motions[0]!.gain).toBe(0.75);
+    expect(result.iterations).toEqual([
+      expect.objectContaining({ status: 'accepted', changes: [expect.objectContaining({ after: 0.75 })] }),
+    ]);
+  });
+
+  it('rolls back a candidate whose QA does not strictly improve', async () => {
+    const failing = qa('EXCESSIVE_DEFORMATION', 'error');
+    const result = await runBoundedRigRepair(plan, failing, async (candidate) => ({
+      ...failing,
+      planFingerprint: candidate.fingerprint,
+      fingerprint: 'd'.repeat(64),
+    }));
+    expect(result.status).toBe('rolled-back');
+    expect(result.plan.fingerprint).toBe(plan.fingerprint);
+    expect(result.iterations[0]).toMatchObject({
+      status: 'rolled-back',
+      beforePlanFingerprint: plan.fingerprint,
+    });
+  });
+
+  it('stops safely when a failing diagnostic is ambiguous', async () => {
+    const failing = qa('MISSING_TARGET', 'error');
+    let evaluated = false;
+    const result = await runBoundedRigRepair(plan, failing, async () => {
+      evaluated = true;
+      throw new Error('must not evaluate blocked repair');
+    });
+    expect(result.status).toBe('blocked');
+    expect(evaluated).toBe(false);
+    expect(result.iterations[0]).toMatchObject({ status: 'blocked', changes: [] });
+  });
+
+  it('rejects QA evidence for a different candidate plan', async () => {
+    const failing = qa('EXCESSIVE_DEFORMATION', 'error');
+    await expect(runBoundedRigRepair(plan, failing, async () => ({
+      ...failing,
+      fingerprint: 'e'.repeat(64),
+    }))).rejects.toThrow(/Candidate QA report does not belong/);
   });
 });

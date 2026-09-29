@@ -93,9 +93,16 @@ describe('compileStandardCharacterRig', () => {
     const breath = plan.motions.find((motion) => motion.motionId === 'breath')!;
     expect(breath.targets[0]!.keypoints).toEqual([
       { at: [-0.04, 0], value: expect.closeTo(0.96, 5) },
-      { at: [0, 0], value: 1 },
       { at: [0.04, 0], value: expect.closeTo(1.04, 5) },
     ]);
+    expect(plan.operations).toContainEqual({
+      type: 'parameter.create',
+      name: 'breath',
+      dimensions: 1,
+      min: [-0.04, 0],
+      max: [0.04, 0],
+      defaultValue: [0, 0],
+    });
   });
 
   it('canonicalizes manifest ordering and produces the same plan fingerprint', () => {

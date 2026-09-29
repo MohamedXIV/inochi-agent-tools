@@ -129,9 +129,11 @@ function keypointValues(
   gain: number,
   mode: StandardRigValueMode,
 ): Array<{ at: [number, number]; value: number }> {
-  const semanticValues = [motion.min, motion.default, motion.max]
-    .filter((value, index, all) => all.indexOf(value) === index)
-    .sort((a, b) => a - b);
+  // Inochi parameter bindings can only key existing axis points. parameter.create
+  // establishes the range endpoints; defaultValue is the neutral evaluation state,
+  // not an additional bindable axis point. Linear mappings therefore key min/max
+  // and let native interpolation produce the declared default deterministically.
+  const semanticValues = [motion.min, motion.max];
   const points = semanticValues.map((semantic) => ({
     at: [semantic, 0] as [number, number],
     value: mappedValue(semantic, sign, gain, mode),

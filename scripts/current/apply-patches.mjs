@@ -319,7 +319,7 @@ private:
         return values_[index.x, index.y];
     }
 
-    bool validIndex(vec2u index) const {
+    bool validIndex(vec2u index) {
         if (parameter.dimensions == 1)
             return parameter.elementCounts.length == 1 && index.x < parameter.elementCounts[0];
         return parameter.elementCounts.length == 2 &&
@@ -373,8 +373,22 @@ protected:
         } else {
             nodeId = object.tryGetGUID(state, "node", "target");
             object.tryGetRef(state, prop_, "property");
-            object.tryGetRef(state, defined_.data, "defined");
-            object.tryGetRef(state, values_.data, "values");
+            if (auto serializedDefined = "defined" in object) {
+                if ((*serializedDefined).isArray) {
+                    foreach (i, ref value; (*serializedDefined).array) {
+                        if (i >= defined_.data.length) break;
+                        defined_.data[i] = value.deserialize!bool(state);
+                    }
+                }
+            }
+            if (auto serializedValues = "values" in object) {
+                if ((*serializedValues).isArray) {
+                    foreach (i, ref value; (*serializedValues).array) {
+                        if (i >= values_.data.length) break;
+                        values_.data[i] = value.deserialize!float(state);
+                    }
+                }
+            }
         }
         propKey_ = nu_quarkof(prop_[]);
     }

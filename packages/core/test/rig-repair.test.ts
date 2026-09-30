@@ -119,6 +119,51 @@ describe('bounded rig repair', () => {
     expect(() => applyRigRepair(plan, proposal)).toThrow(/Blocked rig repair proposals/);
   });
 
+  it('attributes a combined render failure when exactly one semantic motion can own it', () => {
+    const report = qa('DISAPPEARING_CONTENT', 'error');
+    report.diagnostics[0] = {
+      ...report.diagnostics[0]!,
+      semanticTarget: 'character',
+      sampleId: 'combined-min',
+    };
+
+    const proposal = proposeRigRepair(plan, report);
+    expect(proposal.status).toBe('proposed');
+    expect(proposal.blockedDiagnostics).toEqual([]);
+    expect(proposal.changes).toEqual([
+      expect.objectContaining({ motionId: 'headX', before: 1, after: 0.75 }),
+    ]);
+  });
+
+  it('fails safely when a combined render failure has multiple possible motion owners', () => {
+    const twoMotionPlan: StandardCharacterRigBuildPlan = {
+      ...plan,
+      motions: [
+        plan.motions[0]!,
+        {
+          ...plan.motions[0]!,
+          motionId: 'headY',
+          parameterName: 'Head Y',
+          property: 'transform.t.y',
+        },
+      ],
+    };
+    const report = qa('DISAPPEARING_CONTENT', 'error');
+    report.planFingerprint = twoMotionPlan.fingerprint;
+    report.diagnostics[0] = {
+      ...report.diagnostics[0]!,
+      semanticTarget: 'character',
+      sampleId: 'combined-min',
+    };
+
+    const proposal = proposeRigRepair(twoMotionPlan, report);
+    expect(proposal.status).toBe('blocked');
+    expect(proposal.changes).toEqual([]);
+    expect(proposal.blockedDiagnostics).toEqual([
+      expect.objectContaining({ code: 'DISAPPEARING_CONTENT', semanticTarget: 'character' }),
+    ]);
+  });
+
   it('enforces an explicit change budget', () => {
     const twoMotionPlan: StandardCharacterRigBuildPlan = {
       ...plan,

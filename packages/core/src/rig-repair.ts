@@ -72,7 +72,16 @@ function motionForDiagnostic(
   plan: StandardCharacterRigBuildPlan,
   diagnostic: RigQaDiagnostic,
 ): StandardRigPlannedMotion | undefined {
-  return plan.motions.find((motion) => motion.motionId === diagnostic.semanticTarget);
+  const direct = plan.motions.find((motion) => motion.motionId === diagnostic.semanticTarget);
+  if (direct) return direct;
+
+  if (
+    diagnostic.semanticTarget !== 'character' ||
+    !diagnostic.sampleId?.startsWith('combined-')
+  ) return undefined;
+
+  const candidates = plan.motions.filter((motion) => motion.kind !== 'physics');
+  return candidates.length === 1 ? candidates[0] : undefined;
 }
 
 function boundedGain(before: number): number | null {

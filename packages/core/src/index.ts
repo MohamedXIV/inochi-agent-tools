@@ -14,6 +14,7 @@ export * from './physics-capabilities.js';
 export * from './preview.js';
 export * from './rig-project.js';
 export * from './rig-qa.js';
+export * from './rig-repair.js';
 export * from './standard-rig-compiler.js';
 export * from './rig-recipes.js';
 export * from './visual-authoring.js';

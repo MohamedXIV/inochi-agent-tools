@@ -74,6 +74,8 @@ jobs:
         run: npm run v2:rig-recipes:ci
       - name: v2 automated rig QA acceptance
         run: npm run v2:rig-qa:ci
+      - name: v2 bounded rig repair acceptance
+        run: npm run v2:rig-repair:ci
       - name: Semantic tint binding acceptance
         run: npm run tint:ci
       - name: Away character downstream integration spike

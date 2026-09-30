@@ -3,7 +3,7 @@ import inochi2d.param.parameters : Parameter1D;
 import inochi2d.param.bindings.property : ParameterPropertyBinding;
 import inochi2d.nodes.deformer.meshdeformer : MeshDeformer;
 import inochi2d.nodes.legacy.simplephysics : SimplePhysics, PhysicsModel, ParamMapMode;
-import nulib : nu_quarkof;
+import nulib.quark : nu_quarkof;
 import inp.format;
 import nulib.io.stream.file : FileStream;
 import numem : nogc_delete, nogc_new;

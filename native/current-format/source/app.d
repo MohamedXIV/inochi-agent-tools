@@ -81,6 +81,11 @@ bool assertFixture(string path) {
             stderr.writeln("current-format-probe: 1D axis points were not upgraded into parameter-value space for ", name);
             return false;
         }
+        if (parameter.bindings.length != 2) {
+            stderr.writeln("current-format-probe: expected two preserved property bindings for ", name,
+                ", got ", parameter.bindings.length);
+            return false;
+        }
         float original = parameter.value;
         parameter.pushValue(0.5f);
         if (parameter.currentValue.length != 1 || parameter.currentValue[0] != 0.5f) {

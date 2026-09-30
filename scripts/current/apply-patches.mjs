@@ -209,25 +209,25 @@ replaceExact(
 replaceExact(
   'parameter-guid-roundtrip',
   'source/inochi2d/param/parameters/package.d',
-  \`        guid = object.tryGetGUID(state, "uuid");
-\`,
-  \`        guid = object.tryGetGUID(state, "uuid", "guid");
-\`,
+  `        guid = object.tryGetGUID(state, "uuid");
+`,
+  `        guid = object.tryGetGUID(state, "uuid", "guid");
+`,
 );
 
 replaceExact(
   'parameter-binding-serialization',
   'source/inochi2d/param/parameters/package.d',
-  \`        // object["bindings"] = bindings.serialize();
-\`,
-  \`        object["bindings"] = bindings.serialize();
-\`,
+  `        // object["bindings"] = bindings.serialize();
+`,
+  `        object["bindings"] = bindings.serialize();
+`,
 );
 
 replaceExact(
   'property-binding-compatibility',
   'source/inochi2d/param/bindings/package.d',
-  \`ParameterBinding tryDeserializeBinding(ref DataNode object, ref ModelState state, Parameter param) @nogc {
+  `ParameterBinding tryDeserializeBinding(ref DataNode object, ref ModelState state, Parameter param) @nogc {
     //if (state.doUpgrade08) {
     //    if (auto prop = object.tryGet!string(state, "param_name", null)) {
     //        state.info(nstring("0.8->0.9: upgrading binding ", prop, "..."));
@@ -251,8 +251,8 @@ replaceExact(
     state.warning(nstring("Encountered untyped binding, ignoring..."));
     return null;
 }
-\`,
-  \`ParameterBinding tryDeserializeBinding(ref DataNode object, ref ModelState state, Parameter param) @nogc {
+`,
+  `ParameterBinding tryDeserializeBinding(ref DataNode object, ref ModelState state, Parameter param) @nogc {
     if (state.doUpgrade08) {
         if (auto prop = object.tryGet!string(state, "param_name", null)) {
             if (prop == "deform") {
@@ -280,15 +280,15 @@ replaceExact(
     state.warning("Encountered unsupported binding type, ignoring...");
     return null;
 }
-\`,
+`,
 );
 
 replaceExact(
   'property-binding-compatibility',
   'source/inochi2d/param/bindings/property.d',
-  \`//mixin Register!(ParameterPropertyBinding, in_binding_registry);
-\`,
-  \`//mixin Register!(ParameterPropertyBinding, in_binding_registry);
+  `//mixin Register!(ParameterPropertyBinding, in_binding_registry);
+`,
+  `//mixin Register!(ParameterPropertyBinding, in_binding_registry);
 
 /**
     Compatibility implementation for scalar node-property bindings.
@@ -511,7 +511,7 @@ public:
         return other !is null && propKey_ != 0 && other.hasProperty(propKey_);
     }
 }
-\`,
+`,
 );
 
 for (const patch of manifest.patches) {

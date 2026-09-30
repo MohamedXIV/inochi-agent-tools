@@ -29,7 +29,7 @@ describe.skipIf(!enabled)('v2 real bounded rig repair acceptance', () => {
     const initial = compileStandardCharacterRig({
       manifest,
       layerPaths: { body: '/Root/Body' },
-      profiles: { breath: { parameterName: 'Breathing', property: 'transform.s.y', gain: 3 } },
+      profiles: { breath: { parameterName: 'Breathing', property: 'transform.s.y', gain: 2.4 } },
     });
     const before = await evaluate(initial, 'before');
     expect(before.pass).toBe(false);

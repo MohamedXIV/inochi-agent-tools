@@ -39,6 +39,27 @@
       "target": "source/inochi2d/param/parameters/param1d.d",
       "reason": "Inochi2D 0.8 serializes even 1D parameter min/max/defaults as vec2 arrays and axis_points as a two-axis array. Current Parameter1D reads scalars/a flat points list before its 0.8 upgrade branch, which loses non-zero bounds and the authored X axis.",
       "removalCondition": "Remove when pinned current upstream's 0.8->0.9 Parameter1D upgrade explicitly maps vec2 bounds/defaults to their X component and axis_points[0] to the 1D points list."
+    },
+    {
+      "id": "parameter-guid-roundtrip",
+      "target": "source/inochi2d/param/parameters/package.d",
+      "reason": "Current Parameter serialization writes guid while deserialization reads only uuid, which breaks parameter identity needed by bindings and legacy physics after a current-format save/reload.",
+      "removalCondition": "Remove when pinned current upstream reads serialized parameter GUIDs from guid (with legacy uuid fallback)."
+    },
+    {
+      "id": "parameter-binding-serialization",
+      "target": "source/inochi2d/param/parameters/package.d",
+      "reason": "Current Parameter.onSerialize omits bindings entirely, so migrated production rigs lose transform, opacity, and tint controls on current-format save.",
+      "removalCondition": "Remove when pinned current upstream serializes parameter bindings through its supported binding representation."
+    },
+    {
+      "id": "property-binding-compatibility",
+      "target": "source/inochi2d/param/bindings/package.d",
+      "additionalTargets": [
+        "source/inochi2d/param/bindings/property.d"
+      ],
+      "reason": "Current upstream has property-binding upgrade/deserialization and ParameterPropertyBinding disabled, so 0.8 production property bindings are discarded during migration. The compatibility patch restores only inspectable scalar property bindings required by the semantic authoring lane.",
+      "removalCondition": "Remove when pinned current upstream provides supported property-binding deserialization, serialization, and evaluation for the required semantic properties."
     }
   ]
 }

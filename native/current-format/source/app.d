@@ -121,12 +121,34 @@ bool assertFixture(string path) {
         return false;
     }
     auto physics = cast(SimplePhysics)puppet.find("CurrentPhysics");
-    if (physics is null || physics.param is null || physics.param.name != "Head X" ||
-        physics.modelType != PhysicsModel.Pendulum || physics.mapMode != ParamMapMode.AngleLength ||
-        !physics.localOnly || physics.gravity != 1 || physics.length != 100 ||
-        physics.frequency != 1 || physics.angleDamping != 0.5 || physics.lengthDamping != 0.5 ||
+    if (physics is null) {
+        stderr.writeln("current-format-probe: representative SimplePhysics node is missing");
+        return false;
+    }
+    if (physics.param is null || physics.param.name != "Head X") {
+        stderr.writeln("current-format-probe: SimplePhysics parameter mismatch: ",
+            physics.param is null ? "<null>" : physics.param.name[]);
+        return false;
+    }
+    if (physics.modelType != PhysicsModel.Pendulum) {
+        stderr.writeln("current-format-probe: SimplePhysics model mismatch: ", cast(string)physics.modelType);
+        return false;
+    }
+    if (physics.mapMode != ParamMapMode.AngleLength) {
+        stderr.writeln("current-format-probe: SimplePhysics map mode mismatch: ", cast(string)physics.mapMode);
+        return false;
+    }
+    if (!physics.localOnly) {
+        stderr.writeln("current-format-probe: SimplePhysics localOnly was not preserved");
+        return false;
+    }
+    if (physics.gravity != 1 || physics.length != 100 || physics.frequency != 1 ||
+        physics.angleDamping != 0.5 || physics.lengthDamping != 0.5 ||
         physics.outputScale.x != 1 || physics.outputScale.y != 1) {
-        stderr.writeln("current-format-probe: representative SimplePhysics semantics did not survive migration");
+        stderr.writeln("current-format-probe: SimplePhysics numeric mismatch: gravity=", physics.gravity,
+            " length=", physics.length, " frequency=", physics.frequency,
+            " angleDamping=", physics.angleDamping, " lengthDamping=", physics.lengthDamping,
+            " outputScale=", physics.outputScale.x, ",", physics.outputScale.y);
         return false;
     }
     if (puppet.textureCache.size < 2) {

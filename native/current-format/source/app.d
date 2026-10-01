@@ -44,6 +44,71 @@ bool writeCurrent(string inputPath, string outputPath) {
     return true;
 }
 
+bool findRawPhysicsTarget(ref DataNode node, out string target) {
+    if (!node.isObject) return false;
+    if ("name" in node && node["name"].tryCoerce!string(null) == "CurrentPhysics") {
+        target = "target" in node ? node["target"].tryCoerce!string(null) : null;
+        return true;
+    }
+    if ("children" in node && node["children"].isArray) {
+        foreach (ref child; node["children"].array) {
+            if (findRawPhysicsTarget(child, target)) return true;
+        }
+    }
+    return false;
+}
+
+bool assertRawPhysicsLink(string path) {
+    auto input = nogc_new!FileStream(path, "r+b");
+    if (input is null) {
+        stderr.writeln("current-format-probe: failed to open raw linkage input");
+        return false;
+    }
+    auto rawResult = input.readINP();
+    nogc_delete(input);
+    if (!rawResult) {
+        stderr.writeln("current-format-probe: raw linkage readINP failed: ", rawResult.error);
+        return false;
+    }
+    DataNode raw = rawResult.get();
+    if (INP_TAG_PAYLOAD !in raw || !raw[INP_TAG_PAYLOAD].isObject) {
+        stderr.writeln("current-format-probe: raw linkage payload missing");
+        return false;
+    }
+    auto payload = raw[INP_TAG_PAYLOAD];
+
+    string physicsTarget;
+    if ("nodes" !in payload || !findRawPhysicsTarget(payload["nodes"], physicsTarget) ||
+        physicsTarget is null) {
+        stderr.writeln("current-format-probe: raw CurrentPhysics target is missing");
+        return false;
+    }
+
+    string headGuid;
+    if (auto parameters = "param" in payload) {
+        if ((*parameters).isArray) {
+            foreach (ref parameter; (*parameters).array) {
+                if (parameter.isObject && "name" in parameter &&
+                    parameter["name"].tryCoerce!string(null) == "Head X") {
+                    headGuid = "guid" in parameter ? parameter["guid"].tryCoerce!string(null) : null;
+                    break;
+                }
+            }
+        }
+    }
+    if (headGuid is null) {
+        stderr.writeln("current-format-probe: raw Head X guid is missing");
+        return false;
+    }
+    if (physicsTarget != headGuid) {
+        stderr.writeln("current-format-probe: raw physics linkage mismatch: target=", physicsTarget,
+            " parameterGuid=", headGuid);
+        return false;
+    }
+    stderr.writeln("current-format-probe: raw physics linkage agrees: ", headGuid);
+    return true;
+}
+
 Parameter1D find1D(Puppet puppet, string name) {
     foreach (parameter; puppet.parameters) {
         if (parameter.name == name)
@@ -104,6 +169,7 @@ bool assertRuntimeProperty(Puppet puppet, string parameterName, string targetNam
 }
 
 bool assertFixture(string path) {
+    if (!assertRawPhysicsLink(path)) return false;
     auto result = Puppet.fromFile(path);
     if (!result) {
         stderr.writeln("current-format-probe: reload failed for ", path, ": ", result.error);

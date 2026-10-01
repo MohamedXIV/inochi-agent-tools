@@ -58,8 +58,8 @@
       "additionalTargets": [
         "source/inochi2d/param/bindings/property.d"
       ],
-      "reason": "Current upstream has property-binding upgrade/deserialization and ParameterPropertyBinding disabled, so 0.8 production property bindings are discarded during migration. The compatibility patch restores only inspectable scalar property bindings required by the semantic authoring lane.",
-      "removalCondition": "Remove when pinned current upstream provides supported property-binding deserialization, serialization, and evaluation for the required semantic properties."
+      "reason": "Current upstream has property-binding upgrade/deserialization and ParameterPropertyBinding disabled, so 0.8 production property bindings are discarded during migration. The compatibility patch restores only inspectable scalar property bindings required by the semantic authoring lane and prefers the authored target GUID over the coexisting legacy node UUID so save/reload does not sever binding targets.",
+      "removalCondition": "Remove when pinned current upstream provides supported property-binding deserialization, serialization, evaluation, and target identity round-trip for the required semantic properties."
     },
     {
       "id": "simplephysics-late-parameter-resolution",

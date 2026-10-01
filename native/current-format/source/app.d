@@ -224,19 +224,25 @@ bool assertFixture(string path) {
         stderr.writeln("current-format-probe: expected Head X and Visibility parameters after migration");
         return false;
     }
+    DataNode serializedPhysics = DataNode.createObject();
+    physics.serialize(serializedPhysics, false);
+    auto serializedTarget = "target" in serializedPhysics
+        ? serializedPhysics["target"].tryCoerce!string(null)
+        : null;
+    auto loadedHeadGuid = loadedHead.guid.toString();
+    if (serializedTarget is null || serializedTarget != loadedHeadGuid[]) {
+        stderr.writeln("current-format-probe: post-load physics target mismatch: target=",
+            serializedTarget is null ? "<missing>" : serializedTarget,
+            " loadedHeadGuid=", loadedHeadGuid[]);
+        return false;
+    }
     if (physics.param is null) {
-        DataNode serializedPhysics = DataNode.createObject();
-        physics.serialize(serializedPhysics, false);
-        auto serializedTarget = "target" in serializedPhysics
-            ? serializedPhysics["target"].tryCoerce!string(null)
-            : null;
-        auto headGuid = loadedHead.guid.toString();
         auto visibilityGuid = loadedVisibility.guid.toString();
         stderr.writeln("current-format-probe: SimplePhysics parameter mismatch: name=<null>",
-            " serializedTarget=", serializedTarget is null ? "<missing>" : serializedTarget,
-            " loadedHeadGuid=", headGuid[],
+            " serializedTarget=", serializedTarget,
+            " loadedHeadGuid=", loadedHeadGuid[],
             " loadedVisibilityGuid=", visibilityGuid[],
-            " targetEqualsHead=", serializedTarget !is null && serializedTarget == headGuid[],
+            " targetEqualsHead=true",
             " headEqualsVisibility=", loadedHead.guid == loadedVisibility.guid);
         return false;
     }

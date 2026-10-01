@@ -47,6 +47,12 @@
       "removalCondition": "Remove when pinned current upstream prefers serialized parameter guid when present and uses legacy uuid only as a fallback."
     },
     {
+      "id": "node-guid-roundtrip",
+      "target": "source/inochi2d/nodes/package.d",
+      "reason": "Stable 0.8.7 compatibility artifacts carry both an authored node guid and a projected legacy uuid. Current Node deserialization prefers uuid, which changes node identity and severs GUID-based property-binding and related semantic references during migration.",
+      "removalCondition": "Remove when pinned current upstream prefers serialized node guid when present and uses legacy uuid only as a fallback."
+    },
+    {
       "id": "parameter-binding-serialization",
       "target": "source/inochi2d/param/parameters/package.d",
       "reason": "Current Parameter.onSerialize omits bindings entirely, so migrated production rigs lose transform, opacity, and tint controls on current-format save.",

@@ -223,6 +223,21 @@ replaceExact(
 );
 
 replaceExact(
+  'node-guid-roundtrip',
+  'source/inochi2d/nodes/package.d',
+  `        this.guid_ = object.tryGetGUID(state, "uuid", "guid");
+`,
+  `        // Stable compatibility artifacts may carry both the authored GUID and a
+        // projected legacy UUID. Preserve the authored identity so semantic references
+        // (bindings, masks, deformer links) continue to resolve after migration.
+        if (auto authoredGuid = "guid" in object)
+            this.guid_ = (*authoredGuid).tryGetGUID(state);
+        else
+            this.guid_ = object.tryGetGUID(state, "uuid");
+`,
+);
+
+replaceExact(
   'parameter-binding-serialization',
   'source/inochi2d/param/parameters/package.d',
   `        // object["bindings"] = bindings.serialize();

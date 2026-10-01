@@ -225,11 +225,18 @@ bool assertFixture(string path) {
         return false;
     }
     if (physics.param is null) {
+        DataNode serializedPhysics = DataNode.createObject();
+        physics.serialize(serializedPhysics, false);
+        auto serializedTarget = "target" in serializedPhysics
+            ? serializedPhysics["target"].tryCoerce!string(null)
+            : null;
         auto headGuid = loadedHead.guid.toString();
         auto visibilityGuid = loadedVisibility.guid.toString();
         stderr.writeln("current-format-probe: SimplePhysics parameter mismatch: name=<null>",
+            " serializedTarget=", serializedTarget is null ? "<missing>" : serializedTarget,
             " loadedHeadGuid=", headGuid[],
             " loadedVisibilityGuid=", visibilityGuid[],
+            " targetEqualsHead=", serializedTarget !is null && serializedTarget == headGuid[],
             " headEqualsVisibility=", loadedHead.guid == loadedVisibility.guid);
         return false;
     }

@@ -43,8 +43,8 @@
     {
       "id": "parameter-guid-roundtrip",
       "target": "source/inochi2d/param/parameters/package.d",
-      "reason": "Current Parameter serialization writes guid while deserialization reads only uuid, which breaks parameter identity needed by bindings and legacy physics after a current-format save/reload.",
-      "removalCondition": "Remove when pinned current upstream reads serialized parameter GUIDs from guid (with legacy uuid fallback)."
+      "reason": "Current Parameter serialization writes guid while deserialization prefers legacy uuid when both are present. Stable 0.8.7 compatibility artifacts carry both identities, and semantic references such as SimplePhysics.target point at guid, so the current lane must prefer guid and fall back to uuid only when guid is absent.",
+      "removalCondition": "Remove when pinned current upstream prefers serialized parameter guid when present and uses legacy uuid only as a fallback."
     },
     {
       "id": "parameter-binding-serialization",

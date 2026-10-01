@@ -521,6 +521,56 @@ public:
 `,
 );
 
+replaceExact(
+  'simplephysics-late-parameter-resolution',
+  'source/inochi2d/nodes/legacy/simplephysics.d',
+  `    GUID paramRef = GUID.nil;
+    PhysicsModel modelType_ = PhysicsModel.Pendulum;
+    Parameter param_;
+    vec2 output;
+`,
+  `    GUID paramRef = GUID.nil;
+    PhysicsModel modelType_ = PhysicsModel.Pendulum;
+    Parameter param_;
+    vec2 output;
+
+    Parameter resolveParam() {
+        if (param_ is null && paramRef != GUID.nil && puppet !is null)
+            param_ = puppet.findParameter(paramRef);
+        return param_;
+    }
+`,
+);
+
+replaceExact(
+  'simplephysics-late-parameter-resolution',
+  'source/inochi2d/nodes/legacy/simplephysics.d',
+  `    @property Parameter param() => param_;
+    @property void param(Parameter p) {
+        this.param_ = p;
+        this.paramRef = param_ ? param_.guid : GUID.nil;
+    }
+`,
+  `    @property Parameter param() => resolveParam();
+    @property void param(Parameter p) {
+        this.param_ = p;
+        this.paramRef = param_ ? param_.guid : GUID.nil;
+    }
+`,
+);
+
+replaceExact(
+  'simplephysics-late-parameter-resolution',
+  'source/inochi2d/nodes/legacy/simplephysics.d',
+  `    @property Parameter[] affectedParameters() @nogc => (&param_)[0 .. 1];
+`,
+  `    @property Parameter[] affectedParameters() @nogc {
+        resolveParam();
+        return (&param_)[0 .. 1];
+    }
+`,
+);
+
 for (const patch of manifest.patches) {
   if (!applied.has(patch.id)) throw new Error(`declared current patch was not applied: ${patch.id}`);
 }

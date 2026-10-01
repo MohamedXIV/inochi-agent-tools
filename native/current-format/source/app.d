@@ -220,12 +220,17 @@ bool assertFixture(string path) {
     }
     auto loadedHead = find1D(puppet, "Head X");
     auto loadedVisibility = find1D(puppet, "Visibility");
-    if (physics.param is null) {
-        stderr.writeln("current-format-probe: SimplePhysics parameter mismatch: name=<null>");
-        return false;
-    }
     if (loadedHead is null || loadedVisibility is null) {
         stderr.writeln("current-format-probe: expected Head X and Visibility parameters after migration");
+        return false;
+    }
+    if (physics.param is null) {
+        auto headGuid = loadedHead.guid.toString();
+        auto visibilityGuid = loadedVisibility.guid.toString();
+        stderr.writeln("current-format-probe: SimplePhysics parameter mismatch: name=<null>",
+            " loadedHeadGuid=", headGuid[],
+            " loadedVisibilityGuid=", visibilityGuid[],
+            " headEqualsVisibility=", loadedHead.guid == loadedVisibility.guid);
         return false;
     }
     if (physics.param.name != "Head X") {

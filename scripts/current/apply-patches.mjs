@@ -535,8 +535,21 @@ replaceExact(
     vec2 output;
 
     Parameter resolveParam() {
-        if (param_ is null && paramRef != GUID.nil && puppet !is null)
-            param_ = puppet.findParameter(paramRef);
+        if (param_ !is null || paramRef == GUID.nil || puppet is null)
+            return param_;
+
+        param_ = puppet.findParameter(paramRef);
+        if (param_ !is null)
+            return param_;
+
+        auto targetGuid = paramRef.toString();
+        foreach (candidate; puppet.parameters) {
+            auto candidateGuid = candidate.guid.toString();
+            if (candidateGuid[] == targetGuid[]) {
+                param_ = candidate;
+                break;
+            }
+        }
         return param_;
     }
 `,

@@ -215,8 +215,8 @@ replaceExact(
         // Stable 0.8.7 compatibility artifacts intentionally carry both; references such
         // as SimplePhysics.target point at the GUID, so downgrading identity to uuid here
         // would sever those semantic links. Truly legacy artifacts still fall back to uuid.
-        if ("guid" in object)
-            guid = GUID(object.tryGet!string(state, "guid"));
+        if (auto authoredGuid = "guid" in object)
+            guid = (*authoredGuid).tryGetGUID(state);
         else
             guid = object.tryGetGUID(state, "uuid");
 `,

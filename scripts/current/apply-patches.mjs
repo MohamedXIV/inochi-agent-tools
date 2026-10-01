@@ -524,6 +524,20 @@ public:
 replaceExact(
   'simplephysics-late-parameter-resolution',
   'source/inochi2d/nodes/legacy/simplephysics.d',
+  `        this.paramRef = object.tryGetGUID(state, "param", "target");
+`,
+  `        if (auto target = "target" in object)
+            this.paramRef = (*target).tryGetGUID(state);
+        else if (auto legacyParam = "param" in object)
+            this.paramRef = (*legacyParam).tryGetGUID(state);
+        else
+            this.paramRef = GUID.nil;
+`,
+);
+
+replaceExact(
+  'simplephysics-late-parameter-resolution',
+  'source/inochi2d/nodes/legacy/simplephysics.d',
   `    GUID paramRef = GUID.nil;
     PhysicsModel modelType_ = PhysicsModel.Pendulum;
     Parameter param_;

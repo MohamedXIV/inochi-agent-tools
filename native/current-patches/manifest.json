@@ -64,8 +64,8 @@
     {
       "id": "simplephysics-late-parameter-resolution",
       "target": "source/inochi2d/nodes/legacy/simplephysics.d",
-      "reason": "Pinned current upstream can leave a legacy SimplePhysics parameter unresolved even when the authored target GUID and loaded parameter GUID are preserved. Resolve lazily by GUID identity and use canonical GUID text as a bounded compatibility fallback when direct UUID equality lookup returns null.",
-      "removalCondition": "Remove when pinned current upstream reliably resolves preserved SimplePhysics target GUIDs through its normal parameter lookup."
+      "reason": "Pinned current upstream loses a valid serialized SimplePhysics target GUID through the keyed compatibility helper even though the raw artifact and loaded parameter preserve that exact GUID. Deserialize target/param directly from their DataNode identity, then resolve lazily by GUID identity with canonical GUID text as a bounded fallback.",
+      "removalCondition": "Remove when pinned current upstream preserves SimplePhysics target identity during deserialization and reliably resolves the referenced parameter through normal lookup."
     }
   ]
 }

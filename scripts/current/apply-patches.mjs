@@ -357,7 +357,12 @@ protected:
         values_.resizeToParam(parameter);
 
         if (state.doUpgrade08) {
-            nodeId = object.tryGetGUID(state, "node", "target");
+            if (auto target = "target" in object)
+                nodeId = (*target).tryGetGUID(state);
+            else if (auto legacyNode = "node" in object)
+                nodeId = (*legacyNode).tryGetGUID(state);
+            else
+                nodeId = GUID.nil;
             object.tryGetRef(state, prop_, "param_name");
             if ("isSet" in object) {
                 object["isSet"].deserialize08NestedArrays(
@@ -378,7 +383,12 @@ protected:
                 );
             }
         } else {
-            nodeId = object.tryGetGUID(state, "node", "target");
+            if (auto target = "target" in object)
+                nodeId = (*target).tryGetGUID(state);
+            else if (auto legacyNode = "node" in object)
+                nodeId = (*legacyNode).tryGetGUID(state);
+            else
+                nodeId = GUID.nil;
             object.tryGetRef(state, prop_, "property");
             if (auto serializedDefined = "defined" in object) {
                 if ((*serializedDefined).isArray) {

@@ -220,18 +220,26 @@ bool assertFixture(string path) {
     }
     auto loadedHead = find1D(puppet, "Head X");
     auto loadedVisibility = find1D(puppet, "Visibility");
-    if (physics.param is null || physics.param.name != "Head X") {
-        auto physicsGuid = physics.param is null ? null : physics.param.guid.toString();
-        auto headGuid = loadedHead is null ? null : loadedHead.guid.toString();
-        auto visibilityGuid = loadedVisibility is null ? null : loadedVisibility.guid.toString();
+    if (physics.param is null) {
+        stderr.writeln("current-format-probe: SimplePhysics parameter mismatch: name=<null>");
+        return false;
+    }
+    if (loadedHead is null || loadedVisibility is null) {
+        stderr.writeln("current-format-probe: expected Head X and Visibility parameters after migration");
+        return false;
+    }
+    if (physics.param.name != "Head X") {
+        auto physicsGuid = physics.param.guid.toString();
+        auto headGuid = loadedHead.guid.toString();
+        auto visibilityGuid = loadedVisibility.guid.toString();
         stderr.writeln("current-format-probe: SimplePhysics parameter mismatch: name=",
-            physics.param is null ? "<null>" : physics.param.name[],
-            " physicsGuid=", physicsGuid is null ? "<null>" : physicsGuid[],
-            " loadedHeadGuid=", headGuid is null ? "<missing>" : headGuid[],
-            " loadedVisibilityGuid=", visibilityGuid is null ? "<missing>" : visibilityGuid[],
-            " headEqualsVisibility=", loadedHead !is null && loadedVisibility !is null && loadedHead.guid == loadedVisibility.guid,
-            " physicsEqualsHead=", physics.param !is null && loadedHead !is null && physics.param.guid == loadedHead.guid,
-            " physicsEqualsVisibility=", physics.param !is null && loadedVisibility !is null && physics.param.guid == loadedVisibility.guid);
+            physics.param.name[],
+            " physicsGuid=", physicsGuid[],
+            " loadedHeadGuid=", headGuid[],
+            " loadedVisibilityGuid=", visibilityGuid[],
+            " headEqualsVisibility=", loadedHead.guid == loadedVisibility.guid,
+            " physicsEqualsHead=", physics.param.guid == loadedHead.guid,
+            " physicsEqualsVisibility=", physics.param.guid == loadedVisibility.guid);
         return false;
     }
     if (physics.modelType != PhysicsModel.Pendulum) {

@@ -9,6 +9,7 @@ import nulib.io.stream.file : FileStream;
 import numem : nogc_delete, nogc_new;
 import std.file : exists, remove;
 import std.stdio : stderr, writeln;
+import std.conv : to;
 
 bool writeCurrent(string inputPath, string outputPath) {
     auto input = nogc_new!FileStream(inputPath, "r+b");
@@ -44,15 +45,20 @@ bool writeCurrent(string inputPath, string outputPath) {
     return true;
 }
 
-bool findRawPhysicsTarget(ref DataNode node, out string target) {
+bool findRawPhysicsTarget(ref DataNode node, out string target, out string legacyParam) {
     if (!node.isObject) return false;
     if ("name" in node && node["name"].tryCoerce!string(null) == "CurrentPhysics") {
         target = "target" in node ? node["target"].tryCoerce!string(null) : null;
+        if ("param" in node) {
+            legacyParam = node["param"].isNumber
+                ? node["param"].tryCoerce!ulong.to!string
+                : node["param"].tryCoerce!string(null);
+        }
         return true;
     }
     if ("children" in node && node["children"].isArray) {
         foreach (ref child; node["children"].array) {
-            if (findRawPhysicsTarget(child, target)) return true;
+            if (findRawPhysicsTarget(child, target, legacyParam)) return true;
         }
     }
     return false;
@@ -78,26 +84,47 @@ bool assertRawPhysicsLink(string path) {
     auto payload = raw[INP_TAG_PAYLOAD];
 
     string physicsTarget;
-    if ("nodes" !in payload || !findRawPhysicsTarget(payload["nodes"], physicsTarget) ||
+    string legacyPhysicsParam;
+    if ("nodes" !in payload || !findRawPhysicsTarget(payload["nodes"], physicsTarget, legacyPhysicsParam) ||
         physicsTarget is null) {
         stderr.writeln("current-format-probe: raw CurrentPhysics target is missing");
         return false;
     }
 
     string headGuid;
+    string visibilityGuid;
+    string headUuid;
+    string visibilityUuid;
     if (auto parameters = "param" in payload) {
         if ((*parameters).isArray) {
             foreach (ref parameter; (*parameters).array) {
-                if (parameter.isObject && "name" in parameter &&
-                    parameter["name"].tryCoerce!string(null) == "Head X") {
-                    headGuid = "guid" in parameter ? parameter["guid"].tryCoerce!string(null) : null;
-                    break;
+                if (!parameter.isObject || "name" !in parameter) continue;
+                auto name = parameter["name"].tryCoerce!string(null);
+                auto guid = "guid" in parameter ? parameter["guid"].tryCoerce!string(null) : null;
+                string uuid;
+                if ("uuid" in parameter && parameter["uuid"].isNumber)
+                    uuid = parameter["uuid"].tryCoerce!ulong.to!string;
+                if (name == "Head X") {
+                    headGuid = guid;
+                    headUuid = uuid;
+                } else if (name == "Visibility") {
+                    visibilityGuid = guid;
+                    visibilityUuid = uuid;
                 }
             }
         }
     }
     if (headGuid is null) {
         stderr.writeln("current-format-probe: raw Head X guid is missing");
+        return false;
+    }
+    stderr.writeln("current-format-probe: raw identities CurrentPhysics target=", physicsTarget,
+        " legacyParam=", legacyPhysicsParam is null ? "<absent>" : legacyPhysicsParam,
+        " HeadX guid=", headGuid, " uuid=", headUuid is null ? "<absent>" : headUuid,
+        " Visibility guid=", visibilityGuid is null ? "<missing>" : visibilityGuid,
+        " uuid=", visibilityUuid is null ? "<absent>" : visibilityUuid);
+    if (visibilityGuid !is null && visibilityGuid == headGuid) {
+        stderr.writeln("current-format-probe: raw parameter GUID collision between Head X and Visibility");
         return false;
     }
     if (physicsTarget != headGuid) {
@@ -191,9 +218,17 @@ bool assertFixture(string path) {
         stderr.writeln("current-format-probe: representative SimplePhysics node is missing");
         return false;
     }
+    auto loadedHead = find1D(puppet, "Head X");
+    auto loadedVisibility = find1D(puppet, "Visibility");
     if (physics.param is null || physics.param.name != "Head X") {
-        stderr.writeln("current-format-probe: SimplePhysics parameter mismatch: ",
-            physics.param is null ? "<null>" : physics.param.name[]);
+        auto physicsGuid = physics.param is null ? "<null>" : physics.param.guid.toString()[];
+        auto headGuid = loadedHead is null ? "<missing>" : loadedHead.guid.toString()[];
+        auto visibilityGuid = loadedVisibility is null ? "<missing>" : loadedVisibility.guid.toString()[];
+        stderr.writeln("current-format-probe: SimplePhysics parameter mismatch: name=",
+            physics.param is null ? "<null>" : physics.param.name[],
+            " physicsGuid=", physicsGuid,
+            " loadedHeadGuid=", headGuid,
+            " loadedVisibilityGuid=", visibilityGuid);
         return false;
     }
     if (physics.modelType != PhysicsModel.Pendulum) {

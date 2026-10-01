@@ -204,6 +204,465 @@ replaceExact(
 `,
 );
 
+
+
+replaceExact(
+  'parameter-guid-roundtrip',
+  'source/inochi2d/param/parameters/package.d',
+  `        guid = object.tryGetGUID(state, "uuid");
+`,
+  `        // Prefer an authored GUID when both modern guid and legacy uuid are present.
+        // Stable 0.8.7 compatibility artifacts intentionally carry both; references such
+        // as SimplePhysics.target point at the GUID, so downgrading identity to uuid here
+        // would sever those semantic links. Truly legacy artifacts still fall back to uuid.
+        if (auto authoredGuid = "guid" in object)
+            guid = (*authoredGuid).tryGetGUID(state);
+        else
+            guid = object.tryGetGUID(state, "uuid");
+`,
+);
+
+replaceExact(
+  'node-guid-roundtrip',
+  'source/inochi2d/nodes/package.d',
+  `        this.guid_ = object.tryGetGUID(state, "uuid", "guid");
+`,
+  `        // Stable compatibility artifacts may carry both the authored GUID and a
+        // projected legacy UUID. Preserve the authored identity so semantic references
+        // (bindings, masks, deformer links) continue to resolve after migration.
+        if (auto authoredGuid = "guid" in object)
+            this.guid_ = (*authoredGuid).tryGetGUID(state);
+        else
+            this.guid_ = object.tryGetGUID(state, "uuid");
+`,
+);
+
+replaceExact(
+  'parameter-binding-serialization',
+  'source/inochi2d/param/parameters/package.d',
+  `        // object["bindings"] = bindings.serialize();
+`,
+  `        object["bindings"] = bindings.serialize();
+`,
+);
+
+replaceExact(
+  'property-binding-compatibility',
+  'source/inochi2d/param/bindings/package.d',
+  `ParameterBinding tryDeserializeBinding(ref DataNode object, ref ModelState state, Parameter param) @nogc {
+    //if (state.doUpgrade08) {
+    //    if (auto prop = object.tryGet!string(state, "param_name", null)) {
+    //        state.info(nstring("0.8->0.9: upgrading binding ", prop, "..."));
+    //        auto binding = prop == "deform" ?
+    //            nogc_new!ParameterDeformBinding(param) :
+    //            nogc_new!ParameterPropertyBinding(param);
+
+    //        binding.deserialize(object, state);
+    //        return cast(ParameterBinding)binding;
+    //    }
+
+    //    state.warning(nstring("0.8->0.9: Encountered a unnamed binding, ignoring..."));
+    //    return null;
+    //}
+
+    //if (auto binding = in_binding_registry.tryCreateFrom(object, param)) {
+    //    binding.deserialize(object, state);
+    //    return binding;
+    //}
+
+    state.warning(nstring("Encountered untyped binding, ignoring..."));
+    return null;
+}
+`,
+  `ParameterBinding tryDeserializeBinding(ref DataNode object, ref ModelState state, Parameter param) @nogc {
+    if (state.doUpgrade08) {
+        if (auto prop = object.tryGet!string(state, "param_name", null)) {
+            if (prop == "deform") {
+                state.warning("0.8->0.9: deformation bindings remain unsupported by the current compatibility lane");
+                return null;
+            }
+            state.info(nstring("0.8->0.9: upgrading property binding ", prop, "..."));
+            auto binding = nogc_new!ParameterPropertyBinding(param);
+            binding.deserialize(object, state);
+            return cast(ParameterBinding)binding;
+        }
+
+        state.warning("0.8->0.9: encountered unnamed binding, ignoring...");
+        return null;
+    }
+
+    if (auto type = object.tryGet!string(state, "type", null)) {
+        if (type == "property") {
+            auto binding = nogc_new!ParameterPropertyBinding(param);
+            binding.deserialize(object, state);
+            return cast(ParameterBinding)binding;
+        }
+    }
+
+    state.warning("Encountered unsupported binding type, ignoring...");
+    return null;
+}
+`,
+);
+
+replaceExact(
+  'property-binding-compatibility',
+  'source/inochi2d/param/bindings/property.d',
+  `//mixin Register!(ParameterPropertyBinding, in_binding_registry);
+`,
+  `//mixin Register!(ParameterPropertyBinding, in_binding_registry);
+
+/**
+    Compatibility implementation for scalar node-property bindings.
+
+    This intentionally restores only the ordinary semantic property-binding
+    surface required by inochi-agent-tools. Deformation bindings remain
+    unsupported and therefore fail closed in tryDeserializeBinding.
+*/
+class ParameterPropertyBinding : ParameterBinding {
+private:
+@nogc:
+    GUID nodeId;
+    Node target_;
+    vector2d!bool defined_;
+    vector2d!float values_;
+    nstring prop_;
+    quark propKey_;
+
+    ref bool definedAt(vec2u index) {
+        if (parameter.dimensions == 1)
+            return defined_[0, index.x];
+        return defined_[index.x, index.y];
+    }
+
+    ref float valueAt(vec2u index) {
+        if (parameter.dimensions == 1)
+            return values_[0, index.x];
+        return values_[index.x, index.y];
+    }
+
+    bool validIndex(vec2u index) {
+        if (parameter.dimensions == 1)
+            return parameter.elementCounts.length == 1 && index.x < parameter.elementCounts[0];
+        return parameter.elementCounts.length == 2 &&
+            index.x < parameter.elementCounts[0] && index.y < parameter.elementCounts[1];
+    }
+
+    void applyValue(float value) {
+        if (target_ !is null && propKey_ != 0)
+            target_.setProperty(propKey_, value);
+    }
+
+protected:
+    override
+    void onSerialize(ref DataNode object) {
+        super.onSerialize(object);
+        object["type"] = "property";
+        if (target_ !is null)
+            object["target"] = target_.guid.toString()[];
+        object["property"] = prop_[];
+        object["defined"] = defined_.data.serialize();
+        object["values"] = values_.data.serialize();
+    }
+
+    override
+    void onDeserialize(ref DataNode object, ref ModelState state) {
+        super.onDeserialize(object, state);
+        defined_.resizeToParam(parameter);
+        values_.resizeToParam(parameter);
+
+        if (state.doUpgrade08) {
+            if (auto target = "target" in object)
+                nodeId = (*target).tryGetGUID(state);
+            else if (auto legacyNode = "node" in object)
+                nodeId = (*legacyNode).tryGetGUID(state);
+            else
+                nodeId = GUID.nil;
+            object.tryGetRef(state, prop_, "param_name");
+            if ("isSet" in object) {
+                object["isSet"].deserialize08NestedArrays(
+                    defined_,
+                    state,
+                    parameter.dimensions == 1 ?
+                        vec2u(1, parameter.elementCounts[0]) :
+                        vec2u(parameter.elementCounts[0], parameter.elementCounts[1])
+                );
+            }
+            if ("values" in object) {
+                object["values"].deserialize08NestedArrays(
+                    values_,
+                    state,
+                    parameter.dimensions == 1 ?
+                        vec2u(1, parameter.elementCounts[0]) :
+                        vec2u(parameter.elementCounts[0], parameter.elementCounts[1])
+                );
+            }
+        } else {
+            if (auto target = "target" in object)
+                nodeId = (*target).tryGetGUID(state);
+            else if (auto legacyNode = "node" in object)
+                nodeId = (*legacyNode).tryGetGUID(state);
+            else
+                nodeId = GUID.nil;
+            object.tryGetRef(state, prop_, "property");
+            if (auto serializedDefined = "defined" in object) {
+                if ((*serializedDefined).isArray) {
+                    foreach (i, ref value; (*serializedDefined).array) {
+                        if (i >= defined_.data.length) break;
+                        defined_.data[i] = value.deserialize!bool(state);
+                    }
+                }
+            }
+            if (auto serializedValues = "values" in object) {
+                if ((*serializedValues).isArray) {
+                    foreach (i, ref value; (*serializedValues).array) {
+                        if (i >= values_.data.length) break;
+                        values_.data[i] = value.deserialize!float(state);
+                    }
+                }
+            }
+        }
+        propKey_ = nu_quarkof(prop_[]);
+    }
+
+    override
+    void onFinalize(Puppet puppet, ref ModelState state) {
+        super.onFinalize(puppet, state);
+        target_ = puppet.find!Node(nodeId);
+        propKey_ = nu_quarkof(prop_[]);
+        if (target_ is null)
+            state.warning(nstring("property binding target was not found for ", prop_[]));
+        else if (!target_.hasProperty(propKey_))
+            state.warning(nstring("property binding target does not expose ", prop_[]));
+    }
+
+public:
+    this(Parameter param) {
+        super(param);
+        defined_.resizeToParam(param);
+        values_.resizeToParam(param);
+    }
+
+    @property Node target() => target_;
+    @property string property() => prop_[];
+
+    override
+    void apply(vec2u index, vec2 norm) {
+        if (target_ is null || !target_.hasProperty(propKey_))
+            return;
+
+        if (parameter.dimensions == 1) {
+            if (parameter.elementCounts.length != 1 || parameter.elementCounts[0] < 2)
+                return;
+            auto lo = vec2u(index.x, 0);
+            auto hi = vec2u(index.x + 1, 0);
+            if (!validIndex(lo) || !validIndex(hi))
+                return;
+            if (definedAt(lo) && definedAt(hi))
+                applyValue(valueAt(lo) + (valueAt(hi) - valueAt(lo)) * norm.x);
+            else if (definedAt(lo))
+                applyValue(valueAt(lo));
+            else if (definedAt(hi))
+                applyValue(valueAt(hi));
+            return;
+        }
+
+        auto p00 = vec2u(index.x, index.y);
+        auto p10 = vec2u(index.x + 1, index.y);
+        auto p01 = vec2u(index.x, index.y + 1);
+        auto p11 = vec2u(index.x + 1, index.y + 1);
+        if (!validIndex(p00) || !validIndex(p10) || !validIndex(p01) || !validIndex(p11))
+            return;
+
+        if (definedAt(p00) && definedAt(p10) && definedAt(p01) && definedAt(p11)) {
+            float top = valueAt(p00) + (valueAt(p10) - valueAt(p00)) * norm.x;
+            float bottom = valueAt(p01) + (valueAt(p11) - valueAt(p01)) * norm.x;
+            applyValue(top + (bottom - top) * norm.y);
+        }
+    }
+
+    override void insertKeypoint(ParameterAxis axis, uint index) {
+        assert(false, "current compatibility property binding does not mutate axis topology");
+    }
+    override void moveKeypoint(ParameterAxis axis, uint index, uint dest) {
+        assert(false, "current compatibility property binding does not mutate axis topology");
+    }
+    override void deleteKeypoint(ParameterAxis axis, uint index) {
+        assert(false, "current compatibility property binding does not mutate axis topology");
+    }
+    override void scaleKeypoint(ParameterAxis axis, uint index, float scale) {
+        assert(false, "current compatibility property binding does not mutate axis topology");
+    }
+
+    override
+    void copyKeypoint(vec2u index, ParameterBinding other, vec2u dest) {
+        auto propertyBinding = cast(ParameterPropertyBinding)other;
+        if (!validIndex(index) || propertyBinding is null || !propertyBinding.validIndex(dest))
+            return;
+        propertyBinding.definedAt(dest) = definedAt(index);
+        propertyBinding.valueAt(dest) = valueAt(index);
+    }
+
+    override
+    void clear() {
+        defined_[] = false;
+    }
+
+    override
+    void enable(vec2u index) {
+        if (!validIndex(index))
+            return;
+        definedAt(index) = true;
+        reset(index);
+    }
+
+    override
+    void reset(vec2u index) {
+        if (!validIndex(index))
+            return;
+        valueAt(index) = target_ !is null && target_.hasProperty(propKey_) ?
+            target_.getPropertyDefault(propKey_) : 0;
+    }
+
+    override
+    void disable(vec2u index) {
+        if (validIndex(index))
+            definedAt(index) = false;
+    }
+
+    override void fillBlanks() {
+    }
+
+    override
+    bool isDefined(uint index) const {
+        return index < defined_.data.length && defined_.data[index];
+    }
+
+    override
+    bool isCompatibleWith(Node other) const {
+        return other !is null && propKey_ != 0 && other.hasProperty(propKey_);
+    }
+}
+`,
+);
+
+replaceExact(
+  'simplephysics-late-parameter-resolution',
+  'source/inochi2d/nodes/legacy/simplephysics.d',
+  `        this.paramRef = object.tryGetGUID(state, "param", "target");
+`,
+  `        if (auto target = "target" in object)
+            this.paramRef = (*target).tryGetGUID(state);
+        else if (auto legacyParam = "param" in object)
+            this.paramRef = (*legacyParam).tryGetGUID(state);
+        else
+            this.paramRef = GUID.nil;
+`,
+);
+
+replaceExact(
+  'simplephysics-string-enum-deserialization',
+  'source/inochi2d/nodes/legacy/simplephysics.d',
+  `        object.tryGetRef(state, modelType_, "model_type", PhysicsModel.Pendulum);
+        object.tryGetRef(state, mapMode, "map_mode", ParamMapMode.AngleLength);
+`,
+  `        if (auto model = "model_type" in object) {
+            auto value = (*model).tryCoerce!string(null);
+            if (value == "pendulum" || value == "Pendulum")
+                modelType_ = PhysicsModel.Pendulum;
+            else if (value == "spring_pendulum" || value == "SpringPendulum")
+                modelType_ = PhysicsModel.SpringPendulum;
+            else {
+                modelType_ = PhysicsModel.Pendulum;
+                state.warning("Unknown SimplePhysics model_type; using pendulum");
+            }
+        } else {
+            modelType_ = PhysicsModel.Pendulum;
+        }
+
+        if (auto mapping = "map_mode" in object) {
+            auto value = (*mapping).tryCoerce!string(null);
+            if (value == "angle_length" || value == "AngleLength")
+                mapMode = ParamMapMode.AngleLength;
+            else if (value == "xy" || value == "XY")
+                mapMode = ParamMapMode.XY;
+            else if (value == "length_angle" || value == "LengthAngle")
+                mapMode = ParamMapMode.LengthAngle;
+            else if (value == "yx" || value == "YX")
+                mapMode = ParamMapMode.YX;
+            else {
+                mapMode = ParamMapMode.AngleLength;
+                state.warning("Unknown SimplePhysics map_mode; using angle_length");
+            }
+        } else {
+            mapMode = ParamMapMode.AngleLength;
+        }
+`,
+);
+
+replaceExact(
+  'simplephysics-late-parameter-resolution',
+  'source/inochi2d/nodes/legacy/simplephysics.d',
+  `    GUID paramRef = GUID.nil;
+    PhysicsModel modelType_ = PhysicsModel.Pendulum;
+    Parameter param_;
+    vec2 output;
+`,
+  `    GUID paramRef = GUID.nil;
+    PhysicsModel modelType_ = PhysicsModel.Pendulum;
+    Parameter param_;
+    vec2 output;
+
+    Parameter resolveParam() {
+        if (param_ !is null || paramRef == GUID.nil || puppet is null)
+            return param_;
+
+        param_ = puppet.findParameter(paramRef);
+        if (param_ !is null)
+            return param_;
+
+        auto targetGuid = paramRef.toString();
+        foreach (candidate; puppet.parameters) {
+            auto candidateGuid = candidate.guid.toString();
+            if (candidateGuid[] == targetGuid[]) {
+                param_ = candidate;
+                break;
+            }
+        }
+        return param_;
+    }
+`,
+);
+
+replaceExact(
+  'simplephysics-late-parameter-resolution',
+  'source/inochi2d/nodes/legacy/simplephysics.d',
+  `    @property Parameter param() => param_;
+    @property void param(Parameter p) {
+        this.param_ = p;
+        this.paramRef = param_ ? param_.guid : GUID.nil;
+    }
+`,
+  `    @property Parameter param() => resolveParam();
+    @property void param(Parameter p) {
+        this.param_ = p;
+        this.paramRef = param_ ? param_.guid : GUID.nil;
+    }
+`,
+);
+
+replaceExact(
+  'simplephysics-late-parameter-resolution',
+  'source/inochi2d/nodes/legacy/simplephysics.d',
+  `    @property Parameter[] affectedParameters() @nogc => (&param_)[0 .. 1];
+`,
+  `    @property Parameter[] affectedParameters() @nogc {
+        resolveParam();
+        return (&param_)[0 .. 1];
+    }
+`,
+);
+
 for (const patch of manifest.patches) {
   if (!applied.has(patch.id)) throw new Error(`declared current patch was not applied: ${patch.id}`);
 }

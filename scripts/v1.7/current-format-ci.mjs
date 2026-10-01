@@ -6,7 +6,10 @@ import path from 'node:path';
 const root = process.cwd();
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const exe = path.join(root, '.build', 'current-format', process.platform === 'win32' ? 'iat_current_format_probe.exe' : 'iat_current_format_probe');
-const input = path.join(root, 'tests', 'fixtures', 'generated', 'v1.6-rig-helper-output.inp');
+const nativeOut = path.join(root, '.build', 'native');
+const host = path.join(nativeOut, process.platform === 'win32' ? 'iat_native_host.exe' : 'iat_native_host');
+const baseInput = path.join(root, 'tests', 'fixtures', 'generated', 'v1.6-rig-helper-output.inp');
+const input = path.join(root, 'tests', 'fixtures', 'generated', 'v2-current-production-input.inp');
 const outA = path.join(root, 'tests', 'fixtures', 'generated', 'v1.7-current-a.inp');
 const rtA = path.join(root, 'tests', 'fixtures', 'generated', 'v1.7-current-a-roundtrip.inp');
 const outB = path.join(root, 'tests', 'fixtures', 'generated', 'v1.7-current-b.inp');
@@ -22,6 +25,13 @@ function run(command, args, options = {}) {
   }
   return result;
 }
+const nativeEnv = {
+  ...process.env,
+  LD_LIBRARY_PATH: [nativeOut, process.env.LD_LIBRARY_PATH].filter(Boolean).join(':'),
+  DYLD_LIBRARY_PATH: [nativeOut, process.env.DYLD_LIBRARY_PATH].filter(Boolean).join(':'),
+  PATH: [nativeOut, process.env.PATH].filter(Boolean).join(path.delimiter),
+};
+
 function digest(file) {
   return createHash('sha256').update(readFileSync(file)).digest('hex');
 }
@@ -33,11 +43,61 @@ function assertInp2(file) {
   }
 }
 
-for (const file of [outA, rtA, outB, rtB]) rmSync(file, { force: true });
+for (const file of [input, outA, rtA, outB, rtB]) rmSync(file, { force: true });
 
-if (!existsSync(input)) {
+if (!existsSync(baseInput) || !existsSync(host)) {
   run(npmCommand, ['run', 'v1.6:rig-helpers:ci'], { stdio: 'inherit', encoding: undefined });
 }
+const productionOperations = [
+  {
+    type: 'parameter.create',
+    name: 'Face Tint R',
+    dimensions: 1,
+    min: [-1, 0],
+    max: [1, 0],
+    defaultValue: [0, 0],
+  },
+  {
+    type: 'parameter.bind',
+    parameterName: 'Face Tint R',
+    targetPath: '/Root/Face',
+    property: 'tint.r',
+    keypoints: [
+      { at: [-1, 0], value: 0.2 },
+      { at: [1, 0], value: 1 },
+    ],
+  },
+  {
+    type: 'physics.create',
+    parentPath: '/Root',
+    name: 'CurrentPhysics',
+    parameterName: 'Head X',
+    model: 'pendulum',
+    mapMode: 'angle_length',
+    gravity: 1,
+    length: 100,
+    frequency: 1,
+    angleDamping: 0.5,
+    lengthDamping: 0.5,
+    outputScale: [1, 1],
+    localOnly: true,
+  },
+  {
+    type: 'deformer.create',
+    kind: 'mesh',
+    parentPath: '/Root',
+    name: 'CurrentRigCage',
+    mesh: {
+      vertices: [[-32, -32], [32, -32], [32, 32], [-32, 32]],
+      uvs: [[0, 0], [1, 0], [1, 1], [0, 1]],
+      indices: [0, 1, 2, 0, 2, 3],
+    },
+  },
+];
+run(host, ['edit-visual', baseInput, input, JSON.stringify(productionOperations)], {
+  env: nativeEnv,
+});
+
 run(npmCommand, ['run', 'current:materialize'], { stdio: 'inherit', encoding: undefined });
 run('dub', ['build', '--root=native/current-format', '--compiler=ldc2', '--build=debug'], { stdio: 'inherit', encoding: undefined });
 

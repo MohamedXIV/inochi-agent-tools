@@ -39,6 +39,45 @@
       "target": "source/inochi2d/param/parameters/param1d.d",
       "reason": "Inochi2D 0.8 serializes even 1D parameter min/max/defaults as vec2 arrays and axis_points as a two-axis array. Current Parameter1D reads scalars/a flat points list before its 0.8 upgrade branch, which loses non-zero bounds and the authored X axis.",
       "removalCondition": "Remove when pinned current upstream's 0.8->0.9 Parameter1D upgrade explicitly maps vec2 bounds/defaults to their X component and axis_points[0] to the 1D points list."
+    },
+    {
+      "id": "parameter-guid-roundtrip",
+      "target": "source/inochi2d/param/parameters/package.d",
+      "reason": "Current Parameter serialization writes guid while deserialization prefers legacy uuid when both are present. Stable 0.8.7 compatibility artifacts carry both identities, and semantic references such as SimplePhysics.target point at guid, so the current lane must prefer guid and fall back to uuid only when guid is absent.",
+      "removalCondition": "Remove when pinned current upstream prefers serialized parameter guid when present and uses legacy uuid only as a fallback."
+    },
+    {
+      "id": "node-guid-roundtrip",
+      "target": "source/inochi2d/nodes/package.d",
+      "reason": "Stable 0.8.7 compatibility artifacts carry both an authored node guid and a projected legacy uuid. Current Node deserialization prefers uuid, which changes node identity and severs GUID-based property-binding and related semantic references during migration.",
+      "removalCondition": "Remove when pinned current upstream prefers serialized node guid when present and uses legacy uuid only as a fallback."
+    },
+    {
+      "id": "parameter-binding-serialization",
+      "target": "source/inochi2d/param/parameters/package.d",
+      "reason": "Current Parameter.onSerialize omits bindings entirely, so migrated production rigs lose transform, opacity, and tint controls on current-format save.",
+      "removalCondition": "Remove when pinned current upstream serializes parameter bindings through its supported binding representation."
+    },
+    {
+      "id": "property-binding-compatibility",
+      "target": "source/inochi2d/param/bindings/package.d",
+      "additionalTargets": [
+        "source/inochi2d/param/bindings/property.d"
+      ],
+      "reason": "Current upstream has property-binding upgrade/deserialization and ParameterPropertyBinding disabled, so 0.8 production property bindings are discarded during migration. The compatibility patch restores only inspectable scalar property bindings required by the semantic authoring lane and prefers the authored target GUID over the coexisting legacy node UUID so save/reload does not sever binding targets.",
+      "removalCondition": "Remove when pinned current upstream provides supported property-binding deserialization, serialization, evaluation, and target identity round-trip for the required semantic properties."
+    },
+    {
+      "id": "simplephysics-late-parameter-resolution",
+      "target": "source/inochi2d/nodes/legacy/simplephysics.d",
+      "reason": "Pinned current upstream loses a valid serialized SimplePhysics target GUID through the keyed compatibility helper even though the raw artifact and loaded parameter preserve that exact GUID. Deserialize target/param directly from their DataNode identity, then resolve lazily by GUID identity with canonical GUID text as a bounded fallback.",
+      "removalCondition": "Remove when pinned current upstream preserves SimplePhysics target identity during deserialization and reliably resolves the referenced parameter through normal lookup."
+    },
+    {
+      "id": "simplephysics-string-enum-deserialization",
+      "target": "source/inochi2d/nodes/legacy/simplephysics.d",
+      "reason": "Stable SimplePhysics artifacts serialize model_type and map_mode as string-valued enums, while current generic DataNode coercion does not restore those enum values from strings. Decode only the documented SimplePhysics enum spellings and fail closed to the documented defaults with a warning for unknown values.",
+      "removalCondition": "Remove when pinned current upstream deserializes string-valued SimplePhysics enums through its normal serde path."
     }
   ]
 }

@@ -40,7 +40,7 @@ rmSync(roundtrip, { force: true });
 run(npmCommand, ['run', 'current:materialize'], { stdio: 'inherit', encoding: undefined });
 run('dub', ['build', '--root=native/current-format', '--compiler=ldc2', '--build=debug'],
   { stdio: 'inherit', encoding: undefined });
-const probe = run(exe, [input, output, roundtrip]);
+const probe = run(exe, ['--conversion-only', input, output, roundtrip]);
 assertInp2(output);
 assertInp2(roundtrip);
 

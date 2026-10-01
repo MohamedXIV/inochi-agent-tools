@@ -66,6 +66,12 @@
       "target": "source/inochi2d/nodes/legacy/simplephysics.d",
       "reason": "Pinned current upstream loses a valid serialized SimplePhysics target GUID through the keyed compatibility helper even though the raw artifact and loaded parameter preserve that exact GUID. Deserialize target/param directly from their DataNode identity, then resolve lazily by GUID identity with canonical GUID text as a bounded fallback.",
       "removalCondition": "Remove when pinned current upstream preserves SimplePhysics target identity during deserialization and reliably resolves the referenced parameter through normal lookup."
+    },
+    {
+      "id": "simplephysics-string-enum-deserialization",
+      "target": "source/inochi2d/nodes/legacy/simplephysics.d",
+      "reason": "Stable SimplePhysics artifacts serialize model_type and map_mode as string-valued enums, while current generic DataNode coercion does not restore those enum values from strings. Decode only the documented SimplePhysics enum spellings and fail closed to the documented defaults with a warning for unknown values.",
+      "removalCondition": "Remove when pinned current upstream deserializes string-valued SimplePhysics enums through its normal serde path."
     }
   ]
 }

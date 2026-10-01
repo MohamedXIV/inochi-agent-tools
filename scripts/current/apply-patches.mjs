@@ -536,6 +536,46 @@ replaceExact(
 );
 
 replaceExact(
+  'simplephysics-string-enum-deserialization',
+  'source/inochi2d/nodes/legacy/simplephysics.d',
+  `        object.tryGetRef(state, modelType_, "model_type", PhysicsModel.Pendulum);
+        object.tryGetRef(state, mapMode, "map_mode", ParamMapMode.AngleLength);
+`,
+  `        if (auto model = "model_type" in object) {
+            auto value = (*model).tryCoerce!string(null);
+            if (value == "pendulum" || value == "Pendulum")
+                modelType_ = PhysicsModel.Pendulum;
+            else if (value == "spring_pendulum" || value == "SpringPendulum")
+                modelType_ = PhysicsModel.SpringPendulum;
+            else {
+                modelType_ = PhysicsModel.Pendulum;
+                state.warning("Unknown SimplePhysics model_type; using pendulum");
+            }
+        } else {
+            modelType_ = PhysicsModel.Pendulum;
+        }
+
+        if (auto mapping = "map_mode" in object) {
+            auto value = (*mapping).tryCoerce!string(null);
+            if (value == "angle_length" || value == "AngleLength")
+                mapMode = ParamMapMode.AngleLength;
+            else if (value == "xy" || value == "XY")
+                mapMode = ParamMapMode.XY;
+            else if (value == "length_angle" || value == "LengthAngle")
+                mapMode = ParamMapMode.LengthAngle;
+            else if (value == "yx" || value == "YX")
+                mapMode = ParamMapMode.YX;
+            else {
+                mapMode = ParamMapMode.AngleLength;
+                state.warning("Unknown SimplePhysics map_mode; using angle_length");
+            }
+        } else {
+            mapMode = ParamMapMode.AngleLength;
+        }
+`,
+);
+
+replaceExact(
   'simplephysics-late-parameter-resolution',
   'source/inochi2d/nodes/legacy/simplephysics.d',
   `    GUID paramRef = GUID.nil;

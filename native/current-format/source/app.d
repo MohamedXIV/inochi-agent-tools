@@ -334,15 +334,34 @@ bool assertFixture(string path) {
 }
 
 int main(string[] args) {
-    if (args.length != 4) {
-        stderr.writeln("usage: iat_current_format_probe input.inp output.inp roundtrip.inp");
+    bool strictProduction = true;
+    size_t inputIndex = 1;
+    if (args.length == 5 && args[1] == "--conversion-only") {
+        strictProduction = false;
+        inputIndex = 2;
+    } else if (args.length != 4) {
+        stderr.writeln("usage: iat_current_format_probe [--conversion-only] input.inp output.inp roundtrip.inp");
         return 2;
     }
-    if (!assertFixture(args[1])) return 3;
-    if (!writeCurrent(args[1], args[2])) return 4;
-    if (!assertFixture(args[2])) return 5;
-    if (!writeCurrent(args[2], args[3])) return 6;
-    if (!assertFixture(args[3])) return 7;
-    writeln("{\"ok\":true,\"format\":\"INP2\",\"parameters\":[\"Head X\",\"Head Y\",\"Visibility\",\"Face Tint R\"],\"bindingProperties\":[\"transform.t.x\",\"transform.t.y\",\"opacity\",\"tint.r\"],\"runtimeBindingEvaluation\":true,\"physics\":\"SimplePhysics\",\"meshDeformer\":\"CurrentRigCage\",\"setReadbackRestore\":true,\"nodes\":[\"Face\",\"HairFront\"],\"minTextureSlots\":2}");
+
+    auto inputPath = args[inputIndex];
+    auto outputPath = args[inputIndex + 1];
+    auto roundtripPath = args[inputIndex + 2];
+
+    // The default path is deliberately strict and fixture-specific for #47.
+    // Downstream compatibility lanes may request conversion-only behavior, which
+    // still performs real Puppet.fromFile -> serialize -> INP2 write twice but
+    // does not impose #47's CurrentPhysics/Head X acceptance fixture contract.
+    if (strictProduction && !assertFixture(inputPath)) return 3;
+    if (!writeCurrent(inputPath, outputPath)) return 4;
+    if (strictProduction && !assertFixture(outputPath)) return 5;
+    if (!writeCurrent(outputPath, roundtripPath)) return 6;
+    if (strictProduction && !assertFixture(roundtripPath)) return 7;
+
+    if (strictProduction) {
+        writeln("{\"ok\":true,\"format\":\"INP2\",\"mode\":\"production-acceptance\",\"parameters\":[\"Head X\",\"Head Y\",\"Visibility\",\"Face Tint R\"],\"bindingProperties\":[\"transform.t.x\",\"transform.t.y\",\"opacity\",\"tint.r\"],\"runtimeBindingEvaluation\":true,\"physics\":\"SimplePhysics\",\"meshDeformer\":\"CurrentRigCage\",\"setReadbackRestore\":true,\"nodes\":[\"Face\",\"HairFront\"],\"minTextureSlots\":2}");
+    } else {
+        writeln("{\"ok\":true,\"format\":\"INP2\",\"mode\":\"conversion-only\",\"saveReloadCycles\":2}");
+    }
     return 0;
 }

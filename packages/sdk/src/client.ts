@@ -1,4 +1,5 @@
 import {
+  buildRigProject,
   createPuppet,
   editPuppet,
   evaluateParameterValues,
@@ -7,6 +8,8 @@ import {
   renderPreview,
   savePuppet,
   validatePuppet,
+  type BuildRigProjectRequest,
+  type BuildRigProjectResult,
   type CreatePuppetRequest,
   type CreatePuppetResult,
   type EditPuppetRequest,
@@ -30,6 +33,7 @@ export interface NormalizeRigProjectRequest {
 }
 
 export interface AuthoringClient {
+  buildRigProject(request: BuildRigProjectRequest): Promise<BuildRigProjectResult>;
   createPuppet(request: CreatePuppetRequest): Promise<CreatePuppetResult>;
   inspectPuppet(request: InspectPuppetRequest): Promise<PuppetInspection>;
   normalizeRigProject(request: NormalizeRigProjectRequest): Promise<RigProjectInspection>;
@@ -42,6 +46,7 @@ export interface AuthoringClient {
 
 export function createAuthoringClient(): AuthoringClient {
   return {
+    buildRigProject,
     createPuppet,
     inspectPuppet: ({ inputPath }) => inspectPuppet(inputPath),
     normalizeRigProject: async ({ manifest }) => inspectRigProjectManifest(manifest),

@@ -35,7 +35,7 @@ The gate requires all of the following on the exact PR head:
 - the emitted puppet is real INP2 with `TRNSRTS2` magic;
 - current-format save/reload is byte-stable for the generated fixture;
 - the final current-format puppet reloads with `body`, `head`, and `hair` nodes;
-- `Breathing -> body.transform.s.y` and `Hair Swing -> hair.transform.r.z` bindings survive migration;
+- `Breathing -> body/head/hair transform.s.y` and `Hair Swing -> hair.transform.r.z` bindings survive migration;
 - `Hair Physics` remains linked to `Hair Swing`;
 - current-format parameter set/readback/restore and runtime property evaluation work on the generated artifact;
 - recreating the PNG inputs from scratch reproduces the manifest, repaired plan, QA, build, preview-sample, and current-format fingerprints.

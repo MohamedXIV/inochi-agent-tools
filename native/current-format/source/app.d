@@ -261,7 +261,7 @@ bool assertV2E2EFixture(string path) {
         stderr.writeln("current-format-probe: v2 e2e required parameters missing");
         return false;
     }
-    if (!assertPropertyBindings(breathing, "transform.s.y", ["body"])) return false;
+    if (!assertPropertyBindings(breathing, "transform.s.y", ["body", "head", "hair"])) return false;
     if (!assertPropertyBindings(hairSwing, "transform.r.z", ["hair"])) return false;
     if (!assertRuntimeBindingRange(puppet, "Breathing", "body", "transform.s.y")) return false;
     if (!assertRuntimeBindingRange(puppet, "Hair Swing", "hair", "transform.r.z")) return false;

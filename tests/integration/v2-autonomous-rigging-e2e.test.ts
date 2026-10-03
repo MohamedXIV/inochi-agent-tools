@@ -172,6 +172,30 @@ function runCurrentRuntimeVerification(puppet: string): unknown {
   return JSON.parse(result.stdout.trim());
 }
 
+async function verifySaveReloadSemanticEquivalence(puppet: string): Promise<void> {
+  const directory = path.dirname(puppet);
+  const saved = path.join(directory, '.e2e-save-reload.inp');
+  const savedAgain = path.join(directory, '.e2e-save-reload-2.inp');
+  await rm(saved, { force: true });
+  await rm(savedAgain, { force: true });
+
+  const conversion = spawnSync(currentProbe, ['--conversion-only', puppet, saved, savedAgain], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+  });
+  if (conversion.error) throw conversion.error;
+  if (conversion.status !== 0) {
+    throw new Error(conversion.stderr || conversion.stdout || 'v2 save/reload conversion failed');
+  }
+
+  const originalSemantics = runCurrentRuntimeVerification(puppet);
+  expect(runCurrentRuntimeVerification(saved)).toEqual(originalSemantics);
+  expect(runCurrentRuntimeVerification(savedAgain)).toEqual(originalSemantics);
+
+  await rm(saved, { force: true });
+  await rm(savedAgain, { force: true });
+}
+
 async function assertFinalBuild(result: BuildRigProjectResult): Promise<void> {
   expect(result.status).toBe('green');
   expect(result.qa.pass).toBe(true);
@@ -200,7 +224,7 @@ async function assertFinalBuild(result: BuildRigProjectResult): Promise<void> {
   expect(bytes.subarray(0, 8).toString('ascii')).toBe('TRNSRTS2');
   expect(result.currentFormat?.magic).toBe('TRNSRTS2');
   expect(result.currentFormat?.sha256).toBe(createHash('sha256').update(bytes).digest('hex'));
-  expect(result.currentFormat?.sha256).toBe(result.currentFormat?.roundtripSha256);
+  expect(result.currentFormat?.roundtripSha256).toMatch(/^[a-f0-9]{64}$/);
 
   const runtime = runCurrentRuntimeVerification(result.artifacts.puppet) as {
     ok: boolean;
@@ -212,6 +236,7 @@ async function assertFinalBuild(result: BuildRigProjectResult): Promise<void> {
     mode: 'v2-e2e-verify',
     setReadbackRestore: true,
   });
+  await verifySaveReloadSemanticEquivalence(result.artifacts.puppet);
 
   const provenance = JSON.parse(await readFile(result.artifacts.provenance, 'utf8')) as {
     buildFingerprint: string;

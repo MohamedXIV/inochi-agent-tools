@@ -15,22 +15,18 @@ layered PNGs + Rig Project
   -> standard rig compilation
   -> real Part authoring
   -> machine-readable preview QA
-  -> detect an intentionally over-amplified breathing deformation
-  -> bounded deterministic gain repair
-  -> re-run QA to green
   -> current-format INP2 finalization
   -> current-format runtime verification
   -> clean-input deterministic rebuild
 ```
 
-The representative character has three real textured Parts (`body`, `head`, and `hair`), a directly previewable `Breathing` deformation, and a `Hair Swing` parameter linked to bounded `SimplePhysics` secondary motion. The deliberately excessive breathing response must produce a repairable `DISAPPEARING_CONTENT` diagnostic before bounded repair reduces only that semantic gain.
+The representative character has three real textured Parts in a non-trivial `body -> head -> hair` hierarchy, a directly previewable `Breathing` deformation, and a `Hair Swing` parameter linked to bounded `SimplePhysics` secondary motion. Repair capability is consumed as an exact-head prerequisite: the immediately preceding `v2:rig-repair:ci` gate authors a real puppet, detects `DISAPPEARING_CONTENT`, applies bounded deterministic gain repair, and must return QA to green before this final E2E gate can run.
 
 ## Evidence required by CI
 
 The gate requires all of the following on the exact PR head:
 
 - final QA is green with a non-empty seven-sample matrix;
-- the dedicated defect produced at least one accepted bounded repair iteration;
 - repaired semantic plan/build/QA fingerprints are deterministic;
 - the emitted puppet is real INP2 with `TRNSRTS2` magic;
 - current-format save/reload preserves the generated fixture's verified runtime semantics across repeated INP2 serialization;
@@ -40,7 +36,7 @@ The gate requires all of the following on the exact PR head:
 - current-format parameter set/readback/restore and runtime property evaluation work on the generated artifact;
 - recreating the PNG inputs from scratch reproduces the manifest, repaired plan, QA, build, preview-sample, and corresponding current-format fingerprints.
 
-SDK/CLI/MCP adapter equivalence is not reimplemented in this final test. It remains continuously enforced by the immediately preceding `v2:rig-build:ci` #48 gate on the same exact head, so #49 consumes the proven single orchestration authority rather than introducing a second test-only workflow.
+Bounded repair and SDK/CLI/MCP adapter equivalence are not reimplemented in this final test. They remain continuously enforced by the immediately preceding `v2:rig-repair:ci` #46 and `v2:rig-build:ci` #48 gates on the same exact head, so #49 consumes the proven semantic authorities rather than introducing test-only implementations.
 
 ## Capability boundary
 

@@ -53,6 +53,7 @@ describeProtocol('stdio MCP parity', () => {
         'puppet.open',
         'puppet.save',
         'puppet.validate',
+        'rig.project.build',
         'rig.project.normalize',
       ]);
 

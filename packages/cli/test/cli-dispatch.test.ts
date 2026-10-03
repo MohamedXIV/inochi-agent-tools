@@ -5,6 +5,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const coreMocks = vi.hoisted(() => ({
+  buildRigProject: vi.fn(),
   createPuppet: vi.fn(),
   editPuppet: vi.fn(),
   evaluateParameterValues: vi.fn(),
@@ -16,6 +17,7 @@ const coreMocks = vi.hoisted(() => ({
 
 vi.mock('@inochi-agent-tools/core', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@inochi-agent-tools/core')>()),
+  buildRigProject: coreMocks.buildRigProject,
   createPuppet: coreMocks.createPuppet,
   editPuppet: coreMocks.editPuppet,
   evaluateParameterValues: coreMocks.evaluateParameterValues,
@@ -84,6 +86,7 @@ async function writeJsonFixture(value: unknown): Promise<string> {
 
 describe('CLI semantic command dispatch', () => {
   beforeEach(() => {
+    coreMocks.buildRigProject.mockReset();
     coreMocks.createPuppet.mockReset();
     coreMocks.editPuppet.mockReset();
     coreMocks.evaluateParameterValues.mockReset();
@@ -233,6 +236,35 @@ describe('CLI semantic command dispatch', () => {
       command: 'puppet edit',
       result: edited,
     });
+  });
+
+  it('dispatches one-command rig build through the semantic core', async () => {
+    const manifest = { schemaVersion: 'inochi-agent-tools/rig-project/v1', name: 'CLI Build', layers: [{ id: 'body', source: 'body.png', role: 'body' }] };
+    const built = { schemaVersion: 1, status: 'green', buildFingerprint: 'b'.repeat(64) };
+    coreMocks.buildRigProject.mockResolvedValue(built);
+    const capture = captureIo();
+    const io = { ...capture.io, stdin: async () => JSON.stringify(manifest) } as CliIo & { stdin(): Promise<string> };
+
+    const exitCode = await runCli([
+      '--json', 'rig-project', 'build',
+      '--input', '-',
+      '--project-dir', 'project',
+      '--output-dir', 'output',
+      '--name', 'fixture',
+      '--overwrite',
+      '--no-repair',
+    ], io);
+
+    expect(exitCode).toBe(0);
+    expect(coreMocks.buildRigProject).toHaveBeenCalledWith({
+      manifest,
+      projectDir: 'project',
+      outputDir: 'output',
+      outputName: 'fixture',
+      overwrite: true,
+      repair: false,
+    });
+    expect(JSON.parse(capture.stdout[0])).toEqual({ ok: true, command: 'rig-project build', result: built });
   });
 
   it('normalizes a rig project from stdin through the one semantic core contract', async () => {

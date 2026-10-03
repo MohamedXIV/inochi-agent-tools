@@ -1,20 +1,26 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { createPuppet, editPuppet } from './authoring.js';
-import { fitRigProjectMeshes, partSetMeshOperation } from './mesh-generation.js';
-import { inspectRigProjectManifest } from './rig-project.js';
-import { runRigQa, type RigQaReport } from './rig-qa.js';
+import { createPuppet } from './authoring.js';
+import { fitRigProjectMeshes, partSetMeshOperation, type RigProjectMeshPlan } from './mesh-generation.js';
+import { inspectRigProjectManifest, type NormalizedRigProjectManifest } from './rig-project.js';
+import { runRigQa, type RigQaProfile, type RigQaReport } from './rig-qa.js';
 import { runBoundedRigRepair, type RigRepairLoopResult } from './rig-repair.js';
-import { compileStandardCharacterRig, type StandardCharacterRigBuildPlan } from './standard-rig-compiler.js';
-import type { PuppetEditOperation } from './visual-authoring.js';
+import {
+  compileStandardCharacterRig,
+  type StandardCharacterRigBuildPlan,
+  type StandardRigMotionProfile,
+} from './standard-rig-compiler.js';
+import { editPuppet, type PuppetEditOperation } from './visual-authoring.js';
 
 export interface BuildRigProjectRequest {
   manifest: unknown;
   projectDir: string;
   outputDir: string;
   outputName?: string;
+  profiles?: Readonly<Record<string, StandardRigMotionProfile>>;
+  qaProfile?: RigQaProfile;
   overwrite?: boolean;
   repair?: boolean;
 }
@@ -51,15 +57,20 @@ function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
-async function assertAbsent(filePath: string, overwrite: boolean): Promise<void> {
-  if (overwrite) return;
+async function exists(target: string): Promise<boolean> {
   try {
-    await readFile(filePath);
-    throw new Error('Refusing to overwrite existing build artifact: ' + filePath);
+    await stat(target);
+    return true;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
     throw error;
   }
+}
+
+async function prepareArtifact(target: string, overwrite: boolean, recursive = false): Promise<void> {
+  if (!(await exists(target))) return;
+  if (!overwrite) throw new Error('Refusing to overwrite existing build artifact: ' + target);
+  await rm(target, { force: true, recursive });
 }
 
 function deriveName(name: string): string {
@@ -67,19 +78,68 @@ function deriveName(name: string): string {
   return normalized || 'rig';
 }
 
-async function compilePlan(
-  manifest: ReturnType<typeof inspectRigProjectManifest>['manifest'],
-  projectDir: string,
-): Promise<StandardCharacterRigBuildPlan> {
-  const meshPlan = await fitRigProjectMeshes(manifest, { projectDir });
-  return compileStandardCharacterRig({ manifest, meshPlan });
+function buildLayerPaths(manifest: NormalizedRigProjectManifest): Record<string, string> {
+  const byId = new Map(manifest.layers.map((layer) => [layer.id, layer] as const));
+  const cache = new Map<string, string>();
+  const visiting = new Set<string>();
+
+  const resolve = (id: string): string => {
+    const cached = cache.get(id);
+    if (cached) return cached;
+    if (visiting.has(id)) throw new Error('Rig project layer parent cycle at ' + id);
+    const layer = byId.get(id);
+    if (!layer) throw new Error('Unknown rig project layer ' + id);
+    visiting.add(id);
+    const parentPath = layer.parentId ? resolve(layer.parentId) : '/Root';
+    const value = parentPath + '/' + layer.id;
+    visiting.delete(id);
+    cache.set(id, value);
+    return value;
+  };
+
+  for (const layer of manifest.layers) resolve(layer.id);
+  return Object.fromEntries([...cache.entries()].sort(([a], [b]) => a.localeCompare(b)));
 }
 
-function buildOperations(plan: StandardCharacterRigBuildPlan, puppetRoot = '/Root'): PuppetEditOperation[] {
-  const operations: PuppetEditOperation[] = [];
-  for (const fit of plan.meshPlan.layers) {
-    operations.push(partSetMeshOperation(fit, puppetRoot + '/' + fit.layerId));
+function layerDepth(id: string, manifest: NormalizedRigProjectManifest): number {
+  const byId = new Map(manifest.layers.map((layer) => [layer.id, layer] as const));
+  let depth = 0;
+  let current = byId.get(id);
+  const seen = new Set<string>();
+  while (current?.parentId) {
+    if (seen.has(current.id)) throw new Error('Rig project layer parent cycle at ' + current.id);
+    seen.add(current.id);
+    depth += 1;
+    current = byId.get(current.parentId);
   }
+  return depth;
+}
+
+function buildOperations(
+  manifest: NormalizedRigProjectManifest,
+  projectDir: string,
+  meshPlan: RigProjectMeshPlan,
+  plan: StandardCharacterRigBuildPlan,
+  layerPaths: Readonly<Record<string, string>>,
+): PuppetEditOperation[] {
+  const fitByLayer = new Map(meshPlan.layers.map((fit) => [fit.layerId, fit] as const));
+  const layers = [...manifest.layers].sort((a, b) =>
+    layerDepth(a.id, manifest) - layerDepth(b.id, manifest) || a.id.localeCompare(b.id),
+  );
+  const operations: PuppetEditOperation[] = [];
+
+  for (const layer of layers) {
+    const fit = fitByLayer.get(layer.id);
+    if (!fit) throw new Error('Missing generated mesh for layer ' + layer.id);
+    const parentPath = layer.parentId ? layerPaths[layer.parentId] : '/Root';
+    if (!parentPath) throw new Error('Missing authored parent path for layer ' + layer.id);
+    operations.push(
+      { type: 'texture.import', key: layer.id, imagePath: path.join(projectDir, layer.source) },
+      { type: 'part.create', parentPath, name: layer.id, textureKey: layer.id },
+      partSetMeshOperation(fit, layerPaths[layer.id]!),
+    );
+  }
+
   operations.push(...plan.operations);
   return operations;
 }
@@ -95,59 +155,103 @@ export async function buildRigProject(request: BuildRigProjectRequest): Promise<
     provenance: path.join(outputDir, outputName + '.provenance.json'),
     previewDir: path.join(outputDir, outputName + '.previews'),
   };
+  const overwrite = request.overwrite === true;
 
   await mkdir(outputDir, { recursive: true });
-  await mkdir(artifacts.previewDir, { recursive: true });
   await Promise.all([
-    assertAbsent(artifacts.puppet, request.overwrite === true),
-    assertAbsent(artifacts.qaReport, request.overwrite === true),
-    assertAbsent(artifacts.provenance, request.overwrite === true),
+    prepareArtifact(artifacts.puppet, overwrite),
+    prepareArtifact(artifacts.qaReport, overwrite),
+    prepareArtifact(artifacts.provenance, overwrite),
+    prepareArtifact(artifacts.previewDir, overwrite, true),
   ]);
+  await mkdir(artifacts.previewDir, { recursive: true });
 
-  let plan = await compilePlan(inspection.manifest, projectDir);
+  const meshPlan = await fitRigProjectMeshes(request.manifest, { projectRoot: projectDir });
+  const layerPaths = buildLayerPaths(inspection.manifest);
+  let plan = compileStandardCharacterRig({
+    manifest: request.manifest,
+    layerPaths,
+    ...(request.profiles ? { profiles: request.profiles } : {}),
+  });
+
   const seedPath = path.join(outputDir, '.' + outputName + '.seed.inp');
-  await createPuppet({ outputPath: seedPath, name: inspection.manifest.name });
-  await editPuppet({ inputPath: seedPath, outputPath: artifacts.puppet, operations: buildOperations(plan) });
+  const candidatePath = path.join(outputDir, '.' + outputName + '.candidate.inp');
+  await rm(seedPath, { force: true });
+  await rm(candidatePath, { force: true });
 
-  let qa = await runRigQa({ inputPath: artifacts.puppet, plan, outputDir: artifacts.previewDir });
-  let repair: RigRepairLoopResult | undefined;
-  if (!qa.pass && request.repair !== false) {
-    repair = await runBoundedRigRepair(plan, qa, async (candidate) => {
-      const candidatePath = path.join(outputDir, '.' + outputName + '.candidate.inp');
-      await editPuppet({ inputPath: seedPath, outputPath: candidatePath, operations: buildOperations(candidate) });
-      return runRigQa({ inputPath: candidatePath, plan: candidate, outputDir: artifacts.previewDir });
+  try {
+    await createPuppet({ outputPath: seedPath, name: inspection.manifest.name });
+    await editPuppet({
+      inputPath: seedPath,
+      outputPath: artifacts.puppet,
+      operations: buildOperations(inspection.manifest, projectDir, meshPlan, plan, layerPaths),
     });
-    plan = repair.plan;
-    qa = repair.qa;
-    if (repair.status === 'green') {
-      await editPuppet({ inputPath: seedPath, outputPath: artifacts.puppet, operations: buildOperations(plan) });
+
+    let qa = await runRigQa({
+      inputPath: artifacts.puppet,
+      plan,
+      outputDir: artifacts.previewDir,
+      ...(request.qaProfile ? { profile: request.qaProfile } : {}),
+    });
+    let repair: RigRepairLoopResult | undefined;
+
+    if (!qa.pass && request.repair !== false) {
+      repair = await runBoundedRigRepair(plan, qa, async (candidate) => {
+        await rm(candidatePath, { force: true });
+        await editPuppet({
+          inputPath: seedPath,
+          outputPath: candidatePath,
+          operations: buildOperations(inspection.manifest, projectDir, meshPlan, candidate, layerPaths),
+        });
+        return runRigQa({
+          inputPath: candidatePath,
+          plan: candidate,
+          outputDir: artifacts.previewDir,
+          ...(request.qaProfile ? { profile: request.qaProfile } : {}),
+        });
+      });
+      plan = repair.plan;
+      qa = repair.qa;
+      if (repair.status === 'green') {
+        await rm(artifacts.puppet, { force: true });
+        await editPuppet({
+          inputPath: seedPath,
+          outputPath: artifacts.puppet,
+          operations: buildOperations(inspection.manifest, projectDir, meshPlan, plan, layerPaths),
+        });
+      }
     }
+
+    await writeFile(artifacts.qaReport, JSON.stringify(qa, null, 2) + '\n', 'utf8');
+    const buildFingerprint = sha256(stableJson({
+      manifestFingerprint: inspection.fingerprint,
+      meshFingerprint: meshPlan.fingerprint,
+      planFingerprint: plan.fingerprint,
+      qaFingerprint: qa.fingerprint,
+    }));
+    const provenance = {
+      schemaVersion: 1,
+      manifestFingerprint: inspection.fingerprint,
+      meshFingerprint: meshPlan.fingerprint,
+      planFingerprint: plan.fingerprint,
+      qaFingerprint: qa.fingerprint,
+      buildFingerprint,
+      artifacts,
+    };
+    await writeFile(artifacts.provenance, JSON.stringify(provenance, null, 2) + '\n', 'utf8');
+
+    return {
+      schemaVersion: 1,
+      status: qa.pass ? 'green' : 'blocked',
+      manifestFingerprint: inspection.fingerprint,
+      buildFingerprint,
+      artifacts,
+      planFingerprint: plan.fingerprint,
+      qa,
+      ...(repair ? { repair } : {}),
+    };
+  } finally {
+    await rm(seedPath, { force: true });
+    await rm(candidatePath, { force: true });
   }
-
-  await writeFile(artifacts.qaReport, JSON.stringify(qa, null, 2) + '\n', 'utf8');
-  const buildFingerprint = sha256(stableJson({
-    manifestFingerprint: inspection.fingerprint,
-    planFingerprint: plan.fingerprint,
-    qaFingerprint: qa.fingerprint,
-  }));
-  const provenance = {
-    schemaVersion: 1,
-    manifestFingerprint: inspection.fingerprint,
-    planFingerprint: plan.fingerprint,
-    qaFingerprint: qa.fingerprint,
-    buildFingerprint,
-    artifacts,
-  };
-  await writeFile(artifacts.provenance, JSON.stringify(provenance, null, 2) + '\n', 'utf8');
-
-  return {
-    schemaVersion: 1,
-    status: qa.pass ? 'green' : 'blocked',
-    manifestFingerprint: inspection.fingerprint,
-    buildFingerprint,
-    artifacts,
-    planFingerprint: plan.fingerprint,
-    qa,
-    ...(repair ? { repair } : {}),
-  };
 }

@@ -88,6 +88,7 @@ async function assertArtifacts(result: {
   planFingerprint: string;
   artifacts: { puppet: string; qaReport: string; provenance: string; previewDir: string };
   qa: { pass: boolean; summary: { sampleCount: number } };
+  currentFormat?: { magic: string; sha256: string; roundtripSha256: string };
 }): Promise<void> {
   expect(result.status).toBe('green');
   expect(result.qa.pass).toBe(true);
@@ -95,7 +96,11 @@ async function assertArtifacts(result: {
   expect(result.buildFingerprint).toMatch(/^[a-f0-9]{64}$/);
   expect(result.manifestFingerprint).toMatch(/^[a-f0-9]{64}$/);
   expect(result.planFingerprint).toMatch(/^[a-f0-9]{64}$/);
-  expect((await readFile(result.artifacts.puppet)).length).toBeGreaterThan(100);
+  const puppetBytes = await readFile(result.artifacts.puppet);
+  expect(puppetBytes.length).toBeGreaterThan(100);
+  expect(puppetBytes.subarray(0, 8).toString('ascii')).toBe('TRNSRTS2');
+  expect(result.currentFormat?.magic).toBe('TRNSRTS2');
+  expect(result.currentFormat?.sha256).toMatch(/^[a-f0-9]{64}$/);
   expect(JSON.parse(await readFile(result.artifacts.qaReport, 'utf8')).pass).toBe(true);
   const provenance = JSON.parse(await readFile(result.artifacts.provenance, 'utf8')) as { buildFingerprint: string };
   expect(provenance.buildFingerprint).toBe(result.buildFingerprint);

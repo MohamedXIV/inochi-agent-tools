@@ -76,8 +76,6 @@ jobs:
         run: npm run v2:rig-qa:ci
       - name: v2 bounded rig repair acceptance
         run: npm run v2:rig-repair:ci
-      - name: v2 one-command rig build acceptance
-        run: npm run v2:rig-build:ci
       - name: Semantic tint binding acceptance
         run: npm run tint:ci
       - name: Away character downstream integration spike
@@ -88,5 +86,7 @@ jobs:
           compiler: ldc-1.43.0
       - name: v1.7 current-format INP2 compatibility acceptance
         run: npm run v1.7:current-format:ci
+      - name: v2 one-command rig build acceptance
+        run: npm run v2:rig-build:ci
       - name: Away character current-format acceptance
         run: npm run away-character:current:ci

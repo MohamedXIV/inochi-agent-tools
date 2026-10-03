@@ -19,3 +19,4 @@ export * from './standard-rig-compiler.js';
 export * from './rig-recipes.js';
 export * from './visual-authoring.js';
 export * from './visual-capabilities.js';
+export * from './rig-build.js';

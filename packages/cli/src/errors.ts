@@ -8,6 +8,7 @@ import {
   MissingTextureError,
   NativeBridgeError,
   PuppetAlreadyExistsError,
+  RigBuildStageError,
   RoundTripMismatchError,
   UnsupportedAuthoringCapabilityError,
 } from '@inochi-agent-tools/core';
@@ -30,6 +31,7 @@ const SEMANTIC_ERROR_MAP = [
   [UnsupportedAuthoringCapabilityError, 19, 'UNSUPPORTED_AUTHORING_CAPABILITY'],
   [NativeBridgeError, 20, 'NATIVE_BRIDGE_FAILURE'],
   [InvalidRigProjectError, 21, 'INVALID_RIG_PROJECT'],
+  [RigBuildStageError, 22, 'RIG_BUILD_STAGE_FAILED'],
 ] as const;
 
 function messageFrom(error: unknown): string {

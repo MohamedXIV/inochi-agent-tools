@@ -43,6 +43,35 @@ export function createMcpToolRegistry(client: AuthoringClient): McpSemanticTool[
   const inspectLike = (name: 'puppet.open' | 'puppet.inspect', description: string) => tool(name, description, inputOnlySchema, (input) => client.inspectPuppet({ inputPath: input.inputPath as string }), (input) => requiredString(input, 'inputPath') ? null : `${name} requires inputPath`);
 
   return [
+    tool('rig.project.build', 'Build a complete v2 rig project through the canonical semantic orchestration path.', objectSchema({
+      manifest: { type: 'object', description: 'Versioned rig-project manifest object' },
+      projectDir: stringFieldSchema('Directory containing layered source assets referenced by the manifest'),
+      outputDir: stringFieldSchema('Destination directory for puppet, previews, QA, and provenance'),
+      outputName: stringFieldSchema('Optional output basename'),
+      profiles: { type: 'object', additionalProperties: { type: 'object' }, description: 'Optional explicit standard-rig motion profiles keyed by motion ID' },
+      qaProfile: { type: 'object', description: 'Optional rig QA thresholds/profile' },
+      overwrite: { type: 'boolean' },
+      repair: { type: 'boolean' },
+    }, ['manifest', 'projectDir', 'outputDir']), (input) => client.buildRigProject({
+      manifest: input.manifest,
+      projectDir: input.projectDir as string,
+      outputDir: input.outputDir as string,
+      ...(typeof input.outputName === 'string' && input.outputName.trim().length ? { outputName: input.outputName } : {}),
+      ...(record(input.profiles) ? { profiles: input.profiles as NonNullable<Parameters<AuthoringClient['buildRigProject']>[0]['profiles']> } : {}),
+      ...(record(input.qaProfile) ? { qaProfile: input.qaProfile as NonNullable<Parameters<AuthoringClient['buildRigProject']>[0]['qaProfile']> } : {}),
+      ...(typeof input.overwrite === 'boolean' ? { overwrite: input.overwrite } : {}),
+      ...(typeof input.repair === 'boolean' ? { repair: input.repair } : {}),
+    }), (input) => {
+      if (!record(input.manifest)) return 'rig.project.build requires manifest object';
+      if (!requiredString(input, 'projectDir')) return 'rig.project.build requires projectDir';
+      if (!requiredString(input, 'outputDir')) return 'rig.project.build requires outputDir';
+      if (input.outputName !== undefined && !requiredString(input, 'outputName')) return 'rig.project.build outputName must be a non-empty string';
+      if (input.profiles !== undefined && !record(input.profiles)) return 'rig.project.build profiles must be an object';
+      if (input.qaProfile !== undefined && !record(input.qaProfile)) return 'rig.project.build qaProfile must be an object';
+      if (input.overwrite !== undefined && typeof input.overwrite !== 'boolean') return 'rig.project.build overwrite must be boolean';
+      if (input.repair !== undefined && typeof input.repair !== 'boolean') return 'rig.project.build repair must be boolean';
+      return null;
+    }),
     tool('rig.project.normalize', 'Validate, normalize, and fingerprint a v2 rig-project manifest through the canonical semantic core.', objectSchema({ manifest: { type: 'object', description: 'Versioned rig-project manifest object' } }, ['manifest']), (input) => client.normalizeRigProject({ manifest: input.manifest }), (input) => record(input.manifest) ? null : 'rig.project.normalize requires manifest object'),
     tool('puppet.create', 'Create a minimal real Inochi puppet.', objectSchema({ outputPath: stringFieldSchema('Destination .inp path'), name: stringFieldSchema('Puppet display name') }, ['outputPath', 'name']), (input) => client.createPuppet({ outputPath: input.outputPath as string, name: input.name as string }), (input) => {
       if (!requiredString(input, 'outputPath')) return 'puppet.create requires outputPath';

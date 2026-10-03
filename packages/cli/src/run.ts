@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 
 import {
+  buildRigProject,
   createPuppet,
   editPuppet,
   evaluateParameterValues,
@@ -10,6 +11,7 @@ import {
   renderPreview,
   savePuppet,
   validatePuppet,
+  type BuildRigProjectRequest,
   type NumericPair,
   type PuppetEditOperation,
   type RenderPreviewRequest,
@@ -78,6 +80,7 @@ type ParsedCommand =
   | { command: 'puppet save'; inputPath: string; outputPath: string }
   | { command: 'puppet edit'; inputPath: string; outputPath: string; operationsSource: string }
   | { command: 'rig-project normalize'; manifestSource: string }
+  | { command: 'rig-project build'; manifestSource: string; projectDir: string; outputDir: string; outputName?: string; profilesSource?: string; qaProfileSource?: string; overwrite: boolean; repair: boolean }
   | { command: 'parameter evaluate'; inputPath: string; valuesSource: string }
   | { command: 'preview render'; inputPath: string; outputPath: string; width?: number; height?: number; valuesSource?: string };
 
@@ -101,6 +104,20 @@ function parseKnownCommand(args: string[]): ParsedCommand {
     if (group === 'puppet' && action === 'edit') {
       const { values } = parseArgs({ args: rest, options: { input: { type: 'string' }, output: { type: 'string' }, operations: { type: 'string' } }, strict: true, allowPositionals: false });
       return { command: 'puppet edit', inputPath: requireStringOption(values, 'input'), outputPath: requireStringOption(values, 'output'), operationsSource: requireStringOption(values, 'operations') };
+    }
+    if (group === 'rig-project' && action === 'build') {
+      const { values } = parseArgs({ args: rest, options: { input: { type: 'string' }, 'project-dir': { type: 'string' }, 'output-dir': { type: 'string' }, name: { type: 'string' }, profiles: { type: 'string' }, 'qa-profile': { type: 'string' }, overwrite: { type: 'boolean' }, 'no-repair': { type: 'boolean' } }, strict: true, allowPositionals: false });
+      return {
+        command: 'rig-project build',
+        manifestSource: requireStringOption(values, 'input'),
+        projectDir: requireStringOption(values, 'project-dir'),
+        outputDir: requireStringOption(values, 'output-dir'),
+        ...(typeof values.name === 'string' && values.name.trim().length ? { outputName: values.name } : {}),
+        ...(typeof values.profiles === 'string' && values.profiles.trim().length ? { profilesSource: values.profiles } : {}),
+        ...(typeof values['qa-profile'] === 'string' && values['qa-profile'].trim().length ? { qaProfileSource: values['qa-profile'] } : {}),
+        overwrite: values.overwrite === true,
+        repair: values['no-repair'] !== true,
+      };
     }
     if (group === 'rig-project' && action === 'normalize') {
       const { values } = parseArgs({ args: rest, options: { input: { type: 'string' } }, strict: true, allowPositionals: false });
@@ -148,6 +165,28 @@ export async function runCli(argv: string[], io: CliIo): Promise<number> {
         const decoded = await readJsonSource(parsed.operationsSource, io);
         if (!Array.isArray(decoded)) throw new CliUsageError('puppet edit operations JSON must be an array');
         result = await editPuppet({ inputPath: parsed.inputPath, outputPath: parsed.outputPath, operations: decoded as PuppetEditOperation[] });
+        break;
+      }
+      case 'rig-project build': {
+        const decoded = await readJsonSource(parsed.manifestSource, io);
+        const profiles = parsed.profilesSource === undefined ? undefined : await readJsonSource(parsed.profilesSource, io);
+        const qaProfile = parsed.qaProfileSource === undefined ? undefined : await readJsonSource(parsed.qaProfileSource, io);
+        if (profiles !== undefined && (typeof profiles !== 'object' || profiles === null || Array.isArray(profiles))) {
+          throw new CliUsageError('rig-project build profiles JSON must be an object');
+        }
+        if (qaProfile !== undefined && (typeof qaProfile !== 'object' || qaProfile === null || Array.isArray(qaProfile))) {
+          throw new CliUsageError('rig-project build QA profile JSON must be an object');
+        }
+        result = await buildRigProject({
+          manifest: decoded,
+          projectDir: parsed.projectDir,
+          outputDir: parsed.outputDir,
+          ...(parsed.outputName === undefined ? {} : { outputName: parsed.outputName }),
+          ...(profiles === undefined ? {} : { profiles: profiles as NonNullable<BuildRigProjectRequest['profiles']> }),
+          ...(qaProfile === undefined ? {} : { qaProfile: qaProfile as NonNullable<BuildRigProjectRequest['qaProfile']> }),
+          overwrite: parsed.overwrite,
+          repair: parsed.repair,
+        });
         break;
       }
       case 'rig-project normalize': {

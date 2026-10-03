@@ -9,6 +9,7 @@ import {
   MissingTextureError,
   NativeBridgeError,
   PuppetAlreadyExistsError,
+  RigBuildStageError,
   RoundTripMismatchError,
 } from '@inochi-agent-tools/core';
 
@@ -85,6 +86,7 @@ describe('stable CLI contract', () => {
     [new RoundTripMismatchError('round trip'), 17, 'ROUND_TRIP_MISMATCH'],
     [new NativeBridgeError('native'), 20, 'NATIVE_BRIDGE_FAILURE'],
     [new InvalidRigProjectError([{ code: 'INVALID_VALUE', path: '$.name', message: 'bad rig project' }]), 21, 'INVALID_RIG_PROJECT'],
+    [new RigBuildStageError('mesh', new Error('native detail must not leak')), 22, 'RIG_BUILD_STAGE_FAILED'],
   ])('maps semantic error %s to stable exit/code contract', (error, exitCode, code) => {
     expect(classifyCliError(error)).toEqual({
       exitCode,

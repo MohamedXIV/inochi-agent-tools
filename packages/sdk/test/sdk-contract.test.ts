@@ -10,6 +10,7 @@ describe('public semantic SDK contract', () => {
     const client = createAuthoringClient();
 
     expect(Object.keys(client).sort()).toEqual([
+      'buildRigProject',
       'createPuppet',
       'editPuppet',
       'evaluateParameters',

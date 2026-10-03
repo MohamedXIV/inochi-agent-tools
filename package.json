@@ -77,7 +77,8 @@
     "away-character:current:ci": "node scripts/v1.8/away-character-current-ci.mjs",
     "v2:rig-recipes:ci": "node scripts/v2/rig-recipes-ci.mjs",
     "v2:rig-qa:ci": "node scripts/v2/rig-qa-ci.mjs",
-    "v2:rig-repair:ci": "node scripts/v2/rig-repair-ci.mjs"
+    "v2:rig-repair:ci": "node scripts/v2/rig-repair-ci.mjs",
+    "v2:rig-build:ci": "node scripts/v2/rig-build-ci.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

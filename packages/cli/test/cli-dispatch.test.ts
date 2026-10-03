@@ -241,9 +241,12 @@ describe('CLI semantic command dispatch', () => {
   it('dispatches one-command rig build through the semantic core', async () => {
     const manifest = { schemaVersion: 'inochi-agent-tools/rig-project/v1', name: 'CLI Build', layers: [{ id: 'body', source: 'body.png', role: 'body' }] };
     const built = { schemaVersion: 1, status: 'green', buildFingerprint: 'b'.repeat(64) };
+    const profiles = { headX: { parameterName: 'Head X' } };
+    const qaProfile = { minCoverageRatio: 0.01 };
     coreMocks.buildRigProject.mockResolvedValue(built);
     const capture = captureIo();
-    const io = { ...capture.io, stdin: async () => JSON.stringify(manifest) } as CliIo & { stdin(): Promise<string> };
+    const stdinPayloads = [manifest, profiles, qaProfile].map((value) => JSON.stringify(value));
+    const io = { ...capture.io, stdin: async () => stdinPayloads.shift()! } as CliIo & { stdin(): Promise<string> };
 
     const exitCode = await runCli([
       '--json', 'rig-project', 'build',
@@ -251,6 +254,8 @@ describe('CLI semantic command dispatch', () => {
       '--project-dir', 'project',
       '--output-dir', 'output',
       '--name', 'fixture',
+      '--profiles', '-',
+      '--qa-profile', '-',
       '--overwrite',
       '--no-repair',
     ], io);
@@ -261,6 +266,8 @@ describe('CLI semantic command dispatch', () => {
       projectDir: 'project',
       outputDir: 'output',
       outputName: 'fixture',
+      profiles,
+      qaProfile,
       overwrite: true,
       repair: false,
     });

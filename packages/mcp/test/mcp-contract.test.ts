@@ -101,10 +101,12 @@ describe('MCP semantic tool contract', () => {
     const build = registry.find((tool) => tool.name === 'rig.project.build')!;
     const manifest = { schemaVersion: 'inochi-agent-tools/rig-project/v1', name: 'MCP Build', layers: [{ id: 'body', source: 'body.png', role: 'body' }] };
 
-    const result = await build.call({ manifest, projectDir: 'project', outputDir: 'output', overwrite: true, repair: false });
+    const profiles = { headX: { parameterName: 'Head X' } };
+    const qaProfile = { minCoverageRatio: 0.01 };
+    const result = await build.call({ manifest, projectDir: 'project', outputDir: 'output', profiles, qaProfile, overwrite: true, repair: false });
 
     expect(result).toMatchObject({ ok: true, result: { schemaVersion: 1, status: 'green' } });
-    expect(client.buildRigProject).toHaveBeenCalledWith({ manifest, projectDir: 'project', outputDir: 'output', overwrite: true, repair: false });
+    expect(client.buildRigProject).toHaveBeenCalledWith({ manifest, projectDir: 'project', outputDir: 'output', profiles, qaProfile, overwrite: true, repair: false });
   });
 
   it('dispatches rig-project normalization through the semantic SDK contract', async () => {

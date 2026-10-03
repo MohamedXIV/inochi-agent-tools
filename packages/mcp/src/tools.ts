@@ -48,6 +48,8 @@ export function createMcpToolRegistry(client: AuthoringClient): McpSemanticTool[
       projectDir: stringFieldSchema('Directory containing layered source assets referenced by the manifest'),
       outputDir: stringFieldSchema('Destination directory for puppet, previews, QA, and provenance'),
       outputName: stringFieldSchema('Optional output basename'),
+      profiles: { type: 'object', additionalProperties: { type: 'object' }, description: 'Optional explicit standard-rig motion profiles keyed by motion ID' },
+      qaProfile: { type: 'object', description: 'Optional rig QA thresholds/profile' },
       overwrite: { type: 'boolean' },
       repair: { type: 'boolean' },
     }, ['manifest', 'projectDir', 'outputDir']), (input) => client.buildRigProject({
@@ -55,6 +57,8 @@ export function createMcpToolRegistry(client: AuthoringClient): McpSemanticTool[
       projectDir: input.projectDir as string,
       outputDir: input.outputDir as string,
       ...(typeof input.outputName === 'string' && input.outputName.trim().length ? { outputName: input.outputName } : {}),
+      ...(record(input.profiles) ? { profiles: input.profiles as Parameters<AuthoringClient['buildRigProject']>[0]['profiles'] } : {}),
+      ...(record(input.qaProfile) ? { qaProfile: input.qaProfile as Parameters<AuthoringClient['buildRigProject']>[0]['qaProfile'] } : {}),
       ...(typeof input.overwrite === 'boolean' ? { overwrite: input.overwrite } : {}),
       ...(typeof input.repair === 'boolean' ? { repair: input.repair } : {}),
     }), (input) => {
@@ -62,6 +66,8 @@ export function createMcpToolRegistry(client: AuthoringClient): McpSemanticTool[
       if (!requiredString(input, 'projectDir')) return 'rig.project.build requires projectDir';
       if (!requiredString(input, 'outputDir')) return 'rig.project.build requires outputDir';
       if (input.outputName !== undefined && !requiredString(input, 'outputName')) return 'rig.project.build outputName must be a non-empty string';
+      if (input.profiles !== undefined && !record(input.profiles)) return 'rig.project.build profiles must be an object';
+      if (input.qaProfile !== undefined && !record(input.qaProfile)) return 'rig.project.build qaProfile must be an object';
       if (input.overwrite !== undefined && typeof input.overwrite !== 'boolean') return 'rig.project.build overwrite must be boolean';
       if (input.repair !== undefined && typeof input.repair !== 'boolean') return 'rig.project.build repair must be boolean';
       return null;

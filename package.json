@@ -78,7 +78,8 @@
     "v2:rig-recipes:ci": "node scripts/v2/rig-recipes-ci.mjs",
     "v2:rig-qa:ci": "node scripts/v2/rig-qa-ci.mjs",
     "v2:rig-repair:ci": "node scripts/v2/rig-repair-ci.mjs",
-    "v2:rig-build:ci": "node scripts/v2/rig-build-ci.mjs"
+    "v2:rig-build:ci": "node scripts/v2/rig-build-ci.mjs",
+    "v2:e2e:ci": "node scripts/v2/e2e-ci.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

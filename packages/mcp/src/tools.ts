@@ -57,8 +57,8 @@ export function createMcpToolRegistry(client: AuthoringClient): McpSemanticTool[
       projectDir: input.projectDir as string,
       outputDir: input.outputDir as string,
       ...(typeof input.outputName === 'string' && input.outputName.trim().length ? { outputName: input.outputName } : {}),
-      ...(record(input.profiles) ? { profiles: input.profiles as Parameters<AuthoringClient['buildRigProject']>[0]['profiles'] } : {}),
-      ...(record(input.qaProfile) ? { qaProfile: input.qaProfile as Parameters<AuthoringClient['buildRigProject']>[0]['qaProfile'] } : {}),
+      ...(record(input.profiles) ? { profiles: input.profiles as NonNullable<Parameters<AuthoringClient['buildRigProject']>[0]['profiles']> } : {}),
+      ...(record(input.qaProfile) ? { qaProfile: input.qaProfile as NonNullable<Parameters<AuthoringClient['buildRigProject']>[0]['qaProfile']> } : {}),
       ...(typeof input.overwrite === 'boolean' ? { overwrite: input.overwrite } : {}),
       ...(typeof input.repair === 'boolean' ? { repair: input.repair } : {}),
     }), (input) => {

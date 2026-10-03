@@ -182,8 +182,8 @@ export async function runCli(argv: string[], io: CliIo): Promise<number> {
           projectDir: parsed.projectDir,
           outputDir: parsed.outputDir,
           ...(parsed.outputName === undefined ? {} : { outputName: parsed.outputName }),
-          ...(profiles === undefined ? {} : { profiles: profiles as BuildRigProjectRequest['profiles'] }),
-          ...(qaProfile === undefined ? {} : { qaProfile: qaProfile as BuildRigProjectRequest['qaProfile'] }),
+          ...(profiles === undefined ? {} : { profiles: profiles as NonNullable<BuildRigProjectRequest['profiles']> }),
+          ...(qaProfile === undefined ? {} : { qaProfile: qaProfile as NonNullable<BuildRigProjectRequest['qaProfile']> }),
           overwrite: parsed.overwrite,
           repair: parsed.repair,
         });

@@ -18,6 +18,42 @@ import {
 } from './standard-rig-compiler.js';
 import { editPuppet, type PuppetEditOperation } from './visual-authoring.js';
 
+export type RigBuildStage =
+  | 'validate'
+  | 'mesh'
+  | 'compile'
+  | 'author'
+  | 'qa'
+  | 'repair'
+  | 'current-format'
+  | 'provenance';
+
+export class RigBuildStageError extends Error {
+  readonly code = 'RIG_BUILD_STAGE_FAILED' as const;
+  readonly stage: RigBuildStage;
+  readonly details: { stage: RigBuildStage; causeCode?: string };
+
+  constructor(stage: RigBuildStage, cause: unknown) {
+    super('Rig build failed during ' + stage + '.');
+    this.name = 'RigBuildStageError';
+    this.stage = stage;
+    const causeCode =
+      typeof cause === 'object' && cause !== null && 'code' in cause && typeof (cause as { code?: unknown }).code === 'string'
+        ? (cause as { code: string }).code
+        : undefined;
+    this.details = causeCode ? { stage, causeCode } : { stage };
+  }
+}
+
+async function runBuildStage<T>(stage: RigBuildStage, operation: () => T | Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (error instanceof RigBuildStageError) throw error;
+    throw new RigBuildStageError(stage, error);
+  }
+}
+
 export interface BuildRigProjectRequest {
   manifest: unknown;
   projectDir: string;
@@ -192,7 +228,7 @@ function buildOperations(
 }
 
 export async function buildRigProject(request: BuildRigProjectRequest): Promise<BuildRigProjectResult> {
-  const inspection = inspectRigProjectManifest(request.manifest);
+  const inspection = await runBuildStage('validate', () => inspectRigProjectManifest(request.manifest));
   const projectDir = path.resolve(request.projectDir);
   const outputDir = path.resolve(request.outputDir);
   const outputName = deriveName(request.outputName ?? inspection.manifest.name);
@@ -213,13 +249,19 @@ export async function buildRigProject(request: BuildRigProjectRequest): Promise<
   ]);
   await mkdir(artifacts.previewDir, { recursive: true });
 
-  const meshPlan = await fitRigProjectMeshes(request.manifest, { projectRoot: projectDir });
-  const layerPaths = buildLayerPaths(inspection.manifest);
-  let plan = compileStandardCharacterRig({
-    manifest: request.manifest,
-    layerPaths,
-    ...(request.profiles ? { profiles: request.profiles } : {}),
+  const meshPlan = await runBuildStage('mesh', () =>
+    fitRigProjectMeshes(request.manifest, { projectRoot: projectDir }),
+  );
+  const { layerPaths, compiledPlan } = await runBuildStage('compile', () => {
+    const paths = buildLayerPaths(inspection.manifest);
+    const plan = compileStandardCharacterRig({
+      manifest: request.manifest,
+      layerPaths: paths,
+      ...(request.profiles ? { profiles: request.profiles } : {}),
+    });
+    return { layerPaths: paths, compiledPlan: plan };
   });
+  let plan = compiledPlan;
 
   const seedPath = path.join(outputDir, '.' + outputName + '.seed.inp');
   const stablePath = path.join(outputDir, '.' + outputName + '.stable.inp');
@@ -231,23 +273,25 @@ export async function buildRigProject(request: BuildRigProjectRequest): Promise<
   await rm(currentRoundtripPath, { force: true });
 
   try {
-    await createPuppet({ outputPath: seedPath, name: inspection.manifest.name });
-    await editPuppet({
-      inputPath: seedPath,
-      outputPath: stablePath,
-      operations: buildOperations(inspection.manifest, projectDir, meshPlan, plan, layerPaths),
+    await runBuildStage('author', async () => {
+      await createPuppet({ outputPath: seedPath, name: inspection.manifest.name });
+      await editPuppet({
+        inputPath: seedPath,
+        outputPath: stablePath,
+        operations: buildOperations(inspection.manifest, projectDir, meshPlan, plan, layerPaths),
+      });
     });
 
-    let qa = await runRigQa({
+    let qa = await runBuildStage('qa', () => runRigQa({
       inputPath: stablePath,
       plan,
       outputDir: artifacts.previewDir,
       ...(request.qaProfile ? { profile: request.qaProfile } : {}),
-    });
+    }));
     let repair: RigRepairLoopResult | undefined;
 
     if (!qa.pass && request.repair !== false) {
-      repair = await runBoundedRigRepair(plan, qa, async (candidate) => {
+      repair = await runBuildStage('repair', () => runBoundedRigRepair(plan, qa, async (candidate) => {
         await rm(candidatePath, { force: true });
         await editPuppet({
           inputPath: seedPath,
@@ -260,7 +304,7 @@ export async function buildRigProject(request: BuildRigProjectRequest): Promise<
           outputDir: artifacts.previewDir,
           ...(request.qaProfile ? { profile: request.qaProfile } : {}),
         });
-      });
+      }));
       plan = repair.plan;
       qa = repair.qa;
       if (repair.status === 'green') {
@@ -275,32 +319,34 @@ export async function buildRigProject(request: BuildRigProjectRequest): Promise<
 
     let currentFormat: BuildRigProjectResult['currentFormat'];
     if (qa.pass) {
-      currentFormat = await convertToCurrentFormat(
+      currentFormat = await runBuildStage('current-format', () => convertToCurrentFormat(
         stablePath,
         artifacts.puppet,
         currentRoundtripPath,
         request.currentFormatExecutable,
-      );
+      ));
     }
 
-    await writeFile(artifacts.qaReport, JSON.stringify(qa, null, 2) + '\n', 'utf8');
     const buildFingerprint = sha256(stableJson({
       manifestFingerprint: inspection.fingerprint,
       meshFingerprint: meshPlan.fingerprint,
       planFingerprint: plan.fingerprint,
       qaFingerprint: qa.fingerprint,
     }));
-    const provenance = {
-      schemaVersion: 1,
-      manifestFingerprint: inspection.fingerprint,
-      meshFingerprint: meshPlan.fingerprint,
-      planFingerprint: plan.fingerprint,
-      qaFingerprint: qa.fingerprint,
-      buildFingerprint,
-      artifacts,
-      ...(currentFormat ? { currentFormat } : {}),
-    };
-    await writeFile(artifacts.provenance, JSON.stringify(provenance, null, 2) + '\n', 'utf8');
+    await runBuildStage('provenance', async () => {
+      await writeFile(artifacts.qaReport, JSON.stringify(qa, null, 2) + '\n', 'utf8');
+      const provenance = {
+        schemaVersion: 1,
+        manifestFingerprint: inspection.fingerprint,
+        meshFingerprint: meshPlan.fingerprint,
+        planFingerprint: plan.fingerprint,
+        qaFingerprint: qa.fingerprint,
+        buildFingerprint,
+        artifacts,
+        ...(currentFormat ? { currentFormat } : {}),
+      };
+      await writeFile(artifacts.provenance, JSON.stringify(provenance, null, 2) + '\n', 'utf8');
+    });
 
     return {
       schemaVersion: 1,

@@ -34,9 +34,9 @@ try {
 }
 
 const sh = `#!/usr/bin/env sh\nset -eu\nROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\nexport IAT_NATIVE_DIR="$ROOT/native"\nexport IAT_CURRENT_FORMAT_DIR="$ROOT/current-format"\nexec node "$ROOT/packages/cli/dist/main.js" "$@"\n`;
-const mcpSh = `#!/usr/bin/env sh\nset -eu\nROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\nexport IAT_NATIVE_DIR="$ROOT/native"\nexec node "$ROOT/packages/mcp/dist/main.js" "$@"\n`;
+const mcpSh = `#!/usr/bin/env sh\nset -eu\nROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\nexport IAT_NATIVE_DIR="$ROOT/native"\nexport IAT_CURRENT_FORMAT_DIR="$ROOT/current-format"\nexec node "$ROOT/packages/mcp/dist/main.js" "$@"\n`;
 const ps = `\$root = Split-Path -Parent \$MyInvocation.MyCommand.Path\n\$env:IAT_NATIVE_DIR = Join-Path \$root 'native'\n\$env:IAT_CURRENT_FORMAT_DIR = Join-Path \$root 'current-format'\n& node (Join-Path \$root 'packages/cli/dist/main.js') @args\nexit \$LASTEXITCODE\n`;
-const mcpPs = `\$root = Split-Path -Parent \$MyInvocation.MyCommand.Path\n\$env:IAT_NATIVE_DIR = Join-Path \$root 'native'\n& node (Join-Path \$root 'packages/mcp/dist/main.js') @args\nexit \$LASTEXITCODE\n`;
+const mcpPs = `\$root = Split-Path -Parent \$MyInvocation.MyCommand.Path\n\$env:IAT_NATIVE_DIR = Join-Path \$root 'native'\n\$env:IAT_CURRENT_FORMAT_DIR = Join-Path \$root 'current-format'\n& node (Join-Path \$root 'packages/mcp/dist/main.js') @args\nexit \$LASTEXITCODE\n`;
 
 await writeFile(path.join(bundleRoot, 'inochi-agent'), sh, { mode: 0o755 });
 await writeFile(path.join(bundleRoot, 'inochi-agent-mcp'), mcpSh, { mode: 0o755 });

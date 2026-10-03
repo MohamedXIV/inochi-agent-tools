@@ -33,12 +33,12 @@ The gate requires all of the following on the exact PR head:
 - the dedicated defect produced at least one accepted bounded repair iteration;
 - repaired semantic plan/build/QA fingerprints are deterministic;
 - the emitted puppet is real INP2 with `TRNSRTS2` magic;
-- current-format save/reload is byte-stable for the generated fixture;
+- current-format save/reload preserves the generated fixture's verified runtime semantics across repeated INP2 serialization;
 - the final current-format puppet reloads with `body`, `head`, and `hair` nodes;
 - `Breathing -> body/head/hair transform.s.y` and `Hair Swing -> hair.transform.r.z` bindings survive migration;
 - `Hair Physics` remains linked to `Hair Swing`;
 - current-format parameter set/readback/restore and runtime property evaluation work on the generated artifact;
-- recreating the PNG inputs from scratch reproduces the manifest, repaired plan, QA, build, preview-sample, and current-format fingerprints.
+- recreating the PNG inputs from scratch reproduces the manifest, repaired plan, QA, build, preview-sample, and corresponding current-format fingerprints.
 
 SDK/CLI/MCP adapter equivalence is not reimplemented in this final test. It remains continuously enforced by the immediately preceding `v2:rig-build:ci` #48 gate on the same exact head, so #49 consumes the proven single orchestration authority rather than introducing a second test-only workflow.
 

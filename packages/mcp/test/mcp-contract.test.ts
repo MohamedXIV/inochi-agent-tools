@@ -73,6 +73,28 @@ describe('MCP semantic tool contract', () => {
     });
   });
 
+  it('returns structured rig-build stage failures without native details', async () => {
+    const client = fakeClient();
+    client.buildRigProject.mockRejectedValue(Object.assign(new Error('Rig build failed during mesh.'), {
+      code: 'RIG_BUILD_STAGE_FAILED',
+      details: { stage: 'mesh' },
+    }));
+    const registry = createMcpToolRegistry(client);
+    const build = registry.find((tool) => tool.name === 'rig.project.build')!;
+    const manifest = { schemaVersion: 'inochi-agent-tools/rig-project/v1', name: 'MCP Build', layers: [{ id: 'body', source: 'body.png', role: 'body' }] };
+
+    const result = await build.call({ manifest, projectDir: 'project', outputDir: 'output' });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: 'RIG_BUILD_STAGE_FAILED',
+        message: 'Rig build failed during mesh.',
+        details: { stage: 'mesh' },
+      },
+    });
+  });
+
   it('dispatches rig-project build through the semantic SDK contract', async () => {
     const client = fakeClient();
     const registry = createMcpToolRegistry(client);

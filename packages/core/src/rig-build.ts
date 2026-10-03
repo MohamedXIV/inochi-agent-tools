@@ -1,6 +1,10 @@
 import { createHash } from 'node:crypto';
-import { mkdir, rm, stat, writeFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 import { createPuppet } from './authoring.js';
 import { fitRigProjectMeshes, partSetMeshOperation, type RigProjectMeshPlan } from './mesh-generation.js';
@@ -23,6 +27,7 @@ export interface BuildRigProjectRequest {
   qaProfile?: RigQaProfile;
   overwrite?: boolean;
   repair?: boolean;
+  currentFormatExecutable?: string;
 }
 
 export interface BuildRigArtifactPaths {
@@ -41,6 +46,48 @@ export interface BuildRigProjectResult {
   planFingerprint: string;
   qa: RigQaReport;
   repair?: RigRepairLoopResult;
+  currentFormat?: {
+    magic: 'TRNSRTS2';
+    sha256: string;
+    roundtripSha256: string;
+  };
+}
+
+function defaultCurrentFormatExecutable(): string {
+  return path.resolve(
+    '.build',
+    'current-format',
+    process.platform === 'win32' ? 'iat_current_format_probe.exe' : 'iat_current_format_probe',
+  );
+}
+
+async function convertToCurrentFormat(
+  stablePath: string,
+  outputPath: string,
+  roundtripPath: string,
+  executable = defaultCurrentFormatExecutable(),
+): Promise<{ magic: 'TRNSRTS2'; sha256: string; roundtripSha256: string }> {
+  try {
+    await execFileAsync(executable, ['--conversion-only', stablePath, outputPath, roundtripPath], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      maxBuffer: 4 * 1024 * 1024,
+      windowsHide: true,
+    });
+  } catch (error) {
+    throw new Error('Current-format finalization failed; ensure the verified #47 current-format bridge is built and available.');
+  }
+
+  const output = await readFile(outputPath);
+  const roundtrip = await readFile(roundtripPath);
+  if (output.subarray(0, 8).toString('ascii') !== 'TRNSRTS2' || roundtrip.subarray(0, 8).toString('ascii') !== 'TRNSRTS2') {
+    throw new Error('Current-format finalization did not emit exact TRNSRTS2 INP2 artifacts.');
+  }
+  return {
+    magic: 'TRNSRTS2',
+    sha256: createHash('sha256').update(output).digest('hex'),
+    roundtripSha256: createHash('sha256').update(roundtrip).digest('hex'),
+  };
 }
 
 function stableJson(value: unknown): string {
@@ -175,20 +222,24 @@ export async function buildRigProject(request: BuildRigProjectRequest): Promise<
   });
 
   const seedPath = path.join(outputDir, '.' + outputName + '.seed.inp');
+  const stablePath = path.join(outputDir, '.' + outputName + '.stable.inp');
   const candidatePath = path.join(outputDir, '.' + outputName + '.candidate.inp');
+  const currentRoundtripPath = path.join(outputDir, '.' + outputName + '.current-roundtrip.inp');
   await rm(seedPath, { force: true });
+  await rm(stablePath, { force: true });
   await rm(candidatePath, { force: true });
+  await rm(currentRoundtripPath, { force: true });
 
   try {
     await createPuppet({ outputPath: seedPath, name: inspection.manifest.name });
     await editPuppet({
       inputPath: seedPath,
-      outputPath: artifacts.puppet,
+      outputPath: stablePath,
       operations: buildOperations(inspection.manifest, projectDir, meshPlan, plan, layerPaths),
     });
 
     let qa = await runRigQa({
-      inputPath: artifacts.puppet,
+      inputPath: stablePath,
       plan,
       outputDir: artifacts.previewDir,
       ...(request.qaProfile ? { profile: request.qaProfile } : {}),
@@ -213,13 +264,23 @@ export async function buildRigProject(request: BuildRigProjectRequest): Promise<
       plan = repair.plan;
       qa = repair.qa;
       if (repair.status === 'green') {
-        await rm(artifacts.puppet, { force: true });
+        await rm(stablePath, { force: true });
         await editPuppet({
           inputPath: seedPath,
-          outputPath: artifacts.puppet,
+          outputPath: stablePath,
           operations: buildOperations(inspection.manifest, projectDir, meshPlan, plan, layerPaths),
         });
       }
+    }
+
+    let currentFormat: BuildRigProjectResult['currentFormat'];
+    if (qa.pass) {
+      currentFormat = await convertToCurrentFormat(
+        stablePath,
+        artifacts.puppet,
+        currentRoundtripPath,
+        request.currentFormatExecutable,
+      );
     }
 
     await writeFile(artifacts.qaReport, JSON.stringify(qa, null, 2) + '\n', 'utf8');
@@ -237,6 +298,7 @@ export async function buildRigProject(request: BuildRigProjectRequest): Promise<
       qaFingerprint: qa.fingerprint,
       buildFingerprint,
       artifacts,
+      ...(currentFormat ? { currentFormat } : {}),
     };
     await writeFile(artifacts.provenance, JSON.stringify(provenance, null, 2) + '\n', 'utf8');
 
@@ -249,9 +311,12 @@ export async function buildRigProject(request: BuildRigProjectRequest): Promise<
       planFingerprint: plan.fingerprint,
       qa,
       ...(repair ? { repair } : {}),
+      ...(currentFormat ? { currentFormat } : {}),
     };
   } finally {
     await rm(seedPath, { force: true });
+    await rm(stablePath, { force: true });
     await rm(candidatePath, { force: true });
+    await rm(currentRoundtripPath, { force: true });
   }
 }

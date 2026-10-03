@@ -169,6 +169,22 @@ bool assertPropertyBindings(Parameter1D parameter, string property, string[] tar
     return true;
 }
 
+bool assertSinglePropertyBinding(Parameter1D parameter, string property, string targetName) {
+    if (parameter.bindings.length != 1) {
+        stderr.writeln("current-format-probe: v2 binding count mismatch for ", parameter.name,
+            " expected=1 actual=", parameter.bindings.length);
+        return false;
+    }
+    auto propertyBinding = cast(ParameterPropertyBinding)parameter.bindings[0];
+    if (propertyBinding is null || propertyBinding.property != property ||
+        propertyBinding.target is null || propertyBinding.target.name != targetName) {
+        stderr.writeln("current-format-probe: v2 missing ", property, " binding from ",
+            parameter.name, " to ", targetName);
+        return false;
+    }
+    return true;
+}
+
 bool assertRuntimeProperty(Puppet puppet, string parameterName, string targetName, string property) {
     auto parameter = find1D(puppet, parameterName);
     auto target = puppet.find(targetName);
@@ -261,8 +277,8 @@ bool assertV2E2EFixture(string path) {
         stderr.writeln("current-format-probe: v2 e2e required parameters missing");
         return false;
     }
-    if (!assertPropertyBindings(breathing, "transform.s.y", ["body"])) return false;
-    if (!assertPropertyBindings(hairSwing, "transform.r.z", ["hair"])) return false;
+    if (!assertSinglePropertyBinding(breathing, "transform.s.y", "body")) return false;
+    if (!assertSinglePropertyBinding(hairSwing, "transform.r.z", "hair")) return false;
     if (!assertRuntimeBindingRange(puppet, "Breathing", "body", "transform.s.y")) return false;
     if (!assertRuntimeBindingRange(puppet, "Hair Swing", "hair", "transform.r.z")) return false;
 

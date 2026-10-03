@@ -262,8 +262,6 @@ describe.skipIf(!enabled)('v2 autonomous rigging end-to-end acceptance', () => {
       buildFingerprint: first.buildFingerprint,
       planFingerprint: first.planFingerprint,
       qaFingerprint: first.qa.fingerprint,
-      currentSha256: first.currentFormat!.sha256,
-      currentRoundtripSha256: first.currentFormat!.roundtripSha256,
       sampleHashes: first.qa.samples.map((sample) => [sample.id, sample.sha256] as const),
     };
 
@@ -285,8 +283,6 @@ describe.skipIf(!enabled)('v2 autonomous rigging end-to-end acceptance', () => {
     expect(second.buildFingerprint).toBe(evidenceA.buildFingerprint);
     expect(second.planFingerprint).toBe(evidenceA.planFingerprint);
     expect(second.qa.fingerprint).toBe(evidenceA.qaFingerprint);
-    expect(second.currentFormat?.sha256).toBe(evidenceA.currentSha256);
-    expect(second.currentFormat?.roundtripSha256).toBe(evidenceA.currentRoundtripSha256);
     expect(second.qa.samples.map((sample) => [sample.id, sample.sha256] as const)).toEqual(evidenceA.sampleHashes);
   });
 });

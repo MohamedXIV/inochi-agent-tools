@@ -1,6 +1,9 @@
 export { createAuthoringClient, type AuthoringClient, type InspectPuppetRequest, type NormalizeRigProjectRequest } from './client.js';
 
 export type {
+  BuildRigArtifactPaths,
+  BuildRigProjectRequest,
+  BuildRigProjectResult,
   CreatePuppetRequest,
   CreatePuppetResult,
   EditPuppetRequest,

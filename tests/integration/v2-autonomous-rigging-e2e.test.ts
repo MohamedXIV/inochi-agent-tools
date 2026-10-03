@@ -131,7 +131,7 @@ const profiles = {
 const qaProfile = {
   width: 256,
   height: 256,
-  minCoverageRatio: 0.2,
+  minCoverageRatio: 0.48,
   maxCoverageRatio: 4,
   maxBoundsAreaRatio: 4,
   maxBoundsSpanRatio: 4,

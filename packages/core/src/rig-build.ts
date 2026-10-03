@@ -2,9 +2,11 @@ import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
+const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
 import { createPuppet } from './authoring.js';
 import { fitRigProjectMeshes, partSetMeshOperation, type RigProjectMeshPlan } from './mesh-generation.js';
@@ -90,11 +92,11 @@ export interface BuildRigProjectResult {
 }
 
 function defaultCurrentFormatExecutable(): string {
-  return path.resolve(
-    '.build',
-    'current-format',
-    process.platform === 'win32' ? 'iat_current_format_probe.exe' : 'iat_current_format_probe',
-  );
+  const executable = process.platform === 'win32' ? 'iat_current_format_probe.exe' : 'iat_current_format_probe';
+  const directory = process.env.IAT_CURRENT_FORMAT_DIR
+    ? path.resolve(process.env.IAT_CURRENT_FORMAT_DIR)
+    : path.resolve(moduleDir, '..', '..', '..', '.build', 'current-format');
+  return path.join(directory, executable);
 }
 
 async function convertToCurrentFormat(

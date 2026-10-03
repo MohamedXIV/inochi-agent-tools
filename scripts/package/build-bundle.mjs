@@ -1,4 +1,4 @@
-import { cp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { access, cp, mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -25,16 +25,23 @@ await cp(path.join(repoRoot, 'node_modules'), path.join(bundleRoot, 'node_module
   verbatimSymlinks: true,
 });
 await cp(path.join(repoRoot, '.build', 'native'), path.join(bundleRoot, 'native'), { recursive: true });
+const currentFormatSource = path.join(repoRoot, '.build', 'current-format');
+try {
+  await access(currentFormatSource);
+  await cp(currentFormatSource, path.join(bundleRoot, 'current-format'), { recursive: true });
+} catch {
+  // v1.1 packaging may run before the isolated current-format lane is built.
+}
 
-const sh = `#!/usr/bin/env sh\nset -eu\nROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\nexport IAT_NATIVE_DIR="$ROOT/native"\nexec node "$ROOT/packages/cli/dist/main.js" "$@"\n`;
+const sh = `#!/usr/bin/env sh\nset -eu\nROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\nexport IAT_NATIVE_DIR="$ROOT/native"\nexport IAT_CURRENT_FORMAT_DIR="$ROOT/current-format"\nexec node "$ROOT/packages/cli/dist/main.js" "$@"\n`;
 const mcpSh = `#!/usr/bin/env sh\nset -eu\nROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\nexport IAT_NATIVE_DIR="$ROOT/native"\nexec node "$ROOT/packages/mcp/dist/main.js" "$@"\n`;
-const ps = `\$root = Split-Path -Parent \$MyInvocation.MyCommand.Path\n\$env:IAT_NATIVE_DIR = Join-Path \$root 'native'\n& node (Join-Path \$root 'packages/cli/dist/main.js') @args\nexit \$LASTEXITCODE\n`;
+const ps = `\$root = Split-Path -Parent \$MyInvocation.MyCommand.Path\n\$env:IAT_NATIVE_DIR = Join-Path \$root 'native'\n\$env:IAT_CURRENT_FORMAT_DIR = Join-Path \$root 'current-format'\n& node (Join-Path \$root 'packages/cli/dist/main.js') @args\nexit \$LASTEXITCODE\n`;
 const mcpPs = `\$root = Split-Path -Parent \$MyInvocation.MyCommand.Path\n\$env:IAT_NATIVE_DIR = Join-Path \$root 'native'\n& node (Join-Path \$root 'packages/mcp/dist/main.js') @args\nexit \$LASTEXITCODE\n`;
 
 await writeFile(path.join(bundleRoot, 'inochi-agent'), sh, { mode: 0o755 });
 await writeFile(path.join(bundleRoot, 'inochi-agent-mcp'), mcpSh, { mode: 0o755 });
 await writeFile(path.join(bundleRoot, 'inochi-agent.ps1'), ps);
 await writeFile(path.join(bundleRoot, 'inochi-agent-mcp.ps1'), mcpPs);
-await writeFile(path.join(bundleRoot, 'bundle.json'), `${JSON.stringify({ format: 1, nativeDir: 'native' }, null, 2)}\n`);
+await writeFile(path.join(bundleRoot, 'bundle.json'), `${JSON.stringify({ format: 1, nativeDir: 'native', currentFormatDir: 'current-format' }, null, 2)}\n`);
 
 console.log(bundleRoot);

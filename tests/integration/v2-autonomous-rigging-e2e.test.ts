@@ -75,8 +75,8 @@ function manifest() {
     name: 'v2 Autonomous Rigging E2E',
     layers: [
       { id: 'body', source: 'body.png', role: 'body' },
-      { id: 'head', source: 'head.png', role: 'head', parentId: 'body' },
-      { id: 'hair', source: 'hair.png', role: 'hair', parentId: 'head' },
+      { id: 'head', source: 'head.png', role: 'head' },
+      { id: 'hair', source: 'hair.png', role: 'hair' },
     ],
     motions: [
       {
@@ -86,7 +86,7 @@ function manifest() {
         min: -0.5,
         max: 0.5,
         default: 0,
-        targets: ['body'],
+        targets: ['body', 'head', 'hair'],
       },
       {
         id: 'hairSwing',
@@ -105,7 +105,7 @@ const profiles = {
   breath: {
     parameterName: 'Breathing',
     property: 'transform.s.y' as const,
-    gain: 1.2,
+    gain: 1.6,
   },
   hairSwing: {
     parameterName: 'Hair Swing',
@@ -131,7 +131,7 @@ const profiles = {
 const qaProfile = {
   width: 256,
   height: 256,
-  minCoverageRatio: 0.48,
+  minCoverageRatio: 0.6,
   maxCoverageRatio: 4,
   maxBoundsAreaRatio: 4,
   maxBoundsSpanRatio: 4,

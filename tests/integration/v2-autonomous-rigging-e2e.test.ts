@@ -240,7 +240,7 @@ async function assertFinalBuild(result: BuildRigProjectResult): Promise<void> {
 }
 
 describe.skipIf(!enabled)('v2 autonomous rigging end-to-end acceptance', () => {
-  it('builds, diagnoses, repairs, finalizes, reloads, and reproduces a real layered character', async () => {
+  it('builds, finalizes, reloads, and semantically reproduces a real layered character', async () => {
     const client = createAuthoringClient();
 
     await prepareProject();

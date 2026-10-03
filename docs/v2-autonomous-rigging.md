@@ -40,7 +40,7 @@ Bounded repair and SDK/CLI/MCP adapter equivalence are not reimplemented in this
 
 ## Capability boundary
 
-v2 now proves autonomous rigging from already-layered artwork. It does **not** segment or draw source artwork, provide a Character Studio UI, or encode product-specific Away morphology/wardrobe rules.
+v2 now proves autonomous rigging from already-layered artwork. Determinism is defined at the semantic/build/evidence level required by #49; current-format files may carry library-generated opaque GUID identities while preserving the same verified semantics. It does **not** segment or draw source artwork, provide a Character Studio UI, or encode product-specific Away morphology/wardrobe rules.
 
 The standard v2 recipe currently compiles transform/deformation/property bindings plus supported secondary physics. It does not automatically synthesize arbitrary MeshDeformer cages from semantic intent. Current-format MeshDeformer preservation remains independently covered by the #47 production-hardening acceptance lane in the same full repository gate.
 

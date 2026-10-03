@@ -169,6 +169,22 @@ bool assertPropertyBindings(Parameter1D parameter, string property, string[] tar
     return true;
 }
 
+bool assertSinglePropertyBinding(Parameter1D parameter, string property, string targetName) {
+    if (parameter.bindings.length != 1) {
+        stderr.writeln("current-format-probe: v2 binding count mismatch for ", parameter.name,
+            " expected=1 actual=", parameter.bindings.length);
+        return false;
+    }
+    auto propertyBinding = cast(ParameterPropertyBinding)parameter.bindings[0];
+    if (propertyBinding is null || propertyBinding.property != property ||
+        propertyBinding.target is null || propertyBinding.target.name != targetName) {
+        stderr.writeln("current-format-probe: v2 missing ", property, " binding from ",
+            parameter.name, " to ", targetName);
+        return false;
+    }
+    return true;
+}
+
 bool assertRuntimeProperty(Puppet puppet, string parameterName, string targetName, string property) {
     auto parameter = find1D(puppet, parameterName);
     auto target = puppet.find(targetName);
@@ -190,6 +206,89 @@ bool assertRuntimeProperty(Puppet puppet, string parameterName, string targetNam
     if (low == high) {
         stderr.writeln("current-format-probe: property binding did not evaluate for ",
             parameterName, " -> ", targetName, ".", property, " value=", low);
+        return false;
+    }
+    return true;
+}
+
+bool assertRuntimeBindingRange(Puppet puppet, string parameterName, string targetName, string property) {
+    auto parameter = find1D(puppet, parameterName);
+    auto target = puppet.find(targetName);
+    auto key = nu_quarkof(property);
+    if (parameter is null || target is null || key == 0 || !target.hasProperty(key)) {
+        stderr.writeln("current-format-probe: v2 runtime target missing for ",
+            parameterName, " -> ", targetName, ".", property);
+        return false;
+    }
+
+    float original = parameter.value;
+    parameter.pushValue(parameter.min);
+    parameter.update();
+    float low = target.getProperty(key);
+    if (parameter.currentValue.length != 1 || parameter.currentValue[0] != parameter.min) {
+        stderr.writeln("current-format-probe: v2 set/readback failed at min for ", parameterName);
+        return false;
+    }
+
+    parameter.pushValue(parameter.max);
+    parameter.update();
+    float high = target.getProperty(key);
+    if (parameter.currentValue.length != 1 || parameter.currentValue[0] != parameter.max) {
+        stderr.writeln("current-format-probe: v2 set/readback failed at max for ", parameterName);
+        return false;
+    }
+
+    parameter.pushValue(original);
+    parameter.update();
+    if (parameter.currentValue.length != 1 || parameter.currentValue[0] != original) {
+        stderr.writeln("current-format-probe: v2 restore failed for ", parameterName);
+        return false;
+    }
+    if (low == high) {
+        stderr.writeln("current-format-probe: v2 binding did not evaluate for ",
+            parameterName, " -> ", targetName, ".", property);
+        return false;
+    }
+    return true;
+}
+
+bool assertV2E2EFixture(string path) {
+    auto result = Puppet.fromFile(path);
+    if (!result) {
+        stderr.writeln("current-format-probe: v2 e2e reload failed for ", path, ": ", result.error);
+        return false;
+    }
+    auto puppet = result.get();
+
+    foreach (name; ["body", "head", "hair"]) {
+        if (puppet.find(name) is null) {
+            stderr.writeln("current-format-probe: v2 e2e missing node ", name);
+            return false;
+        }
+    }
+    if (puppet.textureCache.size < 3) {
+        stderr.writeln("current-format-probe: v2 e2e expected at least 3 textures, got ", puppet.textureCache.size);
+        return false;
+    }
+
+    auto breathing = find1D(puppet, "Breathing");
+    auto hairSwing = find1D(puppet, "Hair Swing");
+    if (breathing is null || hairSwing is null) {
+        stderr.writeln("current-format-probe: v2 e2e required parameters missing");
+        return false;
+    }
+    if (!assertSinglePropertyBinding(breathing, "transform.s.y", "body")) return false;
+    if (!assertSinglePropertyBinding(hairSwing, "transform.r.z", "hair")) return false;
+    if (!assertRuntimeBindingRange(puppet, "Breathing", "body", "transform.s.y")) return false;
+    if (!assertRuntimeBindingRange(puppet, "Hair Swing", "hair", "transform.r.z")) return false;
+
+    auto physics = cast(SimplePhysics)puppet.find("Hair Physics");
+    if (physics is null || physics.param is null || physics.param.name != "Hair Swing") {
+        stderr.writeln("current-format-probe: v2 e2e Hair Physics linkage missing");
+        return false;
+    }
+    if (physics.modelType != PhysicsModel.Pendulum || physics.mapMode != ParamMapMode.AngleLength || !physics.localOnly) {
+        stderr.writeln("current-format-probe: v2 e2e Hair Physics settings mismatch");
         return false;
     }
     return true;
@@ -334,13 +433,19 @@ bool assertFixture(string path) {
 }
 
 int main(string[] args) {
+    if (args.length == 3 && args[1] == "--v2-e2e-verify") {
+        if (!assertV2E2EFixture(args[2])) return 8;
+        writeln("{\"ok\":true,\"format\":\"INP2\",\"mode\":\"v2-e2e-verify\",\"nodes\":[\"body\",\"head\",\"hair\"],\"parameters\":[\"Breathing\",\"Hair Swing\"],\"bindings\":[\"transform.s.y\",\"transform.r.z\"],\"physics\":\"Hair Physics\",\"setReadbackRestore\":true}");
+        return 0;
+    }
+
     bool strictProduction = true;
     size_t inputIndex = 1;
     if (args.length == 5 && args[1] == "--conversion-only") {
         strictProduction = false;
         inputIndex = 2;
     } else if (args.length != 4) {
-        stderr.writeln("usage: iat_current_format_probe [--conversion-only] input.inp output.inp roundtrip.inp");
+        stderr.writeln("usage: iat_current_format_probe [--conversion-only] input.inp output.inp roundtrip.inp | --v2-e2e-verify input.inp");
         return 2;
     }
 

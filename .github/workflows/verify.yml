@@ -88,5 +88,7 @@ jobs:
         run: npm run v1.7:current-format:ci
       - name: v2 one-command rig build acceptance
         run: npm run v2:rig-build:ci
+      - name: v2 autonomous rigging end-to-end acceptance
+        run: npm run v2:e2e:ci
       - name: Away character current-format acceptance
         run: npm run away-character:current:ci
